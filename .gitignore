@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.conda/
+.npm-cache/
+src-tauri/target/
+python-sidecar/**/__pycache__/
+python-sidecar/**/*.pyc
+

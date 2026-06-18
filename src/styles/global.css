@@ -1,0 +1,865 @@
+:root {
+  color: #172033;
+  background: #eef3f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-layout {
+  height: 100vh;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-sider {
+  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.12);
+  height: 100vh;
+  overflow: auto;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.brand-block {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 86px;
+  padding: 16px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background: #14b8a6;
+  color: #092233;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.brand-title,
+.brand-subtitle {
+  display: block;
+  color: #ffffff;
+}
+
+.brand-title {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.brand-subtitle {
+  color: #a8bacd;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 72px;
+  line-height: 1.35;
+  border-bottom: 1px solid #dbe3ed;
+  padding: 0 24px;
+  overflow: hidden;
+}
+
+.app-header h4 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.app-header .ant-typography {
+  margin-bottom: 0;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  padding: 16px 20px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.status-footer {
+  flex-shrink: 0;
+  padding: 8px 24px;
+  border-top: 1px solid #dbe3ed;
+  background: #ffffff;
+  color: #526275;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.page-header h2 {
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.page-header .ant-typography {
+  margin-bottom: 0;
+}
+
+.page-header-extra {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.page-grid {
+  display: grid;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-page {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.table-page,
+.analysis-page,
+.entry-page {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.experiment-page {
+  grid-template-rows: auto minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
+.experiment-entry-only-page {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  min-height: 0;
+}
+
+.two-column-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 12px;
+  align-items: start;
+  min-height: 0;
+}
+
+.stat-card {
+  border-radius: 8px;
+}
+
+.stat-card .ant-card-body {
+  padding: 12px 16px;
+}
+
+.stat-card .ant-statistic-title {
+  margin-bottom: 2px;
+}
+
+.stat-card .ant-statistic-content {
+  font-size: 22px;
+}
+
+.table-card .ant-card-body {
+  padding: 0;
+}
+
+.table-page > .ant-card,
+.analysis-page > .ant-card,
+.entry-page > .ant-card,
+.experiment-page > .ant-card,
+.dashboard-page > .two-column-grid {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.table-page > .ant-card,
+.analysis-page > .ant-card,
+.entry-page > .ant-card,
+.experiment-page > .ant-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.table-page > .ant-card > .ant-card-body,
+.analysis-page > .ant-card > .ant-card-body,
+.entry-page > .ant-card > .ant-card-body,
+.experiment-page > .ant-card > .ant-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.table-page > .ant-card > .ant-card-body,
+.analysis-page > .ant-card > .ant-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.table-page .ant-tabs,
+.table-page .ant-tabs-content,
+.table-page .ant-tabs-tabpane,
+.analysis-page .ant-tabs,
+.analysis-page .ant-tabs-content,
+.analysis-page .ant-tabs-tabpane {
+  height: 100%;
+  min-height: 0;
+}
+
+.table-page .ant-tabs-content-holder,
+.analysis-page .ant-tabs-content-holder {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.table-page .ant-table-wrapper,
+.analysis-page .ant-table-wrapper,
+.experiment-page .ant-table-wrapper,
+.formulation-entry-page .ant-table-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.table-page .ant-table,
+.analysis-page .ant-table,
+.experiment-page .ant-table,
+.formulation-entry-page .ant-table {
+  font-size: 12px;
+}
+
+.table-page .ant-table-content,
+.analysis-page .ant-table-content,
+.experiment-page .ant-table-content,
+.formulation-entry-page .ant-table-content {
+  overflow: hidden !important;
+}
+
+.table-page .ant-table-cell,
+.analysis-page .ant-table-cell,
+.experiment-page .ant-table-cell,
+.formulation-entry-page .ant-table-cell {
+  max-width: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.table-page .ant-table-thead > tr > th,
+.table-page .ant-table-tbody > tr > td,
+.analysis-page .ant-table-thead > tr > th,
+.analysis-page .ant-table-tbody > tr > td,
+.experiment-page .ant-table-thead > tr > th,
+.experiment-page .ant-table-tbody > tr > td {
+  padding: 7px 8px;
+}
+
+.table-page .ant-pagination,
+.analysis-page .ant-pagination,
+.experiment-page .ant-pagination {
+  margin: 8px 0 0;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-height: 32px;
+}
+
+.table-toolbar .left,
+.table-toolbar .right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.descriptor-toolbar .ant-btn {
+  padding-inline: 10px;
+}
+
+.structure-preview {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  overflow: auto;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.structure-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.structure-preview.placeholder {
+  color: #738295;
+}
+
+.molecule-detail-tabs .ant-tabs-content-holder {
+  min-height: 360px;
+}
+
+.drawer-key-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.drawer-key {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.drawer-key.full {
+  grid-column: 1 / -1;
+}
+
+.drawer-key label {
+  display: block;
+  color: #66758a;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.drawer-key strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.detail-list-window {
+  display: grid;
+  gap: 12px;
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.detail-data-card .ant-card-body {
+  padding: 10px;
+}
+
+.detail-data-card .ant-descriptions-item-label,
+.detail-data-card .ant-descriptions-item-content {
+  padding: 6px 8px;
+}
+
+.modal-action-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.viewer-shell {
+  border: 1px solid #dbe3ed;
+  background: #f8fafc;
+  border-radius: 8px;
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+}
+
+.viewer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.molecule-3d-shell {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.molecule-3d-clean-shell {
+  border-color: transparent;
+  background: #05070d;
+}
+
+.molecule-3d-canvas {
+  width: 100%;
+  height: 360px;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.molecule-3d-canvas:active {
+  cursor: grabbing;
+}
+
+.molecule-3d-empty {
+  min-height: 240px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+}
+
+.molecule-3d-scene {
+  position: relative;
+  width: min(460px, 92%);
+  height: 260px;
+  transform-style: preserve-3d;
+  transform: rotateX(58deg) rotateZ(-24deg);
+}
+
+.molecule-3d-scene .atom,
+.molecule-3d-scene .bond {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  left: 50%;
+  top: 50%;
+}
+
+.molecule-3d-scene .atom {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 18px 28px rgba(15, 23, 42, 0.22), inset -10px -12px 18px rgba(0, 0, 0, 0.16);
+  transform: translate(-50%, -50%) rotateZ(24deg) rotateX(-58deg);
+}
+
+.molecule-3d-scene .bond {
+  width: 112px;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #94a3b8, #cbd5e1);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.16);
+  transform-origin: left center;
+}
+
+.molecule-3d-scene .atom-c {
+  background: #2563eb;
+  transform: translate(-210px, 28px) rotateZ(24deg) rotateX(-58deg);
+}
+
+.molecule-3d-scene .atom-o {
+  background: #14b8a6;
+  transform: translate(-80px, -32px) rotateZ(24deg) rotateX(-58deg);
+}
+
+.molecule-3d-scene .atom-s {
+  background: #f59e0b;
+  color: #172033;
+  transform: translate(60px, 18px) rotateZ(24deg) rotateX(-58deg);
+}
+
+.molecule-3d-scene .atom-r {
+  background: #64748b;
+  transform: translate(190px, -46px) rotateZ(24deg) rotateX(-58deg);
+}
+
+.molecule-3d-scene .bond-1 {
+  transform: translate(-182px, 28px) rotate(-24deg);
+}
+
+.molecule-3d-scene .bond-2 {
+  transform: translate(-48px, -4px) rotate(20deg);
+}
+
+.molecule-3d-scene .bond-3 {
+  transform: translate(92px, 14px) rotate(-27deg);
+}
+
+.molecule-3d-sphere .atom {
+  width: 72px;
+  height: 72px;
+}
+
+.molecule-3d-line .atom {
+  background: #475569;
+  width: 34px;
+  height: 34px;
+  font-size: 11px;
+}
+
+.molecule-3d-line .bond {
+  height: 6px;
+}
+
+.molecule-3d-caption {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 6px;
+  background: rgba(248, 250, 252, 0.88);
+  backdrop-filter: blur(4px);
+}
+
+.molecule-3d-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.entry-progress {
+  margin: 16px 0;
+}
+
+.form-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.entry-page .ant-form-item,
+.experiment-page .ant-form-item,
+.analysis-page .ant-form-item,
+.formulation-entry-page .ant-form-item {
+  margin-bottom: 8px;
+}
+
+.entry-page .ant-card-body,
+.experiment-page .ant-card-body,
+.analysis-page .ant-card-body {
+  padding: 12px;
+}
+
+.experiment-page .two-column-grid,
+.entry-page .two-column-grid,
+.formulation-entry-page .two-column-grid {
+  height: 100%;
+  align-items: stretch;
+}
+
+.experiment-page .form-section,
+.entry-page .form-section,
+.formulation-entry-page .form-section {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.experiment-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 12px;
+  align-items: end;
+}
+
+.experiment-form-grid .ant-form-item-label {
+  padding-bottom: 2px;
+}
+
+.experiment-form-grid .ant-upload-list {
+  display: none;
+}
+
+.dashboard-page .two-column-grid {
+  align-items: stretch;
+}
+
+.dashboard-page .two-column-grid > .ant-card {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-page .two-column-grid > .ant-card .ant-card-body {
+  height: calc(100% - 56px);
+  overflow: hidden;
+}
+
+.dashboard-page .ant-list-item {
+  padding: 8px 0;
+}
+
+.sketcher-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.42fr);
+  gap: 12px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.molecule-sketcher-page {
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.molecule-sketcher-page .page-header {
+  margin-bottom: 0;
+}
+
+.molecule-sketcher-page .page-header h2 {
+  font-size: 19px;
+}
+
+.molecule-sketcher-page .page-header .ant-typography {
+  font-size: 12px;
+}
+
+.molecule-sketcher-page .error-panel {
+  margin-bottom: 0;
+}
+
+.molecule-sketcher-page .sketcher-layout {
+  height: 100%;
+}
+
+.ketcher-card {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ketcher-card,
+.sketcher-info-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ketcher-card .ant-card-head,
+.sketcher-info-panel .ant-card-head {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.ketcher-card .ant-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.ketcher-shell {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 0 0 8px 8px;
+}
+
+.ketcher-shell > div:not(.ketcher-loading) {
+  height: 100%;
+}
+
+.ketcher-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.ketcher-alert {
+  margin: 12px;
+}
+
+.sketcher-info-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sketcher-info-panel .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.molecule-sketcher-page .ant-form-item {
+  margin-bottom: 6px;
+}
+
+.sketcher-compact-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 8px;
+  flex-shrink: 0;
+}
+
+.sketcher-form-full {
+  grid-column: 1 / -1;
+}
+
+.sketcher-compact-form .ant-form-item-label {
+  padding-bottom: 2px;
+}
+
+.sketcher-compact-form textarea {
+  min-height: 44px !important;
+}
+
+.sketcher-summary {
+  flex-shrink: 0;
+  table-layout: fixed;
+}
+
+.molecule-sketcher-page .ant-descriptions .ant-descriptions-item-label,
+.molecule-sketcher-page .ant-descriptions .ant-descriptions-item-content {
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.molecule-sketcher-page .ant-card-body {
+  padding: 10px;
+}
+
+.molecule-sketcher-page .ketcher-card .ant-card-body {
+  padding: 0;
+}
+
+.sketcher-actions,
+.sketcher-save-actions,
+.descriptor-preview {
+  margin-top: 8px;
+}
+
+.descriptor-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 22px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sketcher-actions,
+.sketcher-save-actions {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px !important;
+  flex-shrink: 0;
+}
+
+.sketcher-actions .ant-btn,
+.sketcher-save-actions .ant-btn {
+  width: 100%;
+  padding-inline: 6px;
+  font-size: 12px;
+}
+
+.sketcher-save-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.sketcher-source-line {
+  margin: 6px 0 0 !important;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.error-panel {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+@media (max-width: 1200px) {
+  .stats-grid,
+  .two-column-grid,
+  .sketcher-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 840px) {
+  .app-content {
+    padding: 12px;
+  }
+
+  .app-header {
+    height: auto;
+    min-height: 64px;
+    padding: 12px 16px;
+  }
+
+  .status-footer {
+    padding: 8px 16px;
+  }
+
+  .stats-grid,
+  .two-column-grid,
+  .sketcher-layout,
+  .experiment-form-grid,
+  .drawer-key-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+
+  .molecule-sketcher-page .sketcher-layout,
+  .ketcher-card,
+  .sketcher-info-panel {
+    height: auto;
+  }
+}

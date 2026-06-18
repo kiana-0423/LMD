@@ -1,0 +1,19 @@
+[project]
+name = "lmd-sidecar"
+version = "0.1.0"
+description = "Python scientific sidecar for Lubricant Materials Database"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "pandas",
+  "scikit-learn"
+]
+
+[project.optional-dependencies]
+chem = [
+  "rdkit",
+  "mordred"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]

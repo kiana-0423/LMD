@@ -1,0 +1,7 @@
+{
+  "target": "low friction coefficient",
+  "constraints": {
+    "molecular_weight": [100, 600],
+    "contains_elements": ["P", "S"]
+  }
+}

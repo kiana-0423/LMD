@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "润滑材料数据库",
+  "version": "0.1.0",
+  "identifier": "com.lmd.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "润滑材料数据库",
+        "width": 1440,
+        "height": 920,
+        "minWidth": 900,
+        "minHeight": 620,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png"]
+  }
+}

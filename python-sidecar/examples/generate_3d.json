@@ -1,0 +1,6 @@
+{
+  "smiles": "CCO",
+  "add_hydrogens": true,
+  "optimize": true,
+  "force_field": "MMFF"
+}

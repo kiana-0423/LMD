@@ -1,0 +1,6 @@
+{
+  "smiles": "CCO",
+  "require_rdkit": true,
+  "require_mordred": true,
+  "allow_mock": true
+}
