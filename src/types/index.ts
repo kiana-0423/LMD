@@ -215,9 +215,20 @@ export interface DashboardSummary {
   baseOilCount: number;
   additiveCount: number;
   formulationCount: number;
+  formulationComponentCount?: number;
   experimentCount: number;
+  performanceResultCount?: number;
+  attachmentCount?: number;
+  dataSourceCount?: number;
+  jobCount?: number;
+  runningJobCount?: number;
+  failedJobCount?: number;
+  descriptorRecordCount?: number;
   descriptorReadyCount: number;
   descriptorFailedCount: number;
+  descriptorPendingCount?: number;
+  descriptorMockCount?: number;
+  descriptorRealCount?: number;
 }
 
 export interface DescriptorExportOptions {

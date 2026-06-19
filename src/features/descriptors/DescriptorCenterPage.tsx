@@ -10,6 +10,7 @@ import {
   recalculateAllDescriptors
 } from "../../lib/api";
 import { descriptorStatusLabels } from "../../lib/constants";
+import { downloadTextFile } from "../../lib/downloads";
 import type { DescriptorStatus, MLDescriptorMatrixOptions, Molecule, MoleculeDescriptor } from "../../types";
 
 type Row = {
@@ -74,13 +75,7 @@ export default function DescriptorCenterPage() {
       descriptorPrefix: true
     };
     const content = kind === "all" ? await exportAllDescriptorsCsv() : await exportMlDescriptorMatrixCsv(options);
-    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = kind === "all" ? "all-descriptors.csv" : "ml-descriptor-matrix.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadTextFile(kind === "all" ? "all-descriptors.csv" : "ml-descriptor-matrix.csv", content, "text/csv;charset=utf-8");
     message.success("已从隐藏的 descriptors_json 生成 CSV 导出。");
   }
 

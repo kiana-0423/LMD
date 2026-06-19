@@ -15,6 +15,6 @@ fn ok(command: &str, data: Value) -> Result<Value, String> {
         "ok": true,
         "command": command,
         "data": data,
-        "warnings": ["MVP command skeleton: replace mock data with SQLite/sidecar logic in the next phase."]
+        "warnings": []
     }))
 }

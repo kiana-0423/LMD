@@ -29,17 +29,9 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Recommended chemistry dependencies:
+RDKit is often easier to install through conda-forge before installing this package:
 
-```bash
-pip install rdkit mordred pandas numpy scikit-learn
-```
-
-RDKit is often easier to install through conda-forge:
-
-```bash
-conda install -c conda-forge rdkit mordred pandas numpy scikit-learn
-```
+If the pip RDKit wheel is not available for your platform, install RDKit first with conda, then run `pip install -e .` in the activated environment. A typical conda path is `conda install -c conda-forge rdkit`, followed by the editable install command above.
 
 ## Test Commands
 

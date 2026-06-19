@@ -68,6 +68,17 @@ pub struct CheckMoleculeDuplicatePayload {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdateMoleculePayload {
+    pub name: Option<String>,
+    pub aliases: Option<String>,
+    pub category: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub notes: Option<String>,
+    pub data_source: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImportNewMoleculePayload {
     pub name: String,
     pub category: Option<String>,
@@ -85,11 +96,76 @@ pub struct ImportNewMoleculePayload {
 }
 
 #[tauri::command]
-pub fn create_molecule(payload: Value) -> Result<Value, String> {
-    ok(
-        "create_molecule",
-        json!({ "id": Uuid::new_v4(), "payload": payload, "todo": "Use save_molecule_with_required_descriptors for descriptor-required saves." }),
+pub fn create_molecule(
+    app: AppHandle,
+    payload: SaveMoleculePayload,
+) -> Result<MoleculeDto, String> {
+    if payload.smiles.trim().is_empty() {
+        return Err("SMILES is required.".to_string());
+    }
+
+    let standardized =
+        run_sidecar_command("standardize", json!({ "smiles": payload.smiles.trim() }))?;
+    let std_data = data(&standardized)?;
+    let molecule_id = Uuid::new_v4().to_string();
+    let now = Utc::now().to_rfc3339();
+    let tags = payload.additive_function_tags.unwrap_or_default();
+    let tags_json = serde_json::to_string(&tags)
+        .map_err(|err| format!("Failed to serialize molecule tags: {err}"))?;
+    let name = if payload.name.trim().is_empty() {
+        std_data
+            .get("smiles_canonical")
+            .and_then(Value::as_str)
+            .unwrap_or(payload.smiles.trim())
+            .to_string()
+    } else {
+        payload.name.trim().to_string()
+    };
+    let data_source = payload.data_source.unwrap_or_default();
+
+    let conn = open_connection(&app)?;
+    conn.execute(
+        "INSERT INTO molecules (
+            id, name, aliases, smiles_raw, smiles_canonical, inchi, inchi_key, formula, molecular_weight,
+            category, tags, molfile, descriptor_json, duplicate_of, import_mode, source,
+            structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
+            rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, source_id, notes,
+            created_at, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, '', '{}', '', 'manual_save', ?12,
+                   '', '', '', '', 'pending', 'pending', 0, ?12, ?13, ?14, ?14)",
+        params![
+            &molecule_id,
+            &name,
+            payload.aliases.unwrap_or_default(),
+            payload.smiles.trim(),
+            std_data
+                .get("smiles_canonical")
+                .and_then(Value::as_str)
+                .unwrap_or(payload.smiles.trim()),
+            std_data.get("inchi").and_then(Value::as_str).unwrap_or_default(),
+            std_data
+                .get("inchi_key")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            std_data
+                .get("formula")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            std_data
+                .get("molecular_weight")
+                .and_then(Value::as_f64)
+                .unwrap_or_default(),
+            payload.category.unwrap_or_else(|| "candidate".to_string()),
+            tags_json,
+            data_source,
+            payload.notes.unwrap_or_default(),
+            &now
+        ],
     )
+    .map_err(|err| format!("Failed to create molecule: {err}"))?;
+
+    get_molecule(app, molecule_id)?
+        .ok_or_else(|| "Created molecule could not be loaded.".to_string())
 }
 
 #[tauri::command]
@@ -140,11 +216,47 @@ pub fn get_molecule(app: AppHandle, id: String) -> Result<Option<MoleculeDto>, S
 }
 
 #[tauri::command]
-pub fn update_molecule(id: String, payload: Value) -> Result<Value, String> {
-    ok(
-        "update_molecule",
-        json!({ "id": id, "payload": payload, "todo": "Implement editable molecule metadata in phase 2." }),
-    )
+pub fn update_molecule(
+    app: AppHandle,
+    id: String,
+    payload: UpdateMoleculePayload,
+) -> Result<MoleculeDto, String> {
+    let existing = get_molecule(app.clone(), id.clone())?
+        .ok_or_else(|| format!("Molecule not found: {id}"))?;
+    let now = Utc::now().to_rfc3339();
+    let tags = payload.tags.unwrap_or(existing.tags);
+    let tags_json = serde_json::to_string(&tags)
+        .map_err(|err| format!("Failed to serialize molecule tags: {err}"))?;
+    let data_source = payload.data_source.unwrap_or(existing.data_source);
+    let conn = open_connection(&app)?;
+    let updated = conn
+        .execute(
+            "UPDATE molecules
+             SET name = ?1,
+                 aliases = ?2,
+                 category = ?3,
+                 tags = ?4,
+                 source = ?5,
+                 source_id = ?5,
+                 notes = ?6,
+                 updated_at = ?7
+             WHERE id = ?8",
+            params![
+                payload.name.unwrap_or(existing.name),
+                payload.aliases.unwrap_or(existing.aliases),
+                payload.category.unwrap_or(existing.category),
+                tags_json,
+                data_source,
+                payload.notes.unwrap_or(existing.notes),
+                &now,
+                &id
+            ],
+        )
+        .map_err(|err| format!("Failed to update molecule: {err}"))?;
+    if updated == 0 {
+        return Err(format!("Molecule not found: {id}"));
+    }
+    get_molecule(app, id)?.ok_or_else(|| "Updated molecule could not be loaded.".to_string())
 }
 
 #[tauri::command]
@@ -203,19 +315,45 @@ pub fn delete_molecule(app: AppHandle, id: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn check_duplicate_molecule(app: AppHandle, inchi_key: String) -> Result<Value, String> {
+pub fn check_duplicate_molecule(
+    app: AppHandle,
+    payload: CheckMoleculeDuplicatePayload,
+) -> Result<Value, String> {
     let conn = open_connection(&app)?;
-    let existing: Option<String> = conn
+    let canonical = payload.canonical_smiles.trim().to_string();
+    let inchikey = payload.inchikey.unwrap_or_default();
+    let existing = conn
         .query_row(
-            "SELECT id FROM molecules WHERE inchi_key = ?1",
-            params![inchi_key],
-            |row| row.get(0),
+            "SELECT id, smiles_canonical, inchi_key FROM molecules
+             WHERE (?1 <> '' AND smiles_canonical = ?1) OR (?2 <> '' AND inchi_key = ?2)
+             ORDER BY datetime(created_at) ASC
+             LIMIT 1",
+            params![canonical, inchikey],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                    row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                ))
+            },
         )
         .optional()
         .map_err(|err| format!("Failed to check duplicate molecule: {err}"))?;
+    let Some((id, matched_smiles, matched_inchikey)) = existing else {
+        return ok("check_duplicate_molecule", json!({ "duplicate": false }));
+    };
+    let matched_by = match (
+        matched_smiles == payload.canonical_smiles,
+        !inchikey.is_empty() && matched_inchikey == inchikey,
+    ) {
+        (true, true) => "both",
+        (true, false) => "canonical_smiles",
+        (false, true) => "inchikey",
+        _ => "canonical_smiles",
+    };
     ok(
         "check_duplicate_molecule",
-        json!({ "duplicate": existing.is_some(), "molecule_id": existing }),
+        json!({ "duplicate": true, "molecule_id": id, "existing_molecule_id": id, "matched_by": matched_by }),
     )
 }
 

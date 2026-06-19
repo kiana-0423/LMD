@@ -6,14 +6,17 @@ export const APP_NAME_CN = "润滑材料数据库与智能设计软件";
 export const formalRoutes = [
   { key: "/dashboard", label: "仪表盘", group: "仪表盘" },
   { key: "/molecules", label: "分子库", group: "数据库" },
+  { key: "/descriptors", label: "描述符中心", group: "数据库" },
   { key: "/base-additive", label: "基础油/添加剂库", group: "数据库" },
   { key: "/formulations", label: "配方库", group: "数据库" },
   { key: "/experiments", label: "实验与性能", group: "数据库" },
   { key: "/molecule-entry", label: "分子录入", group: "录入" },
   { key: "/molecule-sketcher", label: "分子绘画", group: "录入" },
   { key: "/formulation-entry", label: "配方录入", group: "录入" },
-  { key: "/descriptors", label: "描述符中心", group: "工具" },
-  { key: "/analysis-design", label: "数据分析/智能设计", group: "工具" }
+  { key: "/data-mining/molecule-performance", label: "分子性能预测", group: "数据挖掘" },
+  { key: "/data-mining/formulation-prediction", label: "配方预测", group: "数据挖掘" },
+  { key: "/data-mining/molecule-design", label: "分子设计", group: "数据挖掘" },
+  { key: "/import-export", label: "导入/导出", group: "系统" }
 ] as const;
 
 export const moleculeCategories: MoleculeCategory[] = [

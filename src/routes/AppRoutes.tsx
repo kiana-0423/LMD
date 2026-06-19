@@ -9,7 +9,10 @@ import BaseAdditiveLibraryPage from "../features/base-additive/BaseAdditiveLibra
 import FormulationLibraryPage from "../features/formulations/FormulationLibraryPage";
 import FormulationEntryPage from "../features/formulation-entry/FormulationEntryPage";
 import ExperimentPerformancePage from "../features/experiments/ExperimentPerformancePage";
-import AnalysisDesignPage from "../features/analysis-design/AnalysisDesignPage";
+import ImportExportPage from "../features/import-export/ImportExportPage";
+import FormulationPredictionPage from "../features/data-mining/FormulationPredictionPage";
+import MoleculeDesignPage from "../features/data-mining/MoleculeDesignPage";
+import MoleculePerformancePredictionPage from "../features/data-mining/MoleculePerformancePredictionPage";
 import LoadingBlock from "../components/LoadingBlock";
 
 const MoleculeSketcherPage = lazy(() => import("../features/molecule-sketcher/MoleculeSketcherPage"));
@@ -65,7 +68,11 @@ export default function AppRoutes() {
       <Route path="/formulations" element={<FormulationLibraryPage />} />
       <Route path="/formulation-entry" element={<FormulationEntryPage />} />
       <Route path="/experiments" element={<ExperimentPerformancePage />} />
-      <Route path="/analysis-design" element={<AnalysisDesignPage />} />
+      <Route path="/analysis-design" element={<Navigate to="/data-mining/molecule-performance" replace />} />
+      <Route path="/data-mining/molecule-performance" element={<MoleculePerformancePredictionPage />} />
+      <Route path="/data-mining/formulation-prediction" element={<FormulationPredictionPage />} />
+      <Route path="/data-mining/molecule-design" element={<MoleculeDesignPage />} />
+      <Route path="/import-export" element={<ImportExportPage />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

@@ -3,6 +3,23 @@ from __future__ import annotations
 from typing import Any
 
 
+def _patch_numpy_for_mordred() -> None:
+    try:
+        import numpy as np
+
+        aliases = {
+            "float": float,
+            "int": int,
+            "bool": bool,
+            "object": object,
+        }
+        for name, value in aliases.items():
+            if name not in np.__dict__:
+                setattr(np, name, value)
+    except Exception:
+        return
+
+
 def _patch_networkx_for_mordred() -> None:
     try:
         import networkx as nx
@@ -22,6 +39,7 @@ def _patch_networkx_for_mordred() -> None:
 
 def safe_import_mordred():
     try:
+        _patch_numpy_for_mordred()
         _patch_networkx_for_mordred()
         from mordred import Calculator, descriptors
         from rdkit import Chem

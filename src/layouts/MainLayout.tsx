@@ -1,5 +1,6 @@
 import {
   BarChartOutlined,
+  BulbOutlined,
   BuildOutlined,
   DatabaseOutlined,
   ExperimentOutlined,
@@ -31,6 +32,7 @@ const menuItems = [
     type: "group" as const,
     children: [
       { key: "/molecules", label: "分子库", icon: <DatabaseOutlined /> },
+      { key: "/descriptors", label: "描述符中心", icon: <BarChartOutlined /> },
       { key: "/base-additive", label: "基础油/添加剂库", icon: <BuildOutlined /> },
       { key: "/formulations", label: "配方库", icon: <PartitionOutlined /> },
       { key: "/experiments", label: "实验与性能", icon: <ExperimentOutlined /> }
@@ -47,12 +49,13 @@ const menuItems = [
     ]
   },
   {
-    key: "tools-group",
-    label: "工具",
+    key: "data-mining-group",
+    label: "数据挖掘",
     type: "group" as const,
     children: [
-      { key: "/descriptors", label: "描述符中心", icon: <BarChartOutlined /> },
-      { key: "/analysis-design", label: "数据分析/智能设计", icon: <LineChartOutlined /> }
+      { key: "/data-mining/molecule-performance", label: "分子性能预测", icon: <LineChartOutlined /> },
+      { key: "/data-mining/formulation-prediction", label: "配方预测", icon: <ExperimentOutlined /> },
+      { key: "/data-mining/molecule-design", label: "分子设计", icon: <BulbOutlined /> }
     ]
   },
   {
@@ -60,7 +63,7 @@ const menuItems = [
     label: "系统",
     type: "group" as const,
     children: [
-      { key: "import-export", label: "导入/导出", icon: <UploadOutlined />, disabled: true },
+      { key: "/import-export", label: "导入/导出", icon: <UploadOutlined /> },
       { key: "settings", label: "设置", icon: <SettingOutlined />, disabled: true }
     ]
   }
@@ -81,7 +84,7 @@ export default function MainLayout() {
         className="app-sider"
       >
         <div className="brand-block">
-          <div className="brand-mark">LMD</div>
+          <img className="brand-logo" src="/logo.svg" alt="LMD logo" />
           <div>
             <Typography.Text className="brand-title">{APP_NAME}</Typography.Text>
             <Typography.Text className="brand-subtitle">{APP_NAME_CN}</Typography.Text>

@@ -2,7 +2,8 @@ node_modules/
 dist/
 .conda/
 .npm-cache/
+.pip-cache/
 src-tauri/target/
+python-sidecar/*.egg-info/
 python-sidecar/**/__pycache__/
 python-sidecar/**/*.pyc
-

@@ -48,3 +48,31 @@ pub fn initialize_database(app: AppHandle) -> Result<Value, String> {
     initialize_database_file(&app)?;
     ok("initialize_database", json!({ "status": "initialized" }))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::commands::ok;
+    use serde_json::json;
+
+    #[test]
+    fn ok_marks_response_successful() {
+        let value = ok("demo", json!({ "id": "1" })).expect("ok should return a value");
+        assert_eq!(value["ok"], true);
+    }
+
+    #[test]
+    fn ok_preserves_command_name() {
+        let value = ok("create_workspace", json!({})).expect("ok should return a value");
+        assert_eq!(value["command"], "create_workspace");
+    }
+
+    #[test]
+    fn ok_returns_empty_warnings_for_real_commands() {
+        let value = ok("initialize_database", json!({ "status": "initialized" }))
+            .expect("ok should return a value");
+        assert!(value["warnings"]
+            .as_array()
+            .expect("warnings should be an array")
+            .is_empty());
+    }
+}

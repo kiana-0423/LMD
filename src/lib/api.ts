@@ -8,13 +8,13 @@ import {
   molecules,
   performanceResults
 } from "./mockData";
-import type { Experiment, Formulation, MLDescriptorMatrixOptions, Molecule, MoleculeDescriptor, PerformanceResult } from "../types";
+import type { Additive, BaseOil, DashboardSummary, Experiment, Formulation, MLDescriptorMatrixOptions, Molecule, MoleculeDescriptor, PerformanceResult } from "../types";
 import { buildMock3dMolBlock, buildMockPdbBlock, buildMockSdfBlock } from "./mockStructure";
 import { mockSvg } from "./mockData";
 import { invokeOrMock } from "./tauri";
 
 export async function getDashboardSummary() {
-  return dashboardSummary;
+  return invokeOrMock<DashboardSummary>("get_dashboard_summary", {}, async () => dashboardSummary);
 }
 
 export async function listMolecules() {
@@ -123,44 +123,50 @@ async function saveMoleculeWithRequiredDescriptorsMock(payload: {
 }
 
 export async function listBaseOils() {
-  return baseOils;
+  return invokeOrMock<BaseOil[]>("list_base_oils", { filter: null }, async () => []);
 }
 
 export async function deleteBaseOil(id: string) {
-  const deleted = removeById(baseOils, id);
-  updateDashboardCounts();
-  return { success: deleted, deleted };
+  return invokeOrMock<{ success: boolean; deleted: boolean }>("delete_base_oil", { id }, async () => {
+    const deleted = removeById(baseOils, id);
+    updateDashboardCounts();
+    return { success: deleted, deleted };
+  });
 }
 
 export async function listAdditives() {
-  return additives;
+  return invokeOrMock<Additive[]>("list_additives", { filter: null }, async () => []);
 }
 
 export async function deleteAdditive(id: string) {
-  const deleted = removeById(additives, id);
-  updateDashboardCounts();
-  return { success: deleted, deleted };
+  return invokeOrMock<{ success: boolean; deleted: boolean }>("delete_additive", { id }, async () => {
+    const deleted = removeById(additives, id);
+    updateDashboardCounts();
+    return { success: deleted, deleted };
+  });
 }
 
 export async function listFormulations() {
-  return formulations;
+  return invokeOrMock<Formulation[]>("list_formulations", { filter: null }, async () => []);
 }
 
 export async function deleteFormulation(id: string) {
-  const deleted = removeById(formulations, id);
-  const experimentIds = experiments.filter((item) => item.formulationId === id).map((item) => item.id);
-  removeWhere(experiments, (item) => item.formulationId === id);
-  removeWhere(performanceResults, (item) => experimentIds.includes(item.experimentId));
-  updateDashboardCounts();
-  return { success: deleted, deleted };
+  return invokeOrMock<{ success: boolean; deleted: boolean }>("delete_formulation", { id }, async () => {
+    const deleted = removeById(formulations, id);
+    const experimentIds = experiments.filter((item) => item.formulationId === id).map((item) => item.id);
+    removeWhere(experiments, (item) => item.formulationId === id);
+    removeWhere(performanceResults, (item) => experimentIds.includes(item.experimentId));
+    updateDashboardCounts();
+    return { success: deleted, deleted };
+  });
 }
 
 export async function listExperiments() {
-  return experiments;
+  return invokeOrMock<Experiment[]>("list_experiments", { filter: null }, async () => experiments);
 }
 
 export async function listPerformanceResults() {
-  return performanceResults;
+  return invokeOrMock<PerformanceResult[]>("list_performance_results", { filter: null }, async () => performanceResults);
 }
 
 export async function saveExperimentWithPerformance(payload: {
@@ -299,6 +305,56 @@ export async function exportAllDescriptorsCsv() {
 
 export async function exportMlDescriptorMatrixCsv(options: MLDescriptorMatrixOptions) {
   return buildMlDescriptorMatrixCsv(molecules, moleculeDescriptors, options);
+}
+
+export async function exportMoleculeLibraryCsv() {
+  const allMolecules = await listMolecules();
+  const headers = [
+    "id",
+    "name",
+    "aliases",
+    "smiles_raw",
+    "smiles_canonical",
+    "inchi",
+    "inchi_key",
+    "formula",
+    "molecular_weight",
+    "category",
+    "additive_function_tags",
+    "data_source",
+    "notes",
+    "created_at",
+    "updated_at"
+  ];
+  const rows = allMolecules.map((molecule) => [
+    molecule.id,
+    molecule.name,
+    molecule.aliases,
+    molecule.smilesRaw,
+    molecule.smilesCanonical,
+    molecule.inchi,
+    molecule.inchiKey,
+    molecule.formula,
+    molecule.molecularWeight,
+    molecule.category,
+    molecule.additiveFunctionTags.join(";"),
+    molecule.dataSource,
+    molecule.notes,
+    molecule.createdAt,
+    molecule.updatedAt
+  ]);
+  return toCsv([headers, ...rows]);
+}
+
+export async function importExcelWithSidecar(filePath: string) {
+  return invokeOrMock<Record<string, unknown>>("import_excel_with_sidecar", { filePath }, async () => ({
+    preview_rows: [],
+    imported_count: 0,
+    file_path: filePath
+  })).then((value) => {
+    const data = value.data;
+    return data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>) : value;
+  });
 }
 
 export async function recalculateAllDescriptors() {

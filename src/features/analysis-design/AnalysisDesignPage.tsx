@@ -175,7 +175,6 @@ export default function AnalysisDesignPage() {
                   </Button.Group>
                   <div style={{ marginTop: 12 }}>
                     <Tag color="green">RDKit 描述符</Tag>
-                    <Tag color="gold">Mordred 描述符必需</Tag>
                     <Tag>CSV 导出模拟</Tag>
                   </div>
                 </Form>

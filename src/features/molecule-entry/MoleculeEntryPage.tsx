@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Form, Modal, Progress, Space, Steps, Typography, message } from "antd";
+import { Button, Card, Form, Modal, Progress, Space, Steps, Typography, message } from "antd";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
@@ -52,13 +52,7 @@ export default function MoleculeEntryPage() {
     <div className="page-grid entry-page">
       <PageHeader
         title="分子录入"
-        description="保存分子时会强制走 RDKit 与 Mordred 描述符流程；第一阶段 MVP 可使用明确标记的模拟描述符。"
-      />
-      <Alert
-        type="warning"
-        showIcon
-        message="Mordred 描述符为强制功能"
-        description="正式模式不得跳过 Mordred；开发模拟模式仅在记录明确标记为 mock 时允许。"
+        description="保存分子并生成 RDKit 与 Mordred 描述符记录；第一阶段 MVP 可使用明确标记的模拟描述符。"
       />
       <Form
         form={form}

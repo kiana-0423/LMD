@@ -136,3 +136,41 @@ pub fn create_workspace_directories(workspace: &std::path::Path) -> Result<(), S
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    #[test]
+    fn create_workspace_directories_creates_expected_folders() {
+        let root = std::env::temp_dir().join(format!("lmd-test-{}", Uuid::new_v4()));
+        create_workspace_directories(&root).expect("workspace directories should be created");
+
+        assert!(root.join("files/imports").is_dir());
+        assert!(root.join("files/structures").is_dir());
+        assert!(root.join("exports").is_dir());
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn column_exists_returns_true_for_known_column() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute("CREATE TABLE demo (id TEXT PRIMARY KEY, name TEXT)", [])
+            .expect("demo table should be created");
+
+        assert!(column_exists(&connection, "demo", "name").expect("column check should work"));
+    }
+
+    #[test]
+    fn column_exists_returns_false_for_unknown_column() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute("CREATE TABLE demo (id TEXT PRIMARY KEY, name TEXT)", [])
+            .expect("demo table should be created");
+
+        assert!(!column_exists(&connection, "demo", "missing").expect("column check should work"));
+    }
+}
