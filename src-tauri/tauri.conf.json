@@ -30,6 +30,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/lmd-sidecar"],
     "icon": ["icons/icon.png"]
   }
 }

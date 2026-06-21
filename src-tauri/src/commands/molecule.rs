@@ -96,7 +96,7 @@ pub struct ImportNewMoleculePayload {
 }
 
 #[tauri::command]
-pub fn create_molecule(
+pub async fn create_molecule(
     app: AppHandle,
     payload: SaveMoleculePayload,
 ) -> Result<MoleculeDto, String> {
@@ -104,8 +104,12 @@ pub fn create_molecule(
         return Err("SMILES is required.".to_string());
     }
 
-    let standardized =
-        run_sidecar_command("standardize", json!({ "smiles": payload.smiles.trim() }))?;
+    let standardized = run_sidecar_command(
+        &app,
+        "standardize",
+        json!({ "smiles": payload.smiles.trim() }),
+    )
+    .await?;
     let std_data = data(&standardized)?;
     let molecule_id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
@@ -404,7 +408,7 @@ pub fn check_molecule_duplicate(
 }
 
 #[tauri::command]
-pub fn import_new_molecule(
+pub async fn import_new_molecule(
     app: AppHandle,
     payload: ImportNewMoleculePayload,
 ) -> Result<Value, String> {
@@ -414,14 +418,19 @@ pub fn import_new_molecule(
             json!({ "success": false, "error": "SMILES is required. Please generate a valid canonical SMILES first." }),
         );
     }
-    let standardized = run_sidecar_command("standardize", json!({ "smiles": &input_smiles }))?;
-    let visualized = run_sidecar_command("visualize", json!({ "smiles": &input_smiles }))?;
+    let standardized =
+        run_sidecar_command(&app, "standardize", json!({ "smiles": &input_smiles })).await?;
+    let visualized =
+        run_sidecar_command(&app, "visualize", json!({ "smiles": &input_smiles })).await?;
     let molfile_result =
-        run_sidecar_command("smiles-to-molfile", json!({ "smiles": &input_smiles }))?;
+        run_sidecar_command(&app, "smiles-to-molfile", json!({ "smiles": &input_smiles }))
+            .await?;
     let generated_3d = run_sidecar_command(
+        &app,
         "generate-3d",
         json!({ "smiles": &input_smiles, "add_hydrogens": true, "optimize": true, "force_field": "MMFF" }),
-    )?;
+    )
+    .await?;
     let std_data = data(&standardized)?;
     let vis_data = data(&visualized)?;
     let molfile_data = data(&molfile_result)?;
@@ -610,7 +619,7 @@ pub fn import_new_molecule(
 }
 
 #[tauri::command]
-pub fn save_molecule_with_required_descriptors(
+pub async fn save_molecule_with_required_descriptors(
     app: AppHandle,
     payload: SaveMoleculePayload,
 ) -> Result<MoleculeDto, String> {
@@ -620,14 +629,19 @@ pub fn save_molecule_with_required_descriptors(
     let allow_mock = payload.allow_mock.unwrap_or(false);
     let smiles = payload.smiles.trim().to_string();
 
-    let standardized = run_sidecar_command("standardize", json!({ "smiles": &smiles }))?;
-    let visualized = run_sidecar_command("visualize", json!({ "smiles": &smiles }))?;
-    let molfile_result = run_sidecar_command("smiles-to-molfile", json!({ "smiles": &smiles }))?;
+    let standardized =
+        run_sidecar_command(&app, "standardize", json!({ "smiles": &smiles })).await?;
+    let visualized = run_sidecar_command(&app, "visualize", json!({ "smiles": &smiles })).await?;
+    let molfile_result =
+        run_sidecar_command(&app, "smiles-to-molfile", json!({ "smiles": &smiles })).await?;
     let generated_3d = run_sidecar_command(
+        &app,
         "generate-3d",
         json!({ "smiles": &smiles, "add_hydrogens": true, "optimize": true, "force_field": "MMFF" }),
-    )?;
+    )
+    .await?;
     let required = run_sidecar_command(
+        &app,
         "calculate-required-descriptors",
         json!({
             "smiles": &smiles,
@@ -636,6 +650,7 @@ pub fn save_molecule_with_required_descriptors(
             "allow_mock": allow_mock
         }),
     )
+    .await
     .map_err(|err| {
         if err.contains("Mordred descriptors are required") || err.contains("Mordred is not installed") {
             "Mordred descriptors are required. Please install Mordred or check the Python sidecar environment.".to_string()

@@ -38,8 +38,13 @@ pub fn calculate_mordred_descriptors(molecule_id: String) -> Result<Value, Strin
 }
 
 #[tauri::command]
-pub fn calculate_required_descriptors(smiles: String, allow_mock: bool) -> Result<Value, String> {
+pub async fn calculate_required_descriptors(
+    app: AppHandle,
+    smiles: String,
+    allow_mock: bool,
+) -> Result<Value, String> {
     run_sidecar_command(
+        &app,
         "calculate-required-descriptors",
         json!({
             "smiles": smiles,
@@ -48,6 +53,7 @@ pub fn calculate_required_descriptors(smiles: String, allow_mock: bool) -> Resul
             "allow_mock": allow_mock
         }),
     )
+    .await
 }
 
 #[tauri::command]

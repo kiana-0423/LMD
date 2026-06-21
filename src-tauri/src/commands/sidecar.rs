@@ -1,11 +1,15 @@
 use crate::commands::ok;
 use serde_json::{json, Value};
 use std::fs;
-use std::process::Command;
+use tauri::AppHandle;
+use tauri_plugin_shell::ShellExt;
 use uuid::Uuid;
 
-pub fn run_sidecar_command(command_name: &str, input: Value) -> Result<Value, String> {
-    let sidecar_dir = sidecar_dir()?;
+pub async fn run_sidecar_command(
+    app: &AppHandle,
+    command_name: &str,
+    input: Value,
+) -> Result<Value, String> {
     let input_path = std::env::temp_dir().join(format!("lmd-sidecar-{}.json", Uuid::new_v4()));
     fs::write(
         &input_path,
@@ -14,10 +18,12 @@ pub fn run_sidecar_command(command_name: &str, input: Value) -> Result<Value, St
     )
     .map_err(|err| format!("Failed to write sidecar input file: {err}"))?;
 
-    let output = run_python(&sidecar_dir, command_name, &input_path).map_err(|err| {
-        let _ = fs::remove_file(&input_path);
-        err
-    })?;
+    let output = run_packaged_sidecar(app, command_name, &input_path)
+        .await
+        .map_err(|err| {
+            let _ = fs::remove_file(&input_path);
+            err
+        })?;
     let _ = fs::remove_file(&input_path);
 
     let stdout = String::from_utf8(output.stdout)
@@ -39,70 +45,45 @@ pub fn run_sidecar_command(command_name: &str, input: Value) -> Result<Value, St
     }
 }
 
-fn run_python(
-    sidecar_dir: &std::path::Path,
+async fn run_packaged_sidecar(
+    app: &AppHandle,
     command_name: &str,
     input_path: &std::path::Path,
-) -> Result<std::process::Output, String> {
-    let args = [
-        "-m",
-        "lmd_sidecar.main",
-        command_name,
-        "--input",
-        input_path
-            .to_str()
-            .ok_or_else(|| "Sidecar input path is not valid UTF-8".to_string())?,
-    ];
-    for executable in ["python3", "python"] {
-        match Command::new(executable)
-            .args(args)
-            .current_dir(sidecar_dir)
-            .output()
-        {
-            Ok(output) => {
-                if output.status.success() {
-                    return Ok(output);
-                }
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                return Err(format!(
-                    "Python sidecar command {command_name} failed via {executable}. stderr: {stderr}. stdout: {stdout}"
-                ));
-            }
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(err) => {
-                return Err(format!(
-                    "Failed to launch Python sidecar via {executable}: {err}"
-                ))
-            }
-        }
-    }
-    Err(
-        "Python executable not found. Install python3 or configure the packaged sidecar."
-            .to_string(),
-    )
-}
+) -> Result<tauri_plugin_shell::process::Output, String> {
+    let input_path = input_path
+        .to_str()
+        .ok_or_else(|| "Sidecar input path is not valid UTF-8".to_string())?;
+    let output = app
+        .shell()
+        .sidecar("lmd-sidecar")
+        .map_err(|err| format!("Failed to resolve packaged sidecar: {err}"))?
+        .args([command_name, "--input", input_path])
+        .output()
+        .await
+        .map_err(|err| format!("Failed to launch packaged sidecar: {err}"))?;
 
-fn sidecar_dir() -> Result<std::path::PathBuf, String> {
-    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let dev_path = manifest_dir.join("../python-sidecar");
-    if dev_path.exists() {
-        return Ok(dev_path);
+    if output.status.success() {
+        return Ok(output);
     }
-    std::env::current_exe()
-        .map_err(|err| format!("Failed to resolve current executable: {err}"))?
-        .parent()
-        .map(|path| path.join("python-sidecar"))
-        .ok_or_else(|| "Failed to resolve packaged sidecar directory".to_string())
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Err(format!(
+        "Packaged sidecar command {command_name} failed. stderr: {stderr}. stdout: {stdout}"
+    ))
 }
 
 #[tauri::command]
-pub fn standardize_molecule_with_sidecar(smiles: String) -> Result<Value, String> {
-    run_sidecar_command("standardize", json!({ "smiles": smiles }))
+pub async fn standardize_molecule_with_sidecar(
+    app: AppHandle,
+    smiles: String,
+) -> Result<Value, String> {
+    run_sidecar_command(&app, "standardize", json!({ "smiles": smiles })).await
 }
 
 #[tauri::command]
-pub fn calculate_descriptors_with_sidecar(
+pub async fn calculate_descriptors_with_sidecar(
+    app: AppHandle,
     smiles: String,
     descriptor_set: String,
 ) -> Result<Value, String> {
@@ -112,17 +93,21 @@ pub fn calculate_descriptors_with_sidecar(
         other => return Err(format!("Unsupported descriptor_set: {other}")),
     };
     run_sidecar_command(
+        &app,
         command_name,
         json!({ "smiles": smiles, "allow_mock": true }),
     )
+    .await
 }
 
 #[tauri::command]
-pub fn calculate_required_descriptors_with_sidecar(
+pub async fn calculate_required_descriptors_with_sidecar(
+    app: AppHandle,
     smiles: String,
     allow_mock: bool,
 ) -> Result<Value, String> {
     run_sidecar_command(
+        &app,
         "calculate-required-descriptors",
         json!({
             "smiles": smiles,
@@ -131,32 +116,45 @@ pub fn calculate_required_descriptors_with_sidecar(
             "allow_mock": allow_mock
         }),
     )
+    .await
 }
 
 #[tauri::command]
-pub fn validate_smiles_with_sidecar(smiles: String) -> Result<Value, String> {
-    run_sidecar_command("validate-smiles", json!({ "smiles": smiles }))
+pub async fn validate_smiles_with_sidecar(
+    app: AppHandle,
+    smiles: String,
+) -> Result<Value, String> {
+    run_sidecar_command(&app, "validate-smiles", json!({ "smiles": smiles })).await
 }
 
 #[tauri::command]
-pub fn molfile_to_smiles_with_sidecar(molfile: String) -> Result<Value, String> {
-    run_sidecar_command("molfile-to-smiles", json!({ "molfile": molfile }))
+pub async fn molfile_to_smiles_with_sidecar(
+    app: AppHandle,
+    molfile: String,
+) -> Result<Value, String> {
+    run_sidecar_command(&app, "molfile-to-smiles", json!({ "molfile": molfile })).await
 }
 
 #[tauri::command]
-pub fn smiles_to_molfile_with_sidecar(smiles: String) -> Result<Value, String> {
-    run_sidecar_command("smiles-to-molfile", json!({ "smiles": smiles }))
+pub async fn smiles_to_molfile_with_sidecar(
+    app: AppHandle,
+    smiles: String,
+) -> Result<Value, String> {
+    run_sidecar_command(&app, "smiles-to-molfile", json!({ "smiles": smiles })).await
 }
 
 #[tauri::command]
-pub fn calculate_sketcher_descriptors_with_sidecar(
+pub async fn calculate_sketcher_descriptors_with_sidecar(
+    app: AppHandle,
     smiles: String,
     allow_mock: bool,
 ) -> Result<Value, String> {
     run_sidecar_command(
+        &app,
         "calculate-sketcher-descriptors",
         json!({ "smiles": smiles, "allow_mock": allow_mock }),
     )
+    .await
 }
 
 #[tauri::command]

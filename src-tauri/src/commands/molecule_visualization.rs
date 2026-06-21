@@ -1,6 +1,7 @@
 use crate::commands::ok;
 use crate::commands::sidecar::run_sidecar_command;
 use serde_json::{json, Value};
+use tauri::AppHandle;
 
 #[tauri::command]
 pub fn visualize_molecule_from_smiles(smiles: String) -> Result<Value, String> {
@@ -11,11 +12,13 @@ pub fn visualize_molecule_from_smiles(smiles: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn generate_molecule_3d(smiles: String) -> Result<Value, String> {
+pub async fn generate_molecule_3d(app: AppHandle, smiles: String) -> Result<Value, String> {
     run_sidecar_command(
+        &app,
         "generate-3d",
         json!({ "smiles": smiles, "add_hydrogens": true, "optimize": true, "force_field": "MMFF" }),
     )
+    .await
 }
 
 #[tauri::command]
