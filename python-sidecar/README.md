@@ -43,6 +43,8 @@ python -m lmd_sidecar.main calculate-required-descriptors --input examples/requi
 python -m lmd_sidecar.main visualize --input examples/visualize.json
 python -m lmd_sidecar.main generate-3d --input examples/generate_3d.json
 python -m lmd_sidecar.main import-excel --input examples/import_excel.json
+python -m lmd_sidecar.main import-excel --input examples/import_base_oils.json
+python -m lmd_sidecar.main import-excel --input examples/import_additives.json
 python -m lmd_sidecar.main predict --input examples/predict.json
 ```
 

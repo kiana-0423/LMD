@@ -19,9 +19,25 @@ def preview_table_file(file_path: str, preview_rows: int = 20) -> tuple[dict[str
 
         if path.suffix.lower() == ".csv":
             frame = pd.read_csv(path, nrows=preview_rows)
-            return {"file_path": file_path, "sheet_names": [], "columns": list(frame.columns), "rows": frame.to_dict("records")}, []
+            rows = frame.to_dict("records")
+            return {
+                "file_path": file_path,
+                "sheet_names": [],
+                "columns": list(frame.columns),
+                "rows": rows,
+                "preview_rows": rows,
+                "imported_count": len(rows),
+            }, []
         excel = pd.ExcelFile(path)
         frame = pd.read_excel(path, sheet_name=excel.sheet_names[0], nrows=preview_rows)
-        return {"file_path": file_path, "sheet_names": excel.sheet_names, "columns": list(frame.columns), "rows": frame.to_dict("records")}, []
+        rows = frame.to_dict("records")
+        return {
+            "file_path": file_path,
+            "sheet_names": excel.sheet_names,
+            "columns": list(frame.columns),
+            "rows": rows,
+            "preview_rows": rows,
+            "imported_count": len(rows),
+        }, []
     except Exception as exc:
         return {"file_path": file_path, "sheet_names": [], "columns": [], "rows": [], "mode": "mock"}, [str(exc)]

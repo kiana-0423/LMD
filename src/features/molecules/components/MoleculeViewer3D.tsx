@@ -386,58 +386,6 @@ function roundRect(context: CanvasRenderingContext2D, x: number, y: number, widt
   context.closePath();
 }
 
-function drawViewerChrome(context: CanvasRenderingContext2D, width: number, height: number) {
-  context.save();
-  const gradient = context.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, "#ffffff");
-  gradient.addColorStop(1, "#eef5fb");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, width, height);
-  context.globalAlpha = 0.68;
-  context.strokeStyle = "#dbeafe";
-  context.lineWidth = 1;
-  for (let x = 40; x < width; x += 40) {
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x, height);
-    context.stroke();
-  }
-  for (let y = 40; y < height; y += 40) {
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(width, y);
-    context.stroke();
-  }
-  context.restore();
-}
-
-function drawAxisTriad(context: CanvasRenderingContext2D, axes: ReturnType<typeof projectAxes>) {
-  const origin = { x: 66, y: 76 };
-  axes.forEach((axis) => {
-    context.save();
-    context.strokeStyle = axis.color;
-    context.fillStyle = axis.color;
-    context.lineWidth = 3;
-    context.lineCap = "round";
-    context.beginPath();
-    context.moveTo(origin.x, origin.y);
-    context.lineTo(origin.x + axis.x, origin.y + axis.y);
-    context.stroke();
-    const angle = Math.atan2(axis.y, axis.x);
-    context.beginPath();
-    context.moveTo(origin.x + axis.x, origin.y + axis.y);
-    context.lineTo(origin.x + axis.x - Math.cos(angle - 0.45) * 9, origin.y + axis.y - Math.sin(angle - 0.45) * 9);
-    context.lineTo(origin.x + axis.x - Math.cos(angle + 0.45) * 9, origin.y + axis.y - Math.sin(angle + 0.45) * 9);
-    context.closePath();
-    context.fill();
-    context.font = "700 12px system-ui, sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(axis.label, origin.x + axis.x * 1.18, origin.y + axis.y * 1.18);
-    context.restore();
-  });
-}
-
 function parseStructure(content: string): Omit<ParsedStructure, "source"> {
   if (!content.trim()) return { atoms: [], bonds: [] };
   if (content.includes("V2000") || content.includes("M  END")) return parseMolBlock(content);
@@ -570,7 +518,6 @@ function projectStructure(parsed: ParsedStructure, rotateXDeg: number, rotateYDe
       const from = atomByIndex.get(bond.from);
       const to = atomByIndex.get(bond.to);
       if (!from || !to) return undefined;
-      const depth = ((from.z + to.z) / 2 - minZ) / Math.max(maxZ - minZ, 1);
       return {
         from: bond.from,
         to: bond.to,

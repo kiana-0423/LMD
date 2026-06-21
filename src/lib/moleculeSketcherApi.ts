@@ -1,36 +1,40 @@
 import type {
   ImportNewMoleculePayload,
   ImportNewMoleculeResult,
+  ImportNewMoleculeRaw,
   MoleculeDuplicateResult,
+  MoleculeDuplicateRaw,
   SketcherDescriptorResult,
-  SketcherValidationResult
+  SketcherValidationResult,
+  SidecarResponse,
+  SidecarSketcherDescriptorsRaw,
+  SidecarSmilesToMolfileRaw,
+  SidecarValidationRaw
 } from "../types";
 import { mockSvg, moleculeDescriptors, molecules } from "./mockData";
 import { buildMock3dMolBlock, buildMockPdbBlock, buildMockSdfBlock } from "./mockStructure";
 import { invokeOrMock } from "./tauri";
 
-type SidecarResponse<T> = { data?: T } & T;
-
 function unwrapData<T>(value: SidecarResponse<T>): T {
   return (value.data ?? value) as T;
 }
 
-function camelValidation(data: Record<string, unknown>): SketcherValidationResult {
+function camelValidation(data: SidecarValidationRaw): SketcherValidationResult {
   return {
     valid: Boolean(data.valid),
     error: String(data.error ?? ""),
-    smilesRaw: String(data.smiles_raw ?? ""),
-    smilesCanonical: String(data.smiles_canonical ?? data.canonical_smiles ?? ""),
-    canonicalSmiles: String(data.canonical_smiles ?? data.smiles_canonical ?? ""),
-    formula: String(data.formula ?? ""),
-    molecularWeight: Number(data.molecular_weight ?? 0),
-    inchiKey: String(data.inchi_key ?? data.inchikey ?? ""),
-    inchikey: String(data.inchi_key ?? data.inchikey ?? "")
+    smilesRaw: data.smiles_raw ?? "",
+    smilesCanonical: data.smiles_canonical ?? data.canonical_smiles ?? "",
+    canonicalSmiles: data.canonical_smiles ?? data.smiles_canonical ?? "",
+    formula: data.formula ?? "",
+    molecularWeight: data.molecular_weight ?? 0,
+    inchiKey: data.inchi_key ?? data.inchikey ?? "",
+    inchikey: data.inchi_key ?? data.inchikey ?? ""
   };
 }
 
 export async function validateSketcherSmiles(smiles: string) {
-  return invokeOrMock<SidecarResponse<Record<string, unknown>>>(
+  return invokeOrMock<SidecarResponse<SidecarValidationRaw>>(
     "validate_smiles_with_sidecar",
     { smiles },
     async () => ({
@@ -45,7 +49,7 @@ export async function validateSketcherSmiles(smiles: string) {
 }
 
 export async function molfileToSmiles(molfile: string) {
-  return invokeOrMock<SidecarResponse<Record<string, unknown>>>(
+  return invokeOrMock<SidecarResponse<SidecarValidationRaw>>(
     "molfile_to_smiles_with_sidecar",
     { molfile },
     async () => ({
@@ -59,7 +63,7 @@ export async function molfileToSmiles(molfile: string) {
 }
 
 export async function smilesToMolfile(smiles: string) {
-  return invokeOrMock<SidecarResponse<Record<string, unknown>>>(
+  return invokeOrMock<SidecarResponse<SidecarSmilesToMolfileRaw>>(
     "smiles_to_molfile_with_sidecar",
     { smiles },
     async () => ({
@@ -71,7 +75,7 @@ export async function smilesToMolfile(smiles: string) {
 }
 
 export async function calculateSketcherDescriptors(smiles: string): Promise<SketcherDescriptorResult> {
-  const value = await invokeOrMock<SidecarResponse<Record<string, unknown>>>(
+  const value = await invokeOrMock<SidecarResponse<SidecarSketcherDescriptorsRaw>>(
     "calculate_sketcher_descriptors_with_sidecar",
     { smiles, allowMock: true },
     async () => ({
@@ -86,20 +90,20 @@ export async function calculateSketcherDescriptors(smiles: string): Promise<Sket
       mordred_status: "mock"
     })
   );
-  const data = unwrapData(value) as Record<string, unknown>;
+  const data = unwrapData(value);
   return {
     valid: Boolean(data.valid),
-    descriptorCount: Number(data.descriptor_count ?? 0),
-    descriptors: (data.descriptors as Record<string, unknown>) ?? {},
-    preview: (data.preview as Record<string, unknown>) ?? {},
-    rdkitStatus: String(data.rdkit_status ?? "mock") as SketcherDescriptorResult["rdkitStatus"],
-    mordredStatus: String(data.mordred_status ?? "mock") as SketcherDescriptorResult["mordredStatus"],
-    error: String(data.error ?? "")
+    descriptorCount: data.descriptor_count ?? 0,
+    descriptors: { ...(data.descriptors ?? {}) },
+    preview: data.preview ?? {},
+    rdkitStatus: data.rdkit_status ?? "mock",
+    mordredStatus: data.mordred_status ?? "mock",
+    error: data.error ?? ""
   };
 }
 
 export async function checkMoleculeDuplicate(canonicalSmiles: string, inchikey?: string): Promise<MoleculeDuplicateResult> {
-  const value = await invokeOrMock<Record<string, unknown>>(
+  const value = await invokeOrMock<MoleculeDuplicateRaw>(
     "check_molecule_duplicate",
     { payload: { canonicalSmiles, inchikey } },
     async () => {
@@ -111,8 +115,8 @@ export async function checkMoleculeDuplicate(canonicalSmiles: string, inchikey?:
   );
   return {
     duplicate: Boolean(value.duplicate),
-    existingMoleculeId: String(value.existing_molecule_id ?? ""),
-    matchedBy: value.matched_by as MoleculeDuplicateResult["matchedBy"]
+    existingMoleculeId: value.existing_molecule_id ?? "",
+    matchedBy: value.matched_by
   };
 }
 
@@ -126,7 +130,7 @@ export async function importNewMolecule(payload: ImportNewMoleculePayload): Prom
       error: "SMILES is required. Please generate a valid canonical SMILES first."
     };
   }
-  const value = await invokeOrMock<Record<string, unknown>>(
+  const value = await invokeOrMock<ImportNewMoleculeRaw>(
     "import_new_molecule",
     { payload },
     async () => {
@@ -183,10 +187,10 @@ export async function importNewMolecule(payload: ImportNewMoleculePayload): Prom
   );
   return {
     success: Boolean(value.success),
-    moleculeId: String(value.molecule_id ?? ""),
+    moleculeId: value.molecule_id ?? "",
     duplicate: Boolean(value.duplicate),
-    duplicateOf: String(value.duplicate_of ?? ""),
-    error: String(value.error ?? "")
+    duplicateOf: value.duplicate_of ?? "",
+    error: value.error ?? ""
   };
 }
 

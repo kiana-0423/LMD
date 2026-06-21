@@ -1,15 +1,30 @@
-import { Button, Card, Descriptions, Modal, Space, Tabs, Table, Tag, message } from "antd";
+import { Button, Card, Descriptions, Form, Input, InputNumber, Modal, Select, Space, Tabs, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import PageHeader from "../../components/PageHeader";
-import { deleteAdditive, deleteBaseOil, listAdditives, listBaseOils } from "../../lib/api";
-import { additiveFunctionLabels } from "../../lib/constants";
-import type { Additive, BaseOil } from "../../types";
+import {
+  createAdditive,
+  createBaseOil,
+  deleteAdditive,
+  deleteBaseOil,
+  listAdditives,
+  listBaseOils,
+  listMolecules
+} from "../../lib/api";
+import { additiveFunctionLabels, additiveFunctionTags } from "../../lib/constants";
+import type { Additive, BaseOil, Molecule } from "../../types";
+
+type LibraryTab = "base-oils" | "additives";
 
 export default function BaseAdditiveLibraryPage() {
+  const [baseOilForm] = Form.useForm();
+  const [additiveForm] = Form.useForm();
   const [baseOils, setBaseOils] = useState<BaseOil[]>([]);
   const [additives, setAdditives] = useState<Additive[]>([]);
-  const [activeTab, setActiveTab] = useState<"base-oils" | "additives">("base-oils");
+  const [molecules, setMolecules] = useState<Molecule[]>([]);
+  const [activeTab, setActiveTab] = useState<LibraryTab>("base-oils");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [selectedBaseOil, setSelectedBaseOil] = useState<BaseOil>();
   const [selectedAdditive, setSelectedAdditive] = useState<Additive>();
 
@@ -18,9 +33,67 @@ export default function BaseAdditiveLibraryPage() {
   }, []);
 
   async function refresh() {
-    setBaseOils(await listBaseOils());
-    setAdditives(await listAdditives());
+    const [nextBaseOils, nextAdditives, nextMolecules] = await Promise.all([
+      listBaseOils(),
+      listAdditives(),
+      listMolecules()
+    ]);
+    setBaseOils(nextBaseOils);
+    setAdditives(nextAdditives);
+    setMolecules(nextMolecules);
   }
+
+  function openCreateModal(tab: LibraryTab) {
+    setActiveTab(tab);
+    if (tab === "base-oils") {
+      baseOilForm.resetFields();
+      baseOilForm.setFieldsValue({ baseOilType: "Group III" });
+    } else {
+      additiveForm.resetFields();
+      additiveForm.setFieldsValue({
+        activeElements: [],
+        compatibleBaseOils: [],
+        concentrationUnit: "wt%",
+        functionTypes: []
+      });
+    }
+    setCreateOpen(true);
+  }
+
+  async function handleCreate() {
+    setCreating(true);
+    try {
+      if (activeTab === "base-oils") {
+        const values = await baseOilForm.validateFields();
+        await createBaseOil(values);
+        message.success("基础油已保存。");
+      } else {
+        const values = await additiveForm.validateFields();
+        await createAdditive(values);
+        message.success("添加剂已保存。");
+      }
+      setCreateOpen(false);
+      await refresh();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+      if (errorMessage) message.error(errorMessage);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const moleculeOptions = molecules.map((molecule) => ({
+    value: molecule.id,
+    label: `${molecule.name} (${molecule.id})`
+  }));
+  const baseOilOptions = baseOils.map((baseOil) => ({
+    value: baseOil.name,
+    label: baseOil.name
+  }));
+  const additiveFunctionOptions = additiveFunctionTags.map((value) => ({
+    value,
+    label: additiveFunctionLabels[value] ?? value
+  }));
 
   const baseOilColumns: ColumnsType<BaseOil> = [
     { title: "ID", dataIndex: "id", width: 140 },
@@ -123,14 +196,17 @@ export default function BaseAdditiveLibraryPage() {
         description="管理可能没有 SMILES 的基础油，以及与分子库记录关联的添加剂。"
         extra={
           <Space wrap>
-            <Button type="primary">新建基础油/添加剂</Button>
+            <Button onClick={() => openCreateModal("base-oils")}>新建基础油</Button>
+            <Button type="primary" onClick={() => openCreateModal("additives")}>
+              新建添加剂
+            </Button>
           </Space>
         }
       />
       <Card>
         <Tabs
           activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as "base-oils" | "additives")}
+          onChange={(key) => setActiveTab(key as LibraryTab)}
           items={[
             {
               key: "base-oils",
@@ -163,6 +239,88 @@ export default function BaseAdditiveLibraryPage() {
           ]}
         />
       </Card>
+      <Modal
+        width={760}
+        title={activeTab === "base-oils" ? "新建基础油" : "新建添加剂"}
+        open={createOpen}
+        onCancel={() => setCreateOpen(false)}
+        onOk={handleCreate}
+        confirmLoading={creating}
+        okText="保存"
+        cancelText="取消"
+      >
+        {activeTab === "base-oils" ? (
+          <Form form={baseOilForm} layout="vertical">
+            <Form.Item label="名称" name="name" rules={[{ required: true, message: "请输入基础油名称。" }]}>
+              <Input placeholder="例如：PAO-6" />
+            </Form.Item>
+            <Form.Item label="基础油类型" name="baseOilType">
+              <Input placeholder="例如：Group III、PAO、Ester" />
+            </Form.Item>
+            <Form.Item label="代表分子" name="representativeMoleculeId">
+              <Select allowClear showSearch options={moleculeOptions} optionFilterProp="label" placeholder="可选，关联分子库记录" />
+            </Form.Item>
+            <Space size={12} wrap>
+              <Form.Item label="40C 黏度" name="viscosity40c">
+                <InputNumber min={0} precision={3} />
+              </Form.Item>
+              <Form.Item label="100C 黏度" name="viscosity100c">
+                <InputNumber min={0} precision={3} />
+              </Form.Item>
+              <Form.Item label="黏度指数" name="viscosityIndex">
+                <InputNumber precision={1} />
+              </Form.Item>
+              <Form.Item label="密度" name="density">
+                <InputNumber min={0} precision={4} />
+              </Form.Item>
+              <Form.Item label="倾点" name="pourPoint">
+                <InputNumber precision={1} />
+              </Form.Item>
+              <Form.Item label="闪点" name="flashPoint">
+                <InputNumber precision={1} />
+              </Form.Item>
+            </Space>
+            <Form.Item label="供应商" name="supplier">
+              <Input />
+            </Form.Item>
+            <Form.Item label="批次" name="batchNumber">
+              <Input />
+            </Form.Item>
+            <Form.Item label="备注" name="notes">
+              <Input.TextArea rows={3} />
+            </Form.Item>
+          </Form>
+        ) : (
+          <Form form={additiveForm} layout="vertical">
+            <Form.Item label="代表分子" name="moleculeId" rules={[{ required: true, message: "请选择代表分子。" }]}>
+              <Select showSearch options={moleculeOptions} optionFilterProp="label" placeholder="从分子库选择添加剂分子" />
+            </Form.Item>
+            <Form.Item label="功能类型" name="functionTypes">
+              <Select mode="multiple" options={additiveFunctionOptions} />
+            </Form.Item>
+            <Form.Item label="活性元素" name="activeElements">
+              <Select mode="tags" options={["C", "H", "O", "N", "S", "P", "Zn", "Mo", "B", "Cl"].map((value) => ({ value, label: value }))} />
+            </Form.Item>
+            <Space size={12} wrap>
+              <Form.Item label="最低典型浓度" name="typicalConcentrationMin">
+                <InputNumber min={0} precision={3} />
+              </Form.Item>
+              <Form.Item label="最高典型浓度" name="typicalConcentrationMax">
+                <InputNumber min={0} precision={3} />
+              </Form.Item>
+              <Form.Item label="浓度单位" name="concentrationUnit">
+                <Input placeholder="wt%" />
+              </Form.Item>
+            </Space>
+            <Form.Item label="兼容基础油" name="compatibleBaseOils">
+              <Select mode="tags" options={baseOilOptions} placeholder="可输入或选择已有基础油名称" />
+            </Form.Item>
+            <Form.Item label="应用说明" name="applicationNotes">
+              <Input.TextArea rows={3} />
+            </Form.Item>
+          </Form>
+        )}
+      </Modal>
       <Modal
         width={760}
         title="基础油完整数据"

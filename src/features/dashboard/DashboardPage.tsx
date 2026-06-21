@@ -1,5 +1,6 @@
-import { Card, Empty, Tag } from "antd";
+import { Button, Card, Empty, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
+import LoadingBlock from "../../components/LoadingBlock";
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import { getDashboardSummary, listMolecules } from "../../lib/api";
@@ -8,11 +9,26 @@ import type { DashboardSummary, Molecule } from "../../types";
 export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary>();
   const [molecules, setMolecules] = useState<Molecule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorText, setErrorText] = useState("");
 
   useEffect(() => {
-    getDashboardSummary().then(setSummary);
-    listMolecules().then(setMolecules);
+    loadDashboard();
   }, []);
+
+  async function loadDashboard() {
+    setLoading(true);
+    setErrorText("");
+    try {
+      const [nextSummary, nextMolecules] = await Promise.all([getDashboardSummary(), listMolecules()]);
+      setSummary(nextSummary);
+      setMolecules(nextMolecules);
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const tableSummary = [
     { label: "分子", value: summary?.moleculeCount ?? 0 },
@@ -41,6 +57,18 @@ export default function DashboardPage() {
         title="仪表盘"
         description="从本地 SQLite 工作区实时汇总分子、描述符、配方、实验和文件记录。"
       />
+      {loading ? <LoadingBlock /> : null}
+      {!loading && errorText ? (
+        <Card className="error-panel">
+          <Typography.Title level={4}>仪表盘加载失败</Typography.Title>
+          <Typography.Paragraph>{errorText}</Typography.Paragraph>
+          <Button type="primary" onClick={loadDashboard}>
+            重试
+          </Button>
+        </Card>
+      ) : null}
+      {!loading && !errorText ? (
+        <>
       <div className="stats-grid">
         <StatCard title="分子" value={summary?.moleculeCount ?? 0} />
         <StatCard title="基础油" value={summary?.baseOilCount ?? 0} />
@@ -92,6 +120,8 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+        </>
+      ) : null}
     </div>
   );
 }

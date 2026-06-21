@@ -97,6 +97,7 @@ export interface Formulation {
   name: string;
   baseOil: string;
   additiveCount: number;
+  components?: FormulationComponent[];
   componentsSummary: string;
   preparationMethod: string;
   preparationTemperature?: number;
@@ -255,6 +256,70 @@ export interface SketcherValidationResult {
   inchikey?: string;
 }
 
+export type SidecarResponse<T> = { data?: T } & T;
+
+export interface SidecarValidationRaw {
+  valid: boolean;
+  error?: string;
+  smiles_raw?: string;
+  smiles_canonical?: string;
+  canonical_smiles?: string;
+  formula?: string;
+  molecular_weight?: number;
+  inchi_key?: string;
+  inchikey?: string;
+}
+
+export interface SidecarStandardizeRaw {
+  smiles_raw: string;
+  smiles_canonical: string;
+  inchi: string;
+  inchi_key: string;
+  formula: string;
+  molecular_weight: number;
+  mode?: DescriptorMode | "mock";
+}
+
+export interface SidecarSmilesToMolfileRaw {
+  valid: boolean;
+  error?: string;
+  molfile: string;
+  canonical_smiles?: string;
+}
+
+export interface SidecarGenerate3dRaw {
+  mol_block: string;
+  sdf_block: string;
+  pdb_block: string;
+  mode?: DescriptorMode | "mock";
+}
+
+export interface SidecarDescriptorSetRaw {
+  descriptor_set?: "rdkit" | "mordred";
+  descriptor_version?: string;
+  descriptor_count?: number;
+  mode?: DescriptorMode;
+  descriptors: Record<string, unknown>;
+}
+
+export interface SidecarSketcherDescriptorsRaw {
+  valid: boolean;
+  descriptor_count: number;
+  descriptors: {
+    rdkit?: SidecarDescriptorSetRaw;
+    mordred?: SidecarDescriptorSetRaw;
+  };
+  preview: Record<string, unknown>;
+  rdkit_status?: DescriptorStatus;
+  mordred_status?: DescriptorStatus;
+  error?: string;
+}
+
+export interface SidecarRequiredDescriptorsRaw extends SidecarStandardizeRaw {
+  rdkit?: SidecarDescriptorSetRaw;
+  mordred?: SidecarDescriptorSetRaw;
+}
+
 export interface SketcherDescriptorResult {
   valid: boolean;
   descriptorCount: number;
@@ -269,6 +334,13 @@ export interface MoleculeDuplicateResult {
   duplicate: boolean;
   existingMoleculeId?: string;
   matchedBy?: "canonical_smiles" | "inchikey" | "both";
+}
+
+export interface MoleculeDuplicateRaw {
+  duplicate: boolean;
+  existing_molecule_id?: string;
+  molecule_id?: string;
+  matched_by?: "canonical_smiles" | "inchikey" | "both";
 }
 
 export interface ImportNewMoleculePayload {
@@ -293,4 +365,25 @@ export interface ImportNewMoleculeResult {
   duplicate?: boolean;
   duplicateOf?: string;
   error?: string;
+}
+
+export interface ImportNewMoleculeRaw {
+  success: boolean;
+  molecule_id?: string;
+  duplicate?: boolean;
+  duplicate_of?: string;
+  error?: string;
+}
+
+export interface ImportPreviewResult {
+  file_path: string;
+  sheet_names: string[];
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  preview_rows: Array<Record<string, unknown>>;
+  imported_count: number;
+  skipped_count?: number;
+  created_molecule_count?: number;
+  import_kind?: "base_oils" | "additives" | "preview_only";
+  warnings?: string[];
 }

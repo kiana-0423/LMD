@@ -1,5 +1,6 @@
 use crate::app_paths::default_database_path;
 use crate::commands::ok;
+use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -8,11 +9,28 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FormulationComponentDto {
+    pub id: String,
+    pub formulation_id: String,
+    pub component_role: String,
+    pub molecule_id: String,
+    pub base_oil_id: String,
+    pub additive_id: String,
+    pub concentration_value: Option<f64>,
+    pub concentration_unit: String,
+    pub concentration_standard_value: Option<f64>,
+    pub concentration_standard_unit: String,
+    pub notes: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FormulationDto {
     pub id: String,
     pub name: String,
     pub base_oil: String,
     pub additive_count: i64,
+    pub components: Vec<FormulationComponentDto>,
     pub components_summary: String,
     pub preparation_method: String,
     pub preparation_temperature: Option<f64>,
@@ -30,11 +48,95 @@ pub struct FormulationDto {
 }
 
 #[tauri::command]
-pub fn create_formulation(payload: Value) -> Result<Value, String> {
-    ok(
-        "create_formulation",
-        json!({ "id": Uuid::new_v4(), "payload": payload }),
-    )
+pub fn create_formulation(app: AppHandle, payload: Value) -> Result<FormulationDto, String> {
+    let name =
+        field_string(&payload, "name").ok_or_else(|| "Formulation name is required.".to_string())?;
+    let components = payload
+        .get("components")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "At least one formulation component is required.".to_string())?;
+    if !components
+        .iter()
+        .any(|component| field_string(component, "componentRole").as_deref() == Some("base_oil"))
+    {
+        return Err("A formulation requires one base oil component.".to_string());
+    }
+
+    let id = field_string(&payload, "id").unwrap_or_else(|| Uuid::new_v4().to_string());
+    let now = Utc::now().to_rfc3339();
+    let mut connection = open_connection(&app)?;
+    let transaction = connection
+        .transaction()
+        .map_err(|err| format!("Failed to start formulation create transaction: {err}"))?;
+    transaction
+        .execute(
+            "INSERT INTO formulations (
+                id, name, preparation_method, preparation_temperature, preparation_temperature_unit,
+                preparation_time, preparation_time_unit, stability_observation, notes, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
+            params![
+                &id,
+                &name,
+                field_string(&payload, "preparationMethod")
+                    .or_else(|| field_string(&payload, "preparation_method"))
+                    .unwrap_or_default(),
+                field_f64(&payload, "preparationTemperature")
+                    .or_else(|| field_f64(&payload, "preparation_temperature")),
+                field_string(&payload, "preparationTemperatureUnit")
+                    .or_else(|| field_string(&payload, "preparation_temperature_unit"))
+                    .unwrap_or_else(|| "C".to_string()),
+                field_f64(&payload, "preparationTime")
+                    .or_else(|| field_f64(&payload, "preparation_time")),
+                field_string(&payload, "preparationTimeUnit")
+                    .or_else(|| field_string(&payload, "preparation_time_unit"))
+                    .unwrap_or_else(|| "min".to_string()),
+                field_string(&payload, "stabilityObservation")
+                    .or_else(|| field_string(&payload, "stability_observation"))
+                    .unwrap_or_default(),
+                field_string(&payload, "notes").unwrap_or_default(),
+                &now
+            ],
+        )
+        .map_err(|err| format!("Failed to create formulation: {err}"))?;
+
+    for component in components {
+        let component_id = field_string(component, "id").unwrap_or_else(|| Uuid::new_v4().to_string());
+        let role = field_string(component, "componentRole")
+            .or_else(|| field_string(component, "component_role"))
+            .unwrap_or_else(|| "additive".to_string());
+        transaction
+            .execute(
+                "INSERT INTO formulation_components (
+                    id, formulation_id, component_role, molecule_id, base_oil_id, additive_id,
+                    concentration_value, concentration_unit, concentration_standard_value,
+                    concentration_standard_unit, notes
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                params![
+                    &component_id,
+                    &id,
+                    role,
+                    field_string(component, "moleculeId").or_else(|| field_string(component, "molecule_id")),
+                    field_string(component, "baseOilId").or_else(|| field_string(component, "base_oil_id")),
+                    field_string(component, "additiveId").or_else(|| field_string(component, "additive_id")),
+                    field_f64(component, "concentrationValue")
+                        .or_else(|| field_f64(component, "concentration_value")),
+                    field_string(component, "concentrationUnit")
+                        .or_else(|| field_string(component, "concentration_unit"))
+                        .unwrap_or_else(|| "wt%".to_string()),
+                    field_f64(component, "concentrationStandardValue")
+                        .or_else(|| field_f64(component, "concentration_standard_value")),
+                    field_string(component, "concentrationStandardUnit")
+                        .or_else(|| field_string(component, "concentration_standard_unit"))
+                        .unwrap_or_default(),
+                    field_string(component, "notes").unwrap_or_default()
+                ],
+            )
+            .map_err(|err| format!("Failed to create formulation component: {err}"))?;
+    }
+    transaction
+        .commit()
+        .map_err(|err| format!("Failed to commit formulation create transaction: {err}"))?;
+    get_formulation_by_id(&connection, &id)
 }
 
 #[tauri::command]
@@ -57,6 +159,7 @@ pub fn list_formulations(
             let id: String = row.get(0)?;
             let (base_oil, additive_count, components_summary) =
                 formulation_components_summary(&connection, &id)?;
+            let components = formulation_components(&connection, &id)?;
             let (
                 experiment_count,
                 best_average_friction_coefficient,
@@ -69,6 +172,7 @@ pub fn list_formulations(
                 name: row.get(1)?,
                 base_oil,
                 additive_count,
+                components,
                 components_summary,
                 preparation_method: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
                 preparation_temperature: row.get(3)?,
@@ -95,8 +199,12 @@ pub fn list_formulations(
 
 #[tauri::command]
 pub fn get_formulation(app: AppHandle, id: String) -> Result<Option<FormulationDto>, String> {
-    let formulations = list_formulations(app, None)?;
-    Ok(formulations.into_iter().find(|item| item.id == id))
+    let connection = open_connection(&app)?;
+    match get_formulation_by_id(&connection, &id) {
+        Ok(item) => Ok(Some(item)),
+        Err(message) if message.contains("Query returned no rows") => Ok(None),
+        Err(message) => Err(message),
+    }
 }
 
 #[tauri::command]
@@ -160,6 +268,86 @@ pub fn delete_formulation_component(id: String) -> Result<Value, String> {
 fn open_connection(app: &AppHandle) -> Result<Connection, String> {
     Connection::open(default_database_path(app)?)
         .map_err(|err| format!("Failed to open SQLite database: {err}"))
+}
+
+fn get_formulation_by_id(connection: &Connection, id: &str) -> Result<FormulationDto, String> {
+    connection
+        .query_row(
+            "SELECT id, name, preparation_method, preparation_temperature,
+                    preparation_temperature_unit, preparation_time, preparation_time_unit,
+                    stability_observation, notes, created_at, updated_at
+             FROM formulations
+             WHERE id = ?1",
+            params![id],
+            |row| {
+                let id: String = row.get(0)?;
+                let (base_oil, additive_count, components_summary) =
+                    formulation_components_summary(connection, &id)?;
+                let components = formulation_components(connection, &id)?;
+                let (
+                    experiment_count,
+                    best_average_friction_coefficient,
+                    best_wear_scar_diameter,
+                    highest_oxidation_temperature,
+                ) = formulation_performance_summary(connection, &id)?;
+                Ok(FormulationDto {
+                    id,
+                    name: row.get(1)?,
+                    base_oil,
+                    additive_count,
+                    components,
+                    components_summary,
+                    preparation_method: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                    preparation_temperature: row.get(3)?,
+                    preparation_temperature_unit: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+                    preparation_time: row.get(5)?,
+                    preparation_time_unit: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
+                    stability_observation: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
+                    experiment_count,
+                    best_average_friction_coefficient,
+                    best_wear_scar_diameter,
+                    highest_oxidation_temperature,
+                    notes: row.get::<_, Option<String>>(8)?.unwrap_or_default(),
+                    created_at: row.get(9)?,
+                    updated_at: row.get(10)?,
+                })
+            },
+        )
+        .map_err(|err| format!("Failed to load formulation: {err}"))
+}
+
+fn formulation_components(
+    connection: &Connection,
+    formulation_id: &str,
+) -> rusqlite::Result<Vec<FormulationComponentDto>> {
+    let mut statement = connection.prepare(
+        "SELECT id, formulation_id, component_role, molecule_id, base_oil_id, additive_id,
+                concentration_value, concentration_unit, concentration_standard_value,
+                concentration_standard_unit, notes
+         FROM formulation_components
+         WHERE formulation_id = ?1
+         ORDER BY id",
+    )?;
+    let rows = statement.query_map(params![formulation_id], |row| {
+        Ok(FormulationComponentDto {
+            id: row.get(0)?,
+            formulation_id: row.get(1)?,
+            component_role: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            molecule_id: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+            base_oil_id: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+            additive_id: row.get::<_, Option<String>>(5)?.unwrap_or_default(),
+            concentration_value: row.get(6)?,
+            concentration_unit: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
+            concentration_standard_value: row.get(8)?,
+            concentration_standard_unit: row.get::<_, Option<String>>(9)?.unwrap_or_default(),
+            notes: row.get::<_, Option<String>>(10)?.unwrap_or_default(),
+        })
+    })?;
+    let mut components = Vec::new();
+    for row in rows {
+        components.push(row?);
+    }
+    Ok(components)
 }
 
 fn formulation_components_summary(
@@ -235,4 +423,28 @@ fn formulation_performance_summary(
         params![formulation_id],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
     )
+}
+
+fn field_string(payload: &Value, key: &str) -> Option<String> {
+    payload.get(key).and_then(|value| match value {
+        Value::String(text) => {
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Value::Number(number) => Some(number.to_string()),
+        Value::Bool(value) => Some(value.to_string()),
+        _ => None,
+    })
+}
+
+fn field_f64(payload: &Value, key: &str) -> Option<f64> {
+    payload.get(key).and_then(|value| match value {
+        Value::Number(number) => number.as_f64(),
+        Value::String(text) => text.trim().parse::<f64>().ok(),
+        _ => None,
+    })
 }

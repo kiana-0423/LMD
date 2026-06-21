@@ -1,0 +1,104 @@
+.mainLayout {
+  height: 100vh;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.appSider {
+  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.12);
+  height: 100vh;
+  overflow: auto;
+}
+
+.appMain {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.brandBlock {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 86px;
+  padding: 16px;
+}
+
+.brandLogo {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  object-fit: contain;
+}
+
+.brandTitle,
+.brandSubtitle {
+  display: block;
+  color: #ffffff;
+}
+
+.brandTitle {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.brandSubtitle {
+  color: #a8bacd;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.appHeader {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 72px;
+  line-height: 1.35;
+  border-bottom: 1px solid #dbe3ed;
+  padding: 0 24px;
+  overflow: hidden;
+}
+
+.appHeader h4 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.appHeader :global(.ant-typography) {
+  margin-bottom: 0;
+}
+
+.appContent {
+  flex: 1 1 auto;
+  padding: 16px 20px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.statusFooter {
+  flex-shrink: 0;
+  padding: 8px 24px;
+  border-top: 1px solid #dbe3ed;
+  background: #ffffff;
+  color: #526275;
+}
+
+@media (max-width: 840px) {
+  .appContent {
+    padding: 12px;
+  }
+
+  .appHeader {
+    height: auto;
+    min-height: 64px;
+    padding: 12px 16px;
+  }
+
+  .statusFooter {
+    padding: 8px 16px;
+  }
+}

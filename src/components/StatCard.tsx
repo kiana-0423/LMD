@@ -1,4 +1,5 @@
 import { Card, Statistic } from "antd";
+import styles from "./StatCard.module.css";
 
 export default function StatCard({
   title,
@@ -10,7 +11,7 @@ export default function StatCard({
   suffix?: string;
 }) {
   return (
-    <Card className="stat-card">
+    <Card className={styles.statCard}>
       <Statistic title={title} value={value} suffix={suffix} />
     </Card>
   );

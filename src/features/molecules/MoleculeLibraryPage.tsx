@@ -1,7 +1,8 @@
-import { Button, Card, Input, Modal, Select, Space, Table, Tag, message } from "antd";
+import { Button, Card, Input, Modal, Select, Space, Table, Tag, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import LoadingBlock from "../../components/LoadingBlock";
 import PageHeader from "../../components/PageHeader";
 import { deleteMolecule, listMolecules } from "../../lib/api";
 import { descriptorStatusLabels, moleculeCategories, moleculeCategoryLabels } from "../../lib/constants";
@@ -24,13 +25,23 @@ export default function MoleculeLibraryPage() {
   const [importMode, setImportMode] = useState<string>();
   const [duplicateStatus, setDuplicateStatus] = useState<string>();
   const [selected, setSelected] = useState<Molecule>();
+  const [loading, setLoading] = useState(true);
+  const [errorText, setErrorText] = useState("");
 
   useEffect(() => {
     refresh();
   }, []);
 
   async function refresh() {
-    setData(await listMolecules());
+    setLoading(true);
+    setErrorText("");
+    try {
+      setData(await listMolecules());
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
+    }
   }
 
   const filtered = useMemo(
@@ -120,6 +131,17 @@ export default function MoleculeLibraryPage() {
         title="分子库"
         description="分子表格仅显示描述符状态；完整 RDKit 与 Mordred 描述符保存在数据库中，并在详情抽屉中查看摘要。"
       />
+      {loading ? <LoadingBlock /> : null}
+      {!loading && errorText ? (
+        <Card className="error-panel">
+          <Typography.Title level={4}>分子库加载失败</Typography.Title>
+          <Typography.Paragraph>{errorText}</Typography.Paragraph>
+          <Button type="primary" onClick={refresh}>
+            重试
+          </Button>
+        </Card>
+      ) : null}
+      {!loading && !errorText ? (
       <Card>
         <div className="table-toolbar">
           <div className="left">
@@ -181,9 +203,11 @@ export default function MoleculeLibraryPage() {
           columns={columns}
           dataSource={filtered}
           tableLayout="fixed"
+          locale={{ emptyText: "数据库中暂无分子记录。" }}
           pagination={{ pageSize: 6, showSizeChanger: false }}
         />
       </Card>
+      ) : null}
       <MoleculeDetailDrawer molecule={selected} open={Boolean(selected)} onClose={() => setSelected(undefined)} />
     </div>
   );

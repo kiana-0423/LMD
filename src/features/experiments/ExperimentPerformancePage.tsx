@@ -33,6 +33,10 @@ export default function ExperimentPerformancePage() {
           form={form}
           layout="vertical"
           initialValues={{
+            durationUnit: "min",
+            loadUnit: "N",
+            repeatCount: 3,
+            temperatureUnit: "C",
             testType: "SRV"
           }}
         >
@@ -58,6 +62,8 @@ export default function ExperimentPerformancePage() {
             <Form.Item label="仪器" name="instrument"><Input /></Form.Item>
             <Form.Item label="上试样材料" name="upperMaterial"><Input /></Form.Item>
             <Form.Item label="下试样材料" name="lowerMaterial"><Input /></Form.Item>
+            <Form.Item label="实验日期" name="experimentDate"><Input type="date" /></Form.Item>
+            <Form.Item label="操作者" name="operator"><Input /></Form.Item>
             <Form.Item label="载荷" name="loadValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
             <Form.Item label="温度" name="temperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
             <Form.Item label="时长" name="durationValue"><InputNumber addonAfter="min" style={{ width: "100%" }} /></Form.Item>
@@ -66,6 +72,8 @@ export default function ExperimentPerformancePage() {
             <Form.Item label="磨斑直径" name="wearScarDiameterValue"><InputNumber addonAfter="um" style={{ width: "100%" }} /></Form.Item>
             <Form.Item label="初始氧化温度" name="initialOxidationTemperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
             <Form.Item label="极压值" name="extremePressureValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="重复次数" name="repeatCount"><InputNumber min={1} style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="备注" name="notes"><Input /></Form.Item>
             <Form.Item label="操作">
               <Button type="primary" block loading={saving} onClick={saveExperiment}>
                 保存实验与性能

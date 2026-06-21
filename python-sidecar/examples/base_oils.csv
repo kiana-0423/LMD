@@ -1,0 +1,4 @@
+id,name,base_oil_type,representative_molecule_id,viscosity_40c,viscosity_100c,viscosity_index,density,pour_point,flash_point,supplier,batch_number,notes
+bo-csv-001,PAO-8 CSV,PAO,,47.2,7.9,142,0.832,-54,238,Example Supplier A,PAO8-C2401,Synthetic polyalphaolefin base oil imported from CSV.
+bo-csv-002,SN150 CSV,mineral_oil,,30.4,5.3,102,0.872,-18,220,Example Supplier B,SN150-C2401,Group I mineral base oil imported from CSV.
+bo-csv-003,Ester ISO32 CSV,ester,,33.8,6.7,151,0.925,-45,246,Example Supplier C,EST32-C2401,Polar ester base oil imported from CSV.

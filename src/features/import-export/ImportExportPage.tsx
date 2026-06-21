@@ -86,7 +86,10 @@ export default function ImportExportPage() {
               message="导入结果"
               description={
                 <Typography.Text>
-                  {String(result.imported_count ?? result.importedCount ?? 0)} 条记录，预览 {previewRows.length} 行
+                  类型 {String(result.import_kind ?? result.importKind ?? "preview_only")}，
+                  写入 {String(result.imported_count ?? result.importedCount ?? 0)} 条，
+                  自动创建分子 {String(result.created_molecule_count ?? result.createdMoleculeCount ?? 0)} 条，
+                  跳过 {String(result.skipped_count ?? result.skippedCount ?? 0)} 条，预览 {previewRows.length} 行
                 </Typography.Text>
               }
             />

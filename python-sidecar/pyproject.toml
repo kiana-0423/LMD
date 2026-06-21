@@ -8,10 +8,14 @@ dependencies = [
   "mordred",
   "numpy",
   "pandas",
-  "pytest",
   "rdkit",
   "scipy",
   "scikit-learn"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest"
 ]
 
 [tool.setuptools.packages.find]

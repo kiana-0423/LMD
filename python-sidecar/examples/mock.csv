@@ -1,0 +1,5 @@
+molecule_id,name,aliases,smiles,category,additive_function_tags,data_source,notes
+csv-001,Ethanol,EtOH,CCO,solvent,,example_csv,Small molecule used to verify CSV import preview.
+csv-002,n-Hexadecane,Cetane,CCCCCCCCCCCCCCCC,base_oil_representative,,example_csv,Linear alkane base oil representative.
+csv-003,Triphenyl phosphate,TPP,O=P(Oc1ccccc1)(Oc1ccccc1)Oc1ccccc1,additive,antiwear;extreme_pressure,example_csv,Phosphorus additive candidate.
+csv-004,Diphenylamine,DPA,N(c1ccccc1)c1ccccc1,additive,antioxidant,example_csv,Aromatic amine antioxidant candidate.

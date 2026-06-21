@@ -1,3 +1,5 @@
+/* eslint-disable no-var */
+
 type ProcessShim = {
   browser: boolean;
   env: Record<string, string | undefined>;
@@ -14,30 +16,32 @@ type ProcessShim = {
   };
 };
 
-type BrowserGlobal = typeof globalThis & {
-  global?: typeof globalThis;
-  process?: ProcessShim;
-  Buffer?: typeof Uint8Array;
-};
+declare global {
+  var global: typeof globalThis | undefined;
+  var process: ProcessShim | undefined;
+  var Buffer: typeof Uint8Array | undefined;
+}
 
-const browserGlobal = globalThis as BrowserGlobal;
-const meta = import.meta as ImportMeta & { env?: { PROD?: boolean } };
+const browserGlobal = globalThis;
 
 browserGlobal.global = browserGlobal;
 browserGlobal.Buffer = browserGlobal.Buffer ?? Uint8Array;
-browserGlobal.process = browserGlobal.process ?? {
-  browser: true,
-  env: {},
-  pid: 0,
-  nextTick: (callback) => queueMicrotask(callback),
-  emitWarning: (message) => console.warn(message),
-  stderr: {
-    isTTY: false,
-    columns: 80,
-    getColorDepth: () => 1
-  }
-};
+const processShim =
+  browserGlobal.process ?? {
+    browser: true,
+    env: {},
+    pid: 0,
+    nextTick: (callback) => queueMicrotask(callback),
+    emitWarning: (message) => console.warn(message),
+    stderr: {
+      isTTY: false,
+      columns: 80,
+      getColorDepth: () => 1
+    }
+  };
 
-browserGlobal.process.env = browserGlobal.process.env ?? {};
-browserGlobal.process.env.NODE_ENV =
-  browserGlobal.process.env.NODE_ENV ?? (meta.env?.PROD ? "production" : "development");
+browserGlobal.process = processShim;
+processShim.env = processShim.env ?? {};
+processShim.env.NODE_ENV = processShim.env.NODE_ENV ?? (import.meta.env?.PROD ? "production" : "development");
+
+export {};

@@ -15,7 +15,9 @@ import {
 } from "@ant-design/icons";
 import { Layout, Menu, Space, Tag, Typography } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import PageErrorBoundary from "../components/PageErrorBoundary";
 import { APP_NAME, APP_NAME_CN } from "../lib/constants";
+import styles from "./MainLayout.module.css";
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -74,20 +76,20 @@ export default function MainLayout() {
   const location = useLocation();
 
   return (
-    <Layout className="main-layout">
+    <Layout className={styles.mainLayout}>
       <Sider
         width={288}
         collapsedWidth={72}
         breakpoint="lg"
         collapsible
         trigger={null}
-        className="app-sider"
+        className={styles.appSider}
       >
-        <div className="brand-block">
-          <img className="brand-logo" src="/logo.svg" alt="LMD logo" />
+        <div className={styles.brandBlock}>
+          <img className={styles.brandLogo} src="/logo.svg" alt="LMD logo" />
           <div>
-            <Typography.Text className="brand-title">{APP_NAME}</Typography.Text>
-            <Typography.Text className="brand-subtitle">{APP_NAME_CN}</Typography.Text>
+            <Typography.Text className={styles.brandTitle}>{APP_NAME}</Typography.Text>
+            <Typography.Text className={styles.brandSubtitle}>{APP_NAME_CN}</Typography.Text>
           </div>
         </div>
         <Menu
@@ -100,17 +102,19 @@ export default function MainLayout() {
           }}
         />
       </Sider>
-      <Layout className="app-main">
-        <Header className="app-header">
+      <Layout className={styles.appMain}>
+        <Header className={styles.appHeader}>
           <div>
             <Typography.Title level={4}>{APP_NAME}</Typography.Title>
             <Typography.Text type="secondary">本地润滑材料数据库与智能设计 MVP</Typography.Text>
           </div>
         </Header>
-        <Content className="app-content">
-          <Outlet />
+        <Content className={styles.appContent}>
+          <PageErrorBoundary>
+            <Outlet />
+          </PageErrorBoundary>
         </Content>
-        <Footer className="status-footer">
+        <Footer className={styles.statusFooter}>
           <Space size="middle" wrap>
             <span>工作区：LMD_Workspace</span>
             <Tag color="green">SQLite 就绪</Tag>

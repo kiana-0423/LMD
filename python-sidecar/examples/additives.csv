@@ -1,0 +1,4 @@
+id,molecule_id,molecule_name,aliases,smiles,formula,molecular_weight,function_types,active_elements,typical_concentration_min,typical_concentration_max,concentration_unit,compatible_base_oils,application_notes
+add-csv-001,,Triphenyl phosphate,TPP,O=P(Oc1ccccc1)(Oc1ccccc1)Oc1ccccc1,C18H15O4P,326.29,antiwear;extreme_pressure,P;O,0.2,0.8,wt%,PAO-8 CSV;Ester ISO32 CSV,Phosphorus antiwear additive imported from CSV.
+add-csv-002,,Diphenylamine,DPA,N(c1ccccc1)c1ccccc1,C12H11N,169.23,antioxidant,N,0.1,0.5,wt%,PAO-8 CSV;SN150 CSV,Aromatic amine antioxidant imported from CSV.
+add-csv-003,,Molybdenum dithiocarbamate,MoDTC,CN(C)C(=S)S[Mo]SC(=S)N(C)C,C6H12MoN2S4,336.38,friction_modifier;antiwear,Mo;S;N,0.05,0.4,wt%,PAO-8 CSV,Friction modifier imported from CSV.
