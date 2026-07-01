@@ -14,12 +14,26 @@ import {
   UploadOutlined
 } from "@ant-design/icons";
 import { Layout, Menu, Space, Tag, Typography } from "antd";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import PageErrorBoundary from "../components/PageErrorBoundary";
 import { APP_NAME, APP_NAME_CN } from "../lib/constants";
+import { invokeOrMock } from "../lib/tauri";
 import styles from "./MainLayout.module.css";
 
 const { Header, Sider, Content, Footer } = Layout;
+
+type WorkspaceStatus = {
+  workspace_path?: string;
+  database_path?: string;
+  sqlite_status?: string;
+  python_sidecar_status?: "checking" | "real" | "mock" | "unavailable";
+  python_sidecar_error?: string | null;
+};
+
+type WorkspaceStatusResponse = {
+  data?: WorkspaceStatus;
+};
 
 const menuItems = [
   {
@@ -74,6 +88,41 @@ const menuItems = [
 export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [workspaceStatus, setWorkspaceStatus] = useState<WorkspaceStatus>({
+    sqlite_status: "checking",
+    python_sidecar_status: "checking"
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    invokeOrMock<WorkspaceStatusResponse>("get_workspace_status", {}, async () => ({
+      data: {
+        workspace_path: "LMD_Workspace",
+        sqlite_status: "unavailable",
+        python_sidecar_status: "mock"
+      }
+    }))
+      .then((response) => {
+        if (!cancelled) setWorkspaceStatus(response.data ?? {});
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setWorkspaceStatus({
+            sqlite_status: "unavailable",
+            python_sidecar_status: "unavailable",
+            python_sidecar_error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sqliteReady = workspaceStatus.sqlite_status === "ready";
+  const sidecarStatus = workspaceStatus.python_sidecar_status ?? "checking";
 
   return (
     <Layout className={styles.mainLayout}>
@@ -116,12 +165,28 @@ export default function MainLayout() {
         </Content>
         <Footer className={styles.statusFooter}>
           <Space size="middle" wrap>
-            <span>工作区：LMD_Workspace</span>
-            <Tag color="green">SQLite 就绪</Tag>
-            <Tag color="gold">Python Sidecar 模拟模式</Tag>
+            <span>工作区：{workspaceStatus.workspace_path ?? "LMD_Workspace"}</span>
+            <Tag color={sqliteReady ? "green" : "red"}>{sqliteReady ? "SQLite 就绪" : "SQLite 未就绪"}</Tag>
+            <Tag color={sidecarTagColor(sidecarStatus)} title={workspaceStatus.python_sidecar_error ?? undefined}>
+              {sidecarTagText(sidecarStatus)}
+            </Tag>
           </Space>
         </Footer>
       </Layout>
     </Layout>
   );
+}
+
+function sidecarTagColor(status: WorkspaceStatus["python_sidecar_status"]) {
+  if (status === "real") return "green";
+  if (status === "mock") return "gold";
+  if (status === "unavailable") return "red";
+  return "processing";
+}
+
+function sidecarTagText(status: WorkspaceStatus["python_sidecar_status"]) {
+  if (status === "real") return "Python Sidecar 真实模式";
+  if (status === "mock") return "Python Sidecar 模拟模式";
+  if (status === "unavailable") return "Python Sidecar 不可用";
+  return "Python Sidecar 检查中";
 }

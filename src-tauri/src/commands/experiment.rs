@@ -166,7 +166,10 @@ pub fn list_experiments(
 }
 
 #[tauri::command]
-pub fn create_performance_result(app: AppHandle, payload: Value) -> Result<PerformanceResultDto, String> {
+pub fn create_performance_result(
+    app: AppHandle,
+    payload: Value,
+) -> Result<PerformanceResultDto, String> {
     let experiment_id = field_string(&payload, "experimentId")
         .or_else(|| field_string(&payload, "experiment_id"))
         .ok_or_else(|| "Experiment is required for performance result records.".to_string())?;
@@ -332,7 +335,10 @@ fn get_experiment_by_id(connection: &Connection, id: &str) -> Result<ExperimentD
         .map_err(|err| format!("Failed to load experiment: {err}"))
 }
 
-fn get_performance_result_by_id(connection: &Connection, id: &str) -> Result<PerformanceResultDto, String> {
+fn get_performance_result_by_id(
+    connection: &Connection,
+    id: &str,
+) -> Result<PerformanceResultDto, String> {
     connection
         .query_row(
             "SELECT id, experiment_id, average_friction_coefficient, stable_friction_coefficient,
@@ -358,8 +364,12 @@ fn get_performance_result_by_id(connection: &Connection, id: &str) -> Result<Per
                     viscosity_40c: row.get(10)?,
                     viscosity_100c: row.get(11)?,
                     repeat_count: row.get(12)?,
-                    std_json: parse_json_text(row.get::<_, Option<String>>(13)?.unwrap_or_default()),
-                    raw_result_json: parse_json_text(row.get::<_, Option<String>>(14)?.unwrap_or_default()),
+                    std_json: parse_json_text(
+                        row.get::<_, Option<String>>(13)?.unwrap_or_default(),
+                    ),
+                    raw_result_json: parse_json_text(
+                        row.get::<_, Option<String>>(14)?.unwrap_or_default(),
+                    ),
                     notes: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
                     created_at: row.get(16)?,
                     updated_at: row.get(17)?,

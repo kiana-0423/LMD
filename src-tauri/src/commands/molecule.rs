@@ -422,9 +422,12 @@ pub async fn import_new_molecule(
         run_sidecar_command(&app, "standardize", json!({ "smiles": &input_smiles })).await?;
     let visualized =
         run_sidecar_command(&app, "visualize", json!({ "smiles": &input_smiles })).await?;
-    let molfile_result =
-        run_sidecar_command(&app, "smiles-to-molfile", json!({ "smiles": &input_smiles }))
-            .await?;
+    let molfile_result = run_sidecar_command(
+        &app,
+        "smiles-to-molfile",
+        json!({ "smiles": &input_smiles }),
+    )
+    .await?;
     let generated_3d = run_sidecar_command(
         &app,
         "generate-3d",

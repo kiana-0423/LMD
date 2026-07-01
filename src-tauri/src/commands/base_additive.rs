@@ -49,8 +49,8 @@ pub struct AdditiveDto {
 
 #[tauri::command]
 pub fn create_base_oil(app: AppHandle, payload: Value) -> Result<BaseOilDto, String> {
-    let name = field_string(&payload, "name")
-        .ok_or_else(|| "Base oil name is required.".to_string())?;
+    let name =
+        field_string(&payload, "name").ok_or_else(|| "Base oil name is required.".to_string())?;
     let id = field_string(&payload, "id").unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = Utc::now().to_rfc3339();
     let connection = open_connection(&app)?;
@@ -64,12 +64,16 @@ pub fn create_base_oil(app: AppHandle, payload: Value) -> Result<BaseOilDto, Str
             params![
                 &id,
                 &name,
-                field_string(&payload, "baseOilType").or_else(|| field_string(&payload, "base_oil_type")),
+                field_string(&payload, "baseOilType")
+                    .or_else(|| field_string(&payload, "base_oil_type")),
                 field_string(&payload, "representativeMoleculeId")
                     .or_else(|| field_string(&payload, "representative_molecule_id")),
-                field_f64(&payload, "viscosity40c").or_else(|| field_f64(&payload, "viscosity_40c")),
-                field_f64(&payload, "viscosity100c").or_else(|| field_f64(&payload, "viscosity_100c")),
-                field_f64(&payload, "viscosityIndex").or_else(|| field_f64(&payload, "viscosity_index")),
+                field_f64(&payload, "viscosity40c")
+                    .or_else(|| field_f64(&payload, "viscosity_40c")),
+                field_f64(&payload, "viscosity100c")
+                    .or_else(|| field_f64(&payload, "viscosity_100c")),
+                field_f64(&payload, "viscosityIndex")
+                    .or_else(|| field_f64(&payload, "viscosity_index")),
                 field_f64(&payload, "density"),
                 field_f64(&payload, "pourPoint").or_else(|| field_f64(&payload, "pour_point")),
                 field_f64(&payload, "flashPoint").or_else(|| field_f64(&payload, "flash_point")),
@@ -162,7 +166,9 @@ pub fn create_additive(app: AppHandle, payload: Value) -> Result<AdditiveDto, St
         )
         .map_err(|err| format!("Failed to validate additive molecule: {err}"))?;
     if !molecule_exists {
-        return Err(format!("Representative molecule does not exist: {molecule_id}"));
+        return Err(format!(
+            "Representative molecule does not exist: {molecule_id}"
+        ));
     }
     connection
         .execute(
@@ -286,7 +292,9 @@ fn get_base_oil(connection: &Connection, id: &str) -> Result<BaseOilDto, String>
                     id: row.get(0)?,
                     name: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
                     base_oil_type: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                    representative_molecule_id: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                    representative_molecule_id: row
+                        .get::<_, Option<String>>(3)?
+                        .unwrap_or_default(),
                     viscosity_40c: row.get(4)?,
                     viscosity_100c: row.get(5)?,
                     viscosity_index: row.get(6)?,
@@ -320,12 +328,18 @@ fn get_additive(connection: &Connection, id: &str) -> Result<AdditiveDto, String
                     id: row.get(0)?,
                     molecule_id: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
                     molecule_name: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                    function_types: parse_string_list(row.get::<_, Option<String>>(3)?.unwrap_or_default()),
-                    active_elements: parse_string_list(row.get::<_, Option<String>>(4)?.unwrap_or_default()),
+                    function_types: parse_string_list(
+                        row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                    ),
+                    active_elements: parse_string_list(
+                        row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+                    ),
                     typical_concentration_min: row.get::<_, Option<f64>>(5)?.unwrap_or_default(),
                     typical_concentration_max: row.get::<_, Option<f64>>(6)?.unwrap_or_default(),
                     concentration_unit: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
-                    compatible_base_oils: parse_string_list(row.get::<_, Option<String>>(8)?.unwrap_or_default()),
+                    compatible_base_oils: parse_string_list(
+                        row.get::<_, Option<String>>(8)?.unwrap_or_default(),
+                    ),
                     formulation_count: 0,
                     best_friction_coefficient: None,
                     best_wear_scar_diameter: None,

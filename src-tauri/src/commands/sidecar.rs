@@ -123,10 +123,7 @@ pub async fn calculate_required_descriptors_with_sidecar(
 }
 
 #[tauri::command]
-pub async fn validate_smiles_with_sidecar(
-    app: AppHandle,
-    smiles: String,
-) -> Result<Value, String> {
+pub async fn validate_smiles_with_sidecar(app: AppHandle, smiles: String) -> Result<Value, String> {
     run_sidecar_command(&app, "validate-smiles", json!({ "smiles": smiles })).await
 }
 
@@ -188,7 +185,13 @@ pub async fn import_excel_with_sidecar(app: AppHandle, file_path: String) -> Res
         );
         data.insert(
             "warnings".to_string(),
-            Value::Array(import_summary.warnings.into_iter().map(Value::String).collect()),
+            Value::Array(
+                import_summary
+                    .warnings
+                    .into_iter()
+                    .map(Value::String)
+                    .collect(),
+            ),
         );
     }
     Ok(result)
@@ -317,7 +320,8 @@ fn import_base_oil_row(
 ) -> Result<(), String> {
     let name = field_string(row, &["name", "base_oil_name"])
         .ok_or_else(|| "Skipped base oil row without name.".to_string())?;
-    let id = field_string(row, &["id", "base_oil_id"]).unwrap_or_else(|| Uuid::new_v4().to_string());
+    let id =
+        field_string(row, &["id", "base_oil_id"]).unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = Utc::now().to_rfc3339();
     tx.execute(
         "INSERT INTO base_oils (
@@ -367,7 +371,8 @@ fn import_additive_row(
     file_path: &str,
     summary: &mut ImportSummary,
 ) -> Result<(), String> {
-    let additive_id = field_string(row, &["id", "additive_id"]).unwrap_or_else(|| Uuid::new_v4().to_string());
+    let additive_id =
+        field_string(row, &["id", "additive_id"]).unwrap_or_else(|| Uuid::new_v4().to_string());
     let molecule_id = ensure_additive_molecule(tx, row, file_path, &additive_id, summary)?;
     let now = Utc::now().to_rfc3339();
     tx.execute(
@@ -389,13 +394,17 @@ fn import_additive_row(
         params![
             &additive_id,
             &molecule_id,
-            list_json(row, &["function_types", "additive_function_tags", "functions"]),
+            list_json(
+                row,
+                &["function_types", "additive_function_tags", "functions"]
+            ),
             list_json(row, &["active_elements", "elements"]),
             field_f64(row, &["typical_concentration_min", "concentration_min"]),
             field_f64(row, &["typical_concentration_max", "concentration_max"]),
             field_string(row, &["concentration_unit"]).unwrap_or_else(|| "wt%".to_string()),
             list_json(row, &["compatible_base_oils", "compatible_base_oil"]),
-            field_string(row, &["application_notes", "notes"]).unwrap_or_else(|| format!("Imported from {file_path}")),
+            field_string(row, &["application_notes", "notes"])
+                .unwrap_or_else(|| format!("Imported from {file_path}")),
             now,
         ],
     )
@@ -426,7 +435,13 @@ fn ensure_additive_molecule(
         }
         create_minimal_molecule(tx, row, file_path, Some(molecule_id), summary)
     } else {
-        create_minimal_molecule(tx, row, file_path, Some(format!("mol-{additive_id}")), summary)
+        create_minimal_molecule(
+            tx,
+            row,
+            file_path,
+            Some(format!("mol-{additive_id}")),
+            summary,
+        )
     }
 }
 
@@ -439,8 +454,16 @@ fn create_minimal_molecule(
 ) -> Result<String, String> {
     let smiles = field_string(row, &["smiles", "smiles_canonical"]).unwrap_or_default();
     let name = field_string(row, &["molecule_name", "name"])
-        .or_else(|| if smiles.is_empty() { None } else { Some(smiles.clone()) })
-        .ok_or_else(|| "Skipped additive row without molecule_id, molecule_name, or smiles.".to_string())?;
+        .or_else(|| {
+            if smiles.is_empty() {
+                None
+            } else {
+                Some(smiles.clone())
+            }
+        })
+        .ok_or_else(|| {
+            "Skipped additive row without molecule_id, molecule_name, or smiles.".to_string()
+        })?;
     let id = molecule_id.unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = Utc::now().to_rfc3339();
     tx.execute(

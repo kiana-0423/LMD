@@ -49,8 +49,8 @@ pub struct FormulationDto {
 
 #[tauri::command]
 pub fn create_formulation(app: AppHandle, payload: Value) -> Result<FormulationDto, String> {
-    let name =
-        field_string(&payload, "name").ok_or_else(|| "Formulation name is required.".to_string())?;
+    let name = field_string(&payload, "name")
+        .ok_or_else(|| "Formulation name is required.".to_string())?;
     let components = payload
         .get("components")
         .and_then(Value::as_array)
@@ -100,7 +100,8 @@ pub fn create_formulation(app: AppHandle, payload: Value) -> Result<FormulationD
         .map_err(|err| format!("Failed to create formulation: {err}"))?;
 
     for component in components {
-        let component_id = field_string(component, "id").unwrap_or_else(|| Uuid::new_v4().to_string());
+        let component_id =
+            field_string(component, "id").unwrap_or_else(|| Uuid::new_v4().to_string());
         let role = field_string(component, "componentRole")
             .or_else(|| field_string(component, "component_role"))
             .unwrap_or_else(|| "additive".to_string());
@@ -115,9 +116,12 @@ pub fn create_formulation(app: AppHandle, payload: Value) -> Result<FormulationD
                     &component_id,
                     &id,
                     role,
-                    field_string(component, "moleculeId").or_else(|| field_string(component, "molecule_id")),
-                    field_string(component, "baseOilId").or_else(|| field_string(component, "base_oil_id")),
-                    field_string(component, "additiveId").or_else(|| field_string(component, "additive_id")),
+                    field_string(component, "moleculeId")
+                        .or_else(|| field_string(component, "molecule_id")),
+                    field_string(component, "baseOilId")
+                        .or_else(|| field_string(component, "base_oil_id")),
+                    field_string(component, "additiveId")
+                        .or_else(|| field_string(component, "additive_id")),
                     field_f64(component, "concentrationValue")
                         .or_else(|| field_f64(component, "concentration_value")),
                     field_string(component, "concentrationUnit")
@@ -299,7 +303,9 @@ fn get_formulation_by_id(connection: &Connection, id: &str) -> Result<Formulatio
                     components_summary,
                     preparation_method: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
                     preparation_temperature: row.get(3)?,
-                    preparation_temperature_unit: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+                    preparation_temperature_unit: row
+                        .get::<_, Option<String>>(4)?
+                        .unwrap_or_default(),
                     preparation_time: row.get(5)?,
                     preparation_time_unit: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
                     stability_observation: row.get::<_, Option<String>>(7)?.unwrap_or_default(),

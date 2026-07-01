@@ -1,5 +1,6 @@
 use crate::app_paths::{default_database_path, default_workspace_dir};
 use crate::commands::ok;
+use crate::commands::sidecar::run_sidecar_command;
 use crate::db::migrations::{create_workspace_directories, initialize_database_file};
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -21,14 +22,64 @@ pub fn open_workspace(path: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub fn get_workspace_status(app: AppHandle) -> Result<Value, String> {
+pub async fn get_workspace_status(app: AppHandle) -> Result<Value, String> {
+    let sidecar_status = run_sidecar_command(
+        &app,
+        "calculate-required-descriptors",
+        json!({
+            "smiles": "CCO",
+            "require_rdkit": true,
+            "require_mordred": true,
+            "allow_mock": false
+        }),
+    )
+    .await;
+
+    let mut python_sidecar_status = "unavailable";
+    let mut python_sidecar_mode = Value::Null;
+    let mut rdkit_mode = Value::Null;
+    let mut mordred_mode = Value::Null;
+    let mut python_sidecar_error = Value::Null;
+
+    match sidecar_status {
+        Ok(result) => {
+            let data = result.get("data").unwrap_or(&Value::Null);
+            python_sidecar_mode = data.get("mode").cloned().unwrap_or(Value::Null);
+            rdkit_mode = data
+                .get("rdkit")
+                .and_then(|value| value.get("mode"))
+                .cloned()
+                .unwrap_or(Value::Null);
+            mordred_mode = data
+                .get("mordred")
+                .and_then(|value| value.get("mode"))
+                .cloned()
+                .unwrap_or(Value::Null);
+            python_sidecar_status = if python_sidecar_mode.as_str() == Some("real")
+                && rdkit_mode.as_str() == Some("real")
+                && mordred_mode.as_str() == Some("real")
+            {
+                "real"
+            } else {
+                "mock"
+            };
+        }
+        Err(err) => {
+            python_sidecar_error = Value::String(err);
+        }
+    }
+
     ok(
         "get_workspace_status",
         json!({
             "workspace_path": default_workspace_dir(&app)?,
             "database_path": default_database_path(&app)?,
             "sqlite_status": "ready",
-            "python_sidecar_status": "mock"
+            "python_sidecar_status": python_sidecar_status,
+            "python_sidecar_mode": python_sidecar_mode,
+            "rdkit_mode": rdkit_mode,
+            "mordred_mode": mordred_mode,
+            "python_sidecar_error": python_sidecar_error
         }),
     )
 }
