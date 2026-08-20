@@ -2,6 +2,8 @@ import { Button, Select, Space, Switch, Tag, Typography, message } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { generateMolecule3d } from "../../../lib/api";
 import { buildMock3dMolBlock } from "../../../lib/mockStructure";
+import { translateBusinessText } from "../../../i18n/businessTranslations";
+import { useLanguage } from "../../../i18n/LanguageContext";
 import type { Molecule } from "../../../types";
 
 type Atom3D = { index: number; element: string; x: number; y: number; z: number };
@@ -30,6 +32,7 @@ const isoView = {
 };
 
 export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
+  const { language } = useLanguage();
   const [style, setStyle] = useState("ball-and-stick");
   const [rotateX, setRotateX] = useState(isoView.rotateX);
   const [rotateY, setRotateY] = useState(isoView.rotateY);
@@ -54,15 +57,18 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
     if (saved.atoms.length) return { ...saved, source: "saved" as const };
     if (molecule.smilesCanonical) {
       const preview = parseStructure(buildMock3dMolBlock(molecule.smilesCanonical, molecule.name));
-      return { ...preview, source: preview.atoms.length ? "generated-preview" as const : "empty" as const };
+      return { ...preview, source: preview.atoms.length ? ("generated-preview" as const) : ("empty" as const) };
     }
     return { atoms: [], bonds: [], source: "empty" as const };
   }, [molecule.name, molecule.smilesCanonical, rawStructure]);
 
-  const scene = useMemo(() => projectStructure(parsed, rotateX, rotateY, style, zoom), [parsed, rotateX, rotateY, style, zoom]);
+  const scene = useMemo(
+    () => projectStructure(parsed, rotateX, rotateY, style, zoom),
+    [parsed, rotateX, rotateY, style, zoom]
+  );
   useEffect(() => {
-    drawCanvas(canvasRef.current, scene);
-  }, [scene]);
+    drawCanvas(canvasRef.current, scene, translateBusinessText("Atom instances", language));
+  }, [language, scene]);
 
   useEffect(() => {
     if (!autoRotate) return undefined;
@@ -79,16 +85,16 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
   }, [autoRotate]);
 
   const styleLabels: Record<string, string> = {
-    "ball-and-stick": "球棍模型",
-    stick: "棍状模型",
-    sphere: "球状模型",
-    line: "线框模型"
+    "ball-and-stick": "Ball and Stick",
+    stick: "Stick",
+    sphere: "Sphere",
+    line: "Wireframe"
   };
 
   async function generate3d() {
     const smiles = molecule.smilesCanonical || molecule.smilesRaw;
     if (!smiles) {
-      message.error("缺少 SMILES，无法生成 3D 结构。");
+      message.error("Cannot generate a 3D structure without SMILES.");
       return;
     }
     setGenerating(true);
@@ -97,11 +103,11 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
       const molBlock = String(result.mol_block ?? "");
       const sdfBlock = String(result.sdf_block ?? "");
       const pdbBlock = String(result.pdb_block ?? "");
-      if (!molBlock && !sdfBlock && !pdbBlock) throw new Error("3D 生成未返回结构块。");
+      if (!molBlock && !sdfBlock && !pdbBlock) throw new Error("3D generation returned no structure block.");
       setGeneratedBlocks({ molBlock, sdfBlock, pdbBlock });
-      message.success("3D 结构已生成。");
+      message.success("3D structure generated.");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "3D 结构生成失败。");
+      message.error(error instanceof Error ? error.message : "Failed to generate the 3D structure.");
     } finally {
       setGenerating(false);
     }
@@ -159,23 +165,34 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
           value={style}
           style={{ width: 180 }}
           options={[
-            { value: "ball-and-stick", label: "球棍模型" },
-            { value: "stick", label: "棍状模型" },
-            { value: "sphere", label: "球状模型" },
-            { value: "line", label: "线框模型" }
+            { value: "ball-and-stick", label: "Ball and Stick" },
+            { value: "stick", label: "Stick" },
+            { value: "sphere", label: "Sphere" },
+            { value: "line", label: "Wireframe" }
           ]}
           onChange={setStyle}
         />
         <Button loading={generating} onClick={generate3d}>
-          {parsed.source === "saved" ? "重新生成 3D" : "生成 3D"}
+          {parsed.source === "saved" ? "Regenerate 3D" : "Generate 3D"}
         </Button>
-        <Button disabled={!molecule.molBlock && !generatedBlocks?.molBlock} onClick={() => exportBlock("mol")}>导出 MOL</Button>
-        <Button disabled={!molecule.sdfBlock && !generatedBlocks?.sdfBlock} onClick={() => exportBlock("sdf")}>导出 SDF</Button>
-        <Button disabled={!molecule.pdbBlock && !generatedBlocks?.pdbBlock} onClick={() => exportBlock("pdb")}>导出 PDB</Button>
-        <Button onClick={resetView}>重置视角</Button>
-        <Switch checked={autoRotate} onChange={setAutoRotate} checkedChildren="自动旋转" unCheckedChildren="自动旋转" />
+        <Button disabled={!molecule.molBlock && !generatedBlocks?.molBlock} onClick={() => exportBlock("mol")}>
+          Export MOL
+        </Button>
+        <Button disabled={!molecule.sdfBlock && !generatedBlocks?.sdfBlock} onClick={() => exportBlock("sdf")}>
+          Export SDF
+        </Button>
+        <Button disabled={!molecule.pdbBlock && !generatedBlocks?.pdbBlock} onClick={() => exportBlock("pdb")}>
+          Export PDB
+        </Button>
+        <Button onClick={resetView}>Reset View</Button>
+        <Switch
+          checked={autoRotate}
+          onChange={setAutoRotate}
+          checkedChildren="Auto Rotate"
+          unCheckedChildren="Auto Rotate"
+        />
         <Tag color={parsed.source === "saved" ? "green" : "gold"}>
-          {parsed.source === "saved" ? "已加载 3D 结构" : "SMILES 预览结构"}
+          {parsed.source === "saved" ? "Loaded 3D Structure" : "SMILES Preview Structure"}
         </Tag>
       </Space>
       <div className="viewer-shell molecule-3d-shell molecule-3d-clean-shell">
@@ -194,20 +211,26 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
           />
         ) : (
           <div className="molecule-3d-empty">
-            <Typography.Text strong>暂无可渲染的 3D 坐标</Typography.Text>
-            <Typography.Text type="secondary">请确认该分子有 SMILES，或点击“生成 3D”。</Typography.Text>
+            <Typography.Text strong>No renderable 3D coordinates</Typography.Text>
+            <Typography.Text type="secondary">
+              Confirm that the molecule has SMILES, or click “Generate 3D”.
+            </Typography.Text>
           </div>
         )}
       </div>
       <div className="molecule-3d-meta">
-        <Typography.Text type="secondary">拖拽旋转，滚轮缩放；当前显示模式：{styleLabels[style] ?? style}</Typography.Text>
-        <Typography.Text type="secondary">缩放 {zoom.toFixed(2)}x · X {Math.round(rotateX)}° · Y {Math.round(rotateY)}°</Typography.Text>
+        <Typography.Text type="secondary">
+          Drag to rotate and scroll to zoom. Display mode: {styleLabels[style] ?? style}
+        </Typography.Text>
+        <Typography.Text type="secondary">
+          Zoom {zoom.toFixed(2)}x · X {Math.round(rotateX)}° · Y {Math.round(rotateY)}°
+        </Typography.Text>
       </div>
     </div>
   );
 }
 
-function drawCanvas(canvas: HTMLCanvasElement | null, scene: ReturnType<typeof projectStructure>) {
+function drawCanvas(canvas: HTMLCanvasElement | null, scene: ReturnType<typeof projectStructure>, legendTitle: string) {
   if (!canvas) return;
   const width = 640;
   const height = 360;
@@ -259,7 +282,7 @@ function drawCanvas(canvas: HTMLCanvasElement | null, scene: ReturnType<typeof p
     }
     context.restore();
   });
-  drawAtomLegend(context, scene.atomLegend, width, height);
+  drawAtomLegend(context, scene.atomLegend, width, height, legendTitle);
 }
 
 function drawBond(
@@ -336,7 +359,8 @@ function drawAtomLegend(
   context: CanvasRenderingContext2D,
   atomLegend: Array<{ element: string; color: string; count: number }>,
   width: number,
-  height: number
+  height: number,
+  legendTitle: string
 ) {
   if (!atomLegend.length) return;
   const panelWidth = 116;
@@ -355,7 +379,7 @@ function drawAtomLegend(
   context.font = "700 12px system-ui, sans-serif";
   context.textAlign = "left";
   context.textBaseline = "middle";
-  context.fillText("原子实例", x + 12, y + 16);
+  context.fillText(legendTitle, x + 12, y + 16);
   atomLegend.forEach((entry, index) => {
     const cy = y + 36 + index * rowHeight;
     context.fillStyle = entry.color;
@@ -372,7 +396,14 @@ function drawAtomLegend(
   context.restore();
 }
 
-function roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+function roundRect(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
   context.beginPath();
   context.moveTo(x + radius, y);
   context.lineTo(x + width - radius, y);
@@ -463,7 +494,13 @@ function parsePdbBlock(content: string): Omit<ParsedStructure, "source"> {
   return { atoms, bonds: bonds.length ? bonds : inferBonds(atoms) };
 }
 
-function projectStructure(parsed: ParsedStructure, rotateXDeg: number, rotateYDeg: number, style: string, zoom: number) {
+function projectStructure(
+  parsed: ParsedStructure,
+  rotateXDeg: number,
+  rotateYDeg: number,
+  style: string,
+  zoom: number
+) {
   const rotateX = (rotateXDeg * Math.PI) / 180;
   const rotateY = (rotateYDeg * Math.PI) / 180;
   const rotated = parsed.atoms.map((atom) => {
@@ -550,7 +587,10 @@ function projectStructure(parsed: ParsedStructure, rotateXDeg: number, rotateYDe
   }>;
   const frameEdges = buildFrameEdges(parsed.atoms, projectPoint);
   const elementLegend = Array.from(
-    parsed.atoms.reduce((map, atom) => map.set(atom.element, (map.get(atom.element) ?? 0) + 1), new Map<string, number>())
+    parsed.atoms.reduce(
+      (map, atom) => map.set(atom.element, (map.get(atom.element) ?? 0) + 1),
+      new Map<string, number>()
+    )
   )
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(0, 9)
@@ -559,7 +599,10 @@ function projectStructure(parsed: ParsedStructure, rotateXDeg: number, rotateYDe
   return { atoms, bonds, frameEdges, axes: projectAxes(rotateX, rotateY), elementLegend, atomLegend };
 }
 
-function buildFrameEdges(atoms: Atom3D[], projectPoint: (point: { x: number; y: number; z: number }) => { x: number; y: number; z: number }) {
+function buildFrameEdges(
+  atoms: Atom3D[],
+  projectPoint: (point: { x: number; y: number; z: number }) => { x: number; y: number; z: number }
+) {
   if (!atoms.length) return [];
   const xs = atoms.map((atom) => atom.x);
   const ys = atoms.map((atom) => atom.y);

@@ -9,7 +9,7 @@ export default function MoleculeViewer2D({ molecule }: { molecule: Molecule }) {
 
   async function copySmiles() {
     await navigator.clipboard.writeText(molecule.smilesCanonical);
-    message.success("规范 SMILES 已复制。");
+    message.success("Canonical SMILES copied.");
   }
 
   function downloadSvg() {
@@ -25,14 +25,14 @@ export default function MoleculeViewer2D({ molecule }: { molecule: Molecule }) {
   return (
     <div>
       <Space className="viewer-toolbar" wrap>
-        <Button onClick={() => setZoom((value) => Math.min(2.4, value + 0.2))}>放大</Button>
-        <Button onClick={() => setZoom((value) => Math.max(0.5, value - 0.2))}>缩小</Button>
-        <Button onClick={() => setZoom(1)}>重置视图</Button>
-        <Button onClick={downloadSvg}>下载 SVG</Button>
-        <Button onClick={copySmiles}>复制规范 SMILES</Button>
+        <Button onClick={() => setZoom((value) => Math.min(2.4, value + 0.2))}>Zoom In</Button>
+        <Button onClick={() => setZoom((value) => Math.max(0.5, value - 0.2))}>Zoom Out</Button>
+        <Button onClick={() => setZoom(1)}>Reset View</Button>
+        <Button onClick={downloadSvg}>Download SVG</Button>
+        <Button onClick={copySmiles}>Copy Canonical SMILES</Button>
       </Space>
       <div style={{ transform: `scale(${zoom})`, transformOrigin: "center", transition: "transform 120ms ease" }}>
-        <MoleculeStructurePreview svg={svg} title="2D 结构" />
+        <MoleculeStructurePreview svg={svg} title="2D Structure" />
       </div>
     </div>
   );

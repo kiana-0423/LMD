@@ -1,99 +1,141 @@
-# LMD 润滑材料数据库
+# LMD
 
-## 项目简介
+## Overview
 
-LMD 是一套面向润滑材料研发的本地桌面数据库与智能设计软件。系统围绕“分子/物质、描述符、基础油/添加剂、配方、实验条件、性能结果、分析与预测”这条数据链组织信息，目标是在本地环境中完成实验数据管理、分子结构保存、描述符计算、配方记录和后续机器学习数据准备。
+LMD is a local desktop database and intelligent-design application for lubricant-material research. It organizes molecules, descriptors, base oils, additives, formulations, experimental conditions, performance results, analysis, and prediction in one local workflow.
 
-当前项目处于 MVP 阶段，重点是提供可运行的 Tauri 桌面应用骨架、SQLite 本地存储、Python 科学计算 sidecar、分子绘画与导入流程、描述符中心、基础数据表、数据挖掘入口和主要业务页面。
+The project is currently an MVP. It provides a working Tauri desktop foundation, local SQLite storage, a Python scientific-computing sidecar, molecule drawing and import workflows, descriptor management, formulation and experimental data pages, and data-mining entry points.
 
-## 技术栈
+## Technology
 
-前端使用 React、TypeScript、Ant Design 和 Vite 构建。界面包含正式导航、数据表、录入表单、分子详情抽屉、描述符状态视图和分析设计工作区。
+- React, TypeScript, Ant Design, and Vite provide the user interface.
+- Tauri 2 and Rust provide the desktop shell, SQLite initialization, local file management, database commands, and sidecar integration.
+- Python provides SMILES standardization, RDKit and Mordred descriptors, 2D/3D structure generation, Excel preprocessing, and prediction placeholders.
+- SQLite stores local application data in the workspace database `lmd.sqlite`.
 
-桌面壳使用 Tauri 2.0 和 Rust。Rust 负责本地 SQLite 初始化、文件路径管理、Tauri command 暴露、数据库读写以及调用 Python sidecar。
+## Requirements
 
-科学计算通过 Python sidecar 完成。sidecar 以 CLI JSON 形式运行，提供 SMILES 标准化、RDKit 描述符、Mordred 描述符、2D 可视化、3D 结构生成、Excel 导入预处理和预测占位能力。
+These requirements are for developers and release builders only. People who install a finished LMD package do not need Node.js, Rust, Python, Conda, RDKit, or SQLite.
 
-本地存储使用 SQLite。用户数据保存在工作区目录中，数据库文件为 `lmd.sqlite`，结构文件、曲线、报告、模型和导出文件放在工作区子目录中。
+- Node.js `20.19+` or `22.12+`
+- npm
+- Stable Rust and Cargo
+- Python `3.10–3.12`
+- RDKit, Mordred, NumPy, pandas, SciPy, scikit-learn, and Matplotlib
+- Platform-specific Tauri build prerequisites
 
-## 环境要求
+RDKit is often easier to install from conda-forge than from pip.
 
-需要 Node.js 和 npm 用于前端依赖与 Vite 开发服务器。项目当前依赖包含 Ketcher，建议使用满足依赖声明的较新 Node.js 版本。
+## Development Setup
 
-需要 Rust 工具链和 Cargo，用于编译 Tauri 后端和桌面应用。macOS 可通过 Homebrew 或 rustup 安装。
+Install frontend dependencies:
 
-需要 Python 3.10 或更高版本。Python sidecar 依赖 RDKit、Mordred、numpy、pandas、scikit-learn、scipy 和 matplotlib。RDKit 在部分平台上通过 conda-forge 安装更稳定。
+```bash
+npm install --include=dev
+```
 
-## 快速开始
+Create the Python environment and install the sidecar:
 
-克隆仓库后，先在项目根目录安装前端依赖：运行 `npm install`。
+```bash
+conda create -n lmd-build python=3.11 -y
+conda activate lmd-build
+conda install -c conda-forge rdkit numpy pandas scipy scikit-learn matplotlib -y
+python -m pip install mordred pyinstaller
+python -m pip install -e ./python-sidecar
+```
 
-进入 `python-sidecar` 目录后创建并激活虚拟环境，然后运行 `pip install -e .` 安装 sidecar。若 RDKit 的 pip 安装在本机失败，可以先通过 conda-forge 安装 RDKit，再执行 editable install。
+Start the complete desktop application:
 
-确认 Rust 工具链可用后，在项目根目录运行 `npm run tauri dev` 启动桌面开发模式。仅调试前端时可以运行 `npm run dev`，但浏览器模式会使用 mock fallback，无法完整代表 Tauri 桌面端的真实 SQLite 行为。
+```bash
+export PYTHON="$CONDA_PREFIX/bin/python"
+export LMD_PYTHON_SIDECAR_DIR="$PWD/python-sidecar"
+npm run tauri dev
+```
 
-生产构建使用 `npm run tauri build`。如果要打包 Python sidecar，需要先完成 PyInstaller 或等价打包流程，并在 Tauri 外部二进制配置中接入。
+Start only the browser UI:
 
-## 项目结构
+```bash
+npm run dev
+```
 
-`src/` 是前端源码目录，包含布局、路由、页面组件、业务组件、API 封装、mock 数据和全局样式。
+Browser mode uses mock fallbacks and does not provide complete Tauri, SQLite, or sidecar behavior.
 
-`src-tauri/` 是 Tauri/Rust 后端目录，包含 Tauri 配置、SQLite schema、数据库迁移、应用路径、命令模块和桌面图标。
+## Standalone Desktop Installers
 
-`python-sidecar/` 是 Python 科学计算 sidecar，包含 CLI 入口、服务模块、JSON 工具、示例输入和 Python 依赖配置。
+```bash
+# Build on Apple Silicon macOS
+conda activate lmd-build
+cd python-sidecar
+python -m pip install -r requirements.lock
+cd ..
+npm run desktop:build:mac
+```
 
-`asset/logo/` 保存原始 logo 资产，`public/` 保存前端静态资源。
+This first packages Python, RDKit, Mordred, pandas, and the other runtime libraries into a native sidecar, validates the sidecar, and then creates the Tauri app and DMG. The DMG is written under `src-tauri/target/release/bundle/dmg/`.
 
-`dist/`、`node_modules/`、`src-tauri/target/`、Python 虚拟环境和缓存目录是生成物，不应作为源码维护。
+Windows packages must be built on Windows because PyInstaller and Tauri package native binaries. On a Windows x64 build machine, install Node.js 22, stable Rust, Python 3.11, and the Tauri Windows prerequisites, then run:
 
-## 功能模块
+```powershell
+cd python-sidecar
+python -m pip install -r requirements.lock
+cd ..
+npm ci
+npm run desktop:build:windows
+```
 
-仪表盘 `/dashboard` 汇总 SQLite 工作区中的分子、描述符、基础油、添加剂、配方、实验、性能结果、附件、数据源和任务状态。
+The NSIS EXE and MSI are written under `src-tauri\target\release\bundle\nsis\` and `src-tauri\target\release\bundle\msi\`. The Windows configuration uses Tauri's offline WebView2 installer, so installing and launching LMD does not require an internet connection. This increases the installer size.
 
-分子库 `/molecules` 展示本地分子记录，支持详情抽屉查看概览、2D 结构、3D 结构、描述符摘要、相关配方和备注。
+### Build Windows without a Local Windows PC
 
-分子录入 `/molecule-entry` 通过 SMILES 保存分子并生成 RDKit 与 Mordred 描述符记录。
+The workflow at `.github/workflows/build-desktop.yml` builds both targets on native GitHub-hosted runners:
 
-分子绘画 `/molecule-sketcher` 集成 Ketcher，支持从结构生成 SMILES、检查重复、计算预览描述符并导入为新分子。
+1. Push the repository to GitHub.
+2. Open **Actions → Build desktop installers → Run workflow**.
+3. Download `LMD-macOS-Apple-Silicon` or `LMD-Windows-x64` from the completed workflow's artifacts.
 
-描述符中心 `/descriptors` 管理分子描述符状态，支持导出全部描述符 CSV 和机器学习描述符矩阵。
+The workflow also runs automatically for tags such as `v0.1.0`.
 
-基础油/添加剂库 `/base-additive` 展示 SQLite 中的基础油和添加剂记录，并支持删除数据库中的真实记录。
+### Before Public Distribution
 
-配方库 `/formulations` 展示 SQLite 中的配方、组分摘要、实验摘要和性能摘要。
+CI output without certificates is suitable for internal testing, but public releases should be signed. macOS distribution requires an Apple Developer certificate and notarization; Windows should use an Authenticode code-signing certificate to reduce SmartScreen warnings. Validate each signed installer on a clean machine that has no developer tools installed.
 
-配方录入 `/formulation-entry` 提供配方组成、制备条件和稳定性观察的录入界面。
+## Project Structure
 
-实验与性能 `/experiments` 管理实验条件和性能结果，用于配方性能追踪。
+- `src/`: React application, features, API wrappers, localization, and mock data
+- `src-tauri/`: Rust backend, SQLite schema, Tauri commands, paths, and bundle configuration
+- `python-sidecar/`: Python CLI and scientific-computing services
+- `public/`: frontend static assets
+- `asset/`: source design assets
 
-分子性能预测 `/data-mining/molecule-performance` 使用分子库描述符和物理性能作为输入，训练描述符到目标性能的机器学习模型。
+Generated directories such as `dist/`, `node_modules/`, `src-tauri/target/`, Python environments, and caches should not be committed as source.
 
-配方预测 `/data-mining/formulation-prediction` 使用配方比例、实验数据和配方中各分子的描述符，建立配方与摩擦性能之间的模型。
+## Main Features
 
-分子设计 `/data-mining/molecule-design` 根据已有学习模型和预期性能反推目标描述符空间，生成候选分子。
+- Dashboard with live SQLite workspace statistics
+- Molecule Library with 2D/3D views and descriptor summaries
+- Molecule Entry and Ketcher-based Molecule Sketcher
+- RDKit and Mordred Descriptor Center
+- Base Oils / Additives library
+- Formulation Library and Formulation Entry
+- Experiments & Performance entry
+- Molecule-performance prediction
+- Formulation prediction
+- Molecule design
+- Import / Export workflows
+- English, Simplified Chinese, and Japanese settings, with English as the default
 
-导入/导出 `/import-export` 用于分子数据导入预览、分子库 CSV 导出和描述符矩阵导出。
+## Architecture Notes
 
-## 开发说明
+React calls Rust through Tauri commands. Rust owns all SQLite writes and invokes the Python sidecar through a JSON CLI protocol. The sidecar does not write directly to SQLite.
 
-浏览器模式和 Tauri 模式行为不同。浏览器模式没有 Rust 后端和本地 SQLite 访问能力，`invokeOrMock` 会自动调用 mock fallback，适合快速调试 UI。Tauri 模式运行在桌面壳中，`invokeOrMock` 会调用 Rust command，适合验证真实数据库读写和 sidecar 调用。
+Structure files, exports, attachments, reports, and models should be stored under the workspace directory. The database should store relative paths.
 
-前端 API 统一封装在 `src/lib/api.ts` 和相关业务 API 文件中。页面不应直接依赖 mock 数据，除非作为浏览器模式 fallback。
+Production mode should use real descriptor calculations and must not silently substitute mock results for unavailable scientific dependencies.
 
-Rust command 位于 `src-tauri/src/commands/`。新增数据库读写时应优先复用现有 `default_database_path()`、SQLite schema、DTO 命名规则和错误处理风格。
+## Current Limitations
 
-Python sidecar 通过命令行读取 JSON 输入并输出 JSON 结果。Rust 使用临时输入文件调用 `python -m lmd_sidecar.main`，并解析 stdout 中的最终 JSON。sidecar 不直接写 SQLite，数据库写入始终由 Rust 负责。
-
-结构文件、导出文件和附件应保存在工作区目录下，数据库中只保存相对路径。
-
-## 待办事项
-
-当前仍处于 MVP 阶段，部分命令和页面保留占位能力。后续需要完善基础油、添加剂、配方、实验和附件的完整创建与编辑流程。
-
-描述符 CSV 导出当前前端可基于已加载数据生成，后续需要补齐 Rust 端直接从 SQLite 展开 `descriptors_json` 的导出能力。
-
-Python sidecar 打包尚未完成，尤其是 RDKit 和 Mordred 在 Windows 清洁环境中的分发需要单独验证。
-
-工作区选择 UI、设置页面、批量任务队列、模型训练、预测服务和完整导入导出校验仍需继续实现。
-
-测试覆盖仍需持续扩展，包括前端组件测试、Rust 数据库测试和 Python sidecar 单元测试。
+- Some create and edit workflows remain MVP placeholders.
+- Direct Rust-side expansion of `descriptors_json` for exports is not complete.
+- Signed installers still require clean-machine validation, especially on Windows.
+- Batch queues, complete model training, prediction services, and comprehensive import validation need further development.
+- Test coverage should continue to expand across the frontend, Rust database layer, and Python services.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "润滑材料数据库",
+  "productName": "LMD",
   "version": "0.1.0",
   "identifier": "com.lmd.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "润滑材料数据库",
+        "title": "LMD",
         "width": 1440,
         "height": 920,
         "minWidth": 900,
@@ -31,6 +31,18 @@
     "active": true,
     "targets": "all",
     "externalBin": ["binaries/lmd-sidecar"],
-    "icon": ["icons/icon.png"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      }
+    }
   }
 }

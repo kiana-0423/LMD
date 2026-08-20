@@ -28,13 +28,13 @@ describe("constants", () => {
   });
 
   it("maps common descriptor statuses to display labels", () => {
-    expect(descriptorStatusLabels.calculated).toBe("已计算");
-    expect(descriptorStatusLabels.mock).toBe("模拟");
-    expect(descriptorStatusLabels.failed).toBe("失败");
+    expect(descriptorStatusLabels.calculated).toBe("Calculated");
+    expect(descriptorStatusLabels.mock).toBe("Mock");
+    expect(descriptorStatusLabels.failed).toBe("Failed");
   });
 
   it("contains additive function labels used by forms", () => {
-    expect(additiveFunctionLabels.antiwear).toBe("抗磨剂");
-    expect(additiveFunctionLabels.antioxidant).toBe("抗氧剂");
+    expect(additiveFunctionLabels.antiwear).toBe("Antiwear agent");
+    expect(additiveFunctionLabels.antioxidant).toBe("Antioxidant");
   });
 });

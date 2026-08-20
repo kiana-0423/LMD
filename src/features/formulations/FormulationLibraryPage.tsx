@@ -40,25 +40,25 @@ export default function FormulationLibraryPage() {
   const columns: ColumnsType<Formulation> = [
     { title: "ID", dataIndex: "id", width: 140 },
     {
-      title: "名称类型",
+      title: "Name / Type",
       render: (_, row) => (
         <Space size={6} wrap>
           <span>{row.name}</span>
-          <Tag>{row.preparationMethod || "未设置制备方法"}</Tag>
+          <Tag>{row.preparationMethod || "No preparation method"}</Tag>
         </Space>
       )
     },
-    { title: "代表分子", dataIndex: "baseOil", render: (value) => value || "-" },
+    { title: "Representative Molecule", dataIndex: "baseOil", render: (value) => value || "-" },
     {
-      title: "操作",
+      title: "Actions",
       width: 280,
       render: (_, row) => (
         <Space size={6}>
-          <Button size="small" onClick={() => setSelected(row)}>查看</Button>
-          <Button size="small" onClick={() => setExperimentDataFor(row)}>实验数据</Button>
-          <Button size="small" onClick={() => message.info("编辑配方功能将在下一阶段接入表单。")}>编辑</Button>
+          <Button size="small" onClick={() => setSelected(row)}>View</Button>
+          <Button size="small" onClick={() => setExperimentDataFor(row)}>Experimental Data</Button>
+          <Button size="small" onClick={() => message.info("Formulation editing will be added to the form in a future release.")}>Edit</Button>
           <Button size="small" danger onClick={() => confirmDelete(row)}>
-            删除
+            Delete
           </Button>
         </Space>
       )
@@ -67,21 +67,21 @@ export default function FormulationLibraryPage() {
 
   function confirmDelete(row: Formulation) {
     Modal.confirm({
-      title: "确认删除配方？",
+      title: "Delete this formulation?",
       content: row.name,
-      okText: "删除",
+      okText: "Delete",
       okButtonProps: { danger: true },
-      cancelText: "取消",
+      cancelText: "Cancel",
       onOk: async () => {
         const result = await deleteFormulation(row.id);
         if (!result.success && !result.deleted) {
-          message.warning("未找到需要删除的配方记录。");
+          message.warning("The formulation record was not found.");
           return;
         }
         await refresh();
         if (selected?.id === row.id) setSelected(undefined);
         if (experimentDataFor?.id === row.id) setExperimentDataFor(undefined);
-        message.success("已从数据源删除。");
+        message.success("Deleted from the data source.");
       }
     });
   }
@@ -89,20 +89,20 @@ export default function FormulationLibraryPage() {
   async function deleteExperiment(experimentId: string) {
     await deleteExperimentRecord(experimentId);
     await refresh();
-    message.success("实验数据已删除。");
+    message.success("Experimental data deleted.");
   }
 
   async function saveExperimentCorrection(values: Record<string, unknown>) {
     if (!selectedExperiment) return;
     const result = await updateExperimentRecord(selectedExperiment.id, values);
     if (!result.success) {
-      message.error("实验数据修正失败。");
+      message.error("Failed to correct the experimental data.");
       return;
     }
     await refresh();
     setSelectedExperiment(result.experiment);
     setEditingExperiment(false);
-    message.success("实验数据已修正。");
+    message.success("Experimental data corrected.");
   }
 
   const formulationExperiments = experimentDataFor
@@ -115,18 +115,18 @@ export default function FormulationLibraryPage() {
   return (
     <div className="page-grid table-page">
       <PageHeader
-        title="配方库"
-        description="浏览、比较和复制润滑配方，并查看性能摘要。"
+        title="Formulation Library"
+        description="Browse, compare, and copy lubricant formulations and review performance summaries."
         extra={
           <Button.Group>
-            <Button>复制</Button>
-            <Button>比较所选</Button>
+            <Button>Copy</Button>
+            <Button>Compare Selected</Button>
           </Button.Group>
         }
       />
       <Card>
         <div className="table-toolbar">
-          <Input.Search placeholder="搜索配方名称" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <Input.Search placeholder="Search formulation names" value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
         <Table
           size="small"
@@ -139,34 +139,34 @@ export default function FormulationLibraryPage() {
       </Card>
       <Modal
         width={760}
-        title="配方完整数据"
+        title="Complete Formulation Data"
         open={Boolean(selected)}
         onCancel={() => setSelected(undefined)}
-        footer={<Button type="primary" onClick={() => setSelected(undefined)}>关闭</Button>}
+        footer={<Button type="primary" onClick={() => setSelected(undefined)}>Close</Button>}
       >
         {selected && <FormulationDetails item={selected} />}
       </Modal>
       <Modal
         width={620}
-        title={`${experimentDataFor?.name ?? ""} · 实验数据`}
+        title={`${experimentDataFor?.name ?? ""} · Experimental Data`}
         open={Boolean(experimentDataFor)}
         onCancel={() => setExperimentDataFor(undefined)}
-        footer={<Button type="primary" onClick={() => setExperimentDataFor(undefined)}>关闭</Button>}
+        footer={<Button type="primary" onClick={() => setExperimentDataFor(undefined)}>Close</Button>}
       >
         <Table
           size="small"
           rowKey="id"
           columns={[
-            { title: "试验ID", dataIndex: "id" },
-            { title: "录入时间", dataIndex: "createdAt" },
+            { title: "Test ID", dataIndex: "id" },
+            { title: "Entered At", dataIndex: "createdAt" },
             {
-              title: "操作",
+              title: "Actions",
               width: 150,
               render: (_, row: Experiment) => (
                 <Space size={6}>
-                  <Button size="small" onClick={() => setSelectedExperiment(row)}>查看</Button>
+                  <Button size="small" onClick={() => setSelectedExperiment(row)}>View</Button>
                   <Button size="small" danger onClick={() => deleteExperiment(row.id)}>
-                    删除
+                    Delete
                   </Button>
                 </Space>
               )
@@ -178,7 +178,7 @@ export default function FormulationLibraryPage() {
       </Modal>
       <Modal
         width={780}
-        title="实验录入数据"
+        title="Entered Experimental Data"
         open={Boolean(selectedExperiment)}
         onCancel={() => {
           setSelectedExperiment(undefined);
@@ -210,30 +210,30 @@ function FormulationDetails({ item }: { item: Formulation }) {
     <Card size="small" title={`${item.id} · ${item.name}`} className="detail-data-card">
       <Descriptions size="small" bordered column={2}>
         <Descriptions.Item label="ID">{item.id}</Descriptions.Item>
-        <Descriptions.Item label="名称类型">
+        <Descriptions.Item label="Name / Type">
           <Space size={6} wrap>
             <span>{item.name}</span>
-            <Tag>{item.preparationMethod || "未设置制备方法"}</Tag>
+            <Tag>{item.preparationMethod || "No preparation method"}</Tag>
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label="代表分子/基础油">{item.baseOil || "-"}</Descriptions.Item>
-        <Descriptions.Item label="添加剂数量">{item.additiveCount}</Descriptions.Item>
-        <Descriptions.Item label="组分摘要" span={2}>{item.componentsSummary || "-"}</Descriptions.Item>
-        <Descriptions.Item label="制备方法">{item.preparationMethod || "-"}</Descriptions.Item>
-        <Descriptions.Item label="制备温度">
+        <Descriptions.Item label="Representative Molecule / Base Oil">{item.baseOil || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Additive Count">{item.additiveCount}</Descriptions.Item>
+        <Descriptions.Item label="Component Summary" span={2}>{item.componentsSummary || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Preparation Method">{item.preparationMethod || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Preparation Temperature">
           {item.preparationTemperature ?? "-"} {item.preparationTemperatureUnit ?? ""}
         </Descriptions.Item>
-        <Descriptions.Item label="制备时间">
+        <Descriptions.Item label="Preparation Time">
           {item.preparationTime ?? "-"} {item.preparationTimeUnit ?? ""}
         </Descriptions.Item>
-        <Descriptions.Item label="稳定性">{item.stabilityObservation || "-"}</Descriptions.Item>
-        <Descriptions.Item label="实验数量">{item.experimentCount}</Descriptions.Item>
-        <Descriptions.Item label="最佳平均摩擦系数">{item.bestAverageFrictionCoefficient ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="最佳磨斑直径">{item.bestWearScarDiameter ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="最高氧化温度">{item.highestOxidationTemperature ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="备注" span={2}>{item.notes || "-"}</Descriptions.Item>
-        <Descriptions.Item label="创建时间">{item.createdAt}</Descriptions.Item>
-        <Descriptions.Item label="更新时间">{item.updatedAt}</Descriptions.Item>
+        <Descriptions.Item label="Stability">{item.stabilityObservation || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Experiment Count">{item.experimentCount}</Descriptions.Item>
+        <Descriptions.Item label="Best Average Friction Coefficient">{item.bestAverageFrictionCoefficient ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Best Wear Scar Diameter">{item.bestWearScarDiameter ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Highest Oxidation Temperature">{item.highestOxidationTemperature ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Notes" span={2}>{item.notes || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Created">{item.createdAt}</Descriptions.Item>
+        <Descriptions.Item label="Updated">{item.updatedAt}</Descriptions.Item>
       </Descriptions>
     </Card>
   );
@@ -274,39 +274,39 @@ function ExperimentRecordedDetails({
 
   if (editing) {
     return (
-      <Card size="small" title={`${item.id} · 修正实验数据`} className="detail-data-card">
+      <Card size="small" title={`${item.id} · Correct Experimental Data`} className="detail-data-card">
         <Form layout="vertical" initialValues={initialValues} onFinish={onSave}>
           <div className="experiment-form-grid">
-            <Form.Item label="测试类型" name="testType">
+            <Form.Item label="Test Type" name="testType">
               <Select
                 options={[
                   { value: "SRV", label: "SRV" },
-                  { value: "四球试验", label: "四球试验" },
-                  { value: "球盘试验", label: "球盘试验" },
+                  { value: "four-ball", label: "Four-ball Test" },
+                  { value: "ball-on-disk", label: "Ball-on-disk Test" },
                   { value: "PDSC", label: "PDSC" },
-                  { value: "黏度测试", label: "黏度测试" },
-                  { value: "corrosion", label: "腐蚀测试" },
-                  { value: "stability", label: "稳定性测试" },
-                  { value: "other", label: "其他" }
+                  { value: "viscosity", label: "Viscosity Test" },
+                  { value: "corrosion", label: "Corrosion Test" },
+                  { value: "stability", label: "Stability Test" },
+                  { value: "other", label: "Other" }
                 ]}
               />
             </Form.Item>
-            <Form.Item label="测试标准" name="testStandard"><Input /></Form.Item>
-            <Form.Item label="仪器" name="instrument"><Input /></Form.Item>
-            <Form.Item label="上试样材料" name="upperMaterial"><Input /></Form.Item>
-            <Form.Item label="下试样材料" name="lowerMaterial"><Input /></Form.Item>
-            <Form.Item label="载荷" name="loadValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="温度" name="temperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="时长" name="durationValue"><InputNumber addonAfter="min" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="平均摩擦系数" name="averageFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="稳定摩擦系数" name="stableFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="磨斑直径" name="wearScarDiameterValue"><InputNumber addonAfter="um" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="初始氧化温度" name="initialOxidationTemperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="极压值" name="extremePressureValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Test Standard" name="testStandard"><Input /></Form.Item>
+            <Form.Item label="Instrument" name="instrument"><Input /></Form.Item>
+            <Form.Item label="Upper Specimen Material" name="upperMaterial"><Input /></Form.Item>
+            <Form.Item label="Lower Specimen Material" name="lowerMaterial"><Input /></Form.Item>
+            <Form.Item label="Load" name="loadValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Temperature" name="temperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Duration" name="durationValue"><InputNumber addonAfter="min" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Average Friction Coefficient" name="averageFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Stable Friction Coefficient" name="stableFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Wear Scar Diameter" name="wearScarDiameterValue"><InputNumber addonAfter="um" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Initial Oxidation Temperature" name="initialOxidationTemperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Extreme-pressure Value" name="extremePressureValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
           </div>
           <Space className="modal-action-row">
-            <Button onClick={onCancelEdit}>取消</Button>
-            <Button type="primary" htmlType="submit">保存修正</Button>
+            <Button onClick={onCancelEdit}>Cancel</Button>
+            <Button type="primary" htmlType="submit">Save Correction</Button>
           </Space>
         </Form>
       </Card>
@@ -316,33 +316,33 @@ function ExperimentRecordedDetails({
   return (
     <Card size="small" title={`${item.id} · ${item.formulationName}`} className="detail-data-card">
       <Descriptions size="small" bordered column={2}>
-        <Descriptions.Item label="试验ID">{item.id}</Descriptions.Item>
-        <Descriptions.Item label="录入时间">{item.createdAt}</Descriptions.Item>
-        <Descriptions.Item label="配方 ID">{item.formulationId}</Descriptions.Item>
-        <Descriptions.Item label="配方名称">{item.formulationName}</Descriptions.Item>
-        <Descriptions.Item label="测试类型">{item.testType}</Descriptions.Item>
-        <Descriptions.Item label="测试标准">{item.testStandard || "-"}</Descriptions.Item>
-        <Descriptions.Item label="仪器">{item.instrument || "-"}</Descriptions.Item>
-        <Descriptions.Item label="上试样材料">{item.upperMaterial || "-"}</Descriptions.Item>
-        <Descriptions.Item label="下试样材料">{item.lowerMaterial || "-"}</Descriptions.Item>
-        <Descriptions.Item label="载荷">{item.loadValue ?? "-"} {item.loadUnit ?? ""}</Descriptions.Item>
-        <Descriptions.Item label="温度">{item.temperatureValue ?? "-"} {item.temperatureUnit ?? ""}</Descriptions.Item>
-        <Descriptions.Item label="时长">{item.durationValue ?? "-"} {item.durationUnit ?? ""}</Descriptions.Item>
-        <Descriptions.Item label="实验日期">{item.experimentDate || "-"}</Descriptions.Item>
-        <Descriptions.Item label="操作者">{item.operator || "-"}</Descriptions.Item>
-        <Descriptions.Item label="平均摩擦系数">{result?.averageFrictionCoefficient ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="稳定摩擦系数">{result?.stableFrictionCoefficient ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="磨斑直径">{result?.wearScarDiameterValue ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="初始氧化温度">{result?.initialOxidationTemperatureValue ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="极压值">{result?.extremePressureValue ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="重复次数">{result?.repeatCount ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="备注" span={2}>{item.notes || result?.notes || "-"}</Descriptions.Item>
-        <Descriptions.Item label="更新时间">{item.updatedAt}</Descriptions.Item>
-        <Descriptions.Item label="性能更新时间">{result?.updatedAt ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Test ID">{item.id}</Descriptions.Item>
+        <Descriptions.Item label="Entered At">{item.createdAt}</Descriptions.Item>
+        <Descriptions.Item label="Formulation ID">{item.formulationId}</Descriptions.Item>
+        <Descriptions.Item label="Formulation Name">{item.formulationName}</Descriptions.Item>
+        <Descriptions.Item label="Test Type">{item.testType}</Descriptions.Item>
+        <Descriptions.Item label="Test Standard">{item.testStandard || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Instrument">{item.instrument || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Upper Specimen Material">{item.upperMaterial || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Lower Specimen Material">{item.lowerMaterial || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Load">{item.loadValue ?? "-"} {item.loadUnit ?? ""}</Descriptions.Item>
+        <Descriptions.Item label="Temperature">{item.temperatureValue ?? "-"} {item.temperatureUnit ?? ""}</Descriptions.Item>
+        <Descriptions.Item label="Duration">{item.durationValue ?? "-"} {item.durationUnit ?? ""}</Descriptions.Item>
+        <Descriptions.Item label="Experiment Date">{item.experimentDate || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Operator">{item.operator || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Average Friction Coefficient">{result?.averageFrictionCoefficient ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Stable Friction Coefficient">{result?.stableFrictionCoefficient ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Wear Scar Diameter">{result?.wearScarDiameterValue ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Initial Oxidation Temperature">{result?.initialOxidationTemperatureValue ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Extreme-pressure Value">{result?.extremePressureValue ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Repeat Count">{result?.repeatCount ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Notes" span={2}>{item.notes || result?.notes || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Updated">{item.updatedAt}</Descriptions.Item>
+        <Descriptions.Item label="Performance Updated">{result?.updatedAt ?? "-"}</Descriptions.Item>
       </Descriptions>
       <Space className="modal-action-row">
-        <Button onClick={onClose}>关闭</Button>
-        <Button type="primary" onClick={onEdit}>修正</Button>
+        <Button onClick={onClose}>Close</Button>
+        <Button type="primary" onClick={onEdit}>Correct</Button>
       </Space>
     </Card>
   );

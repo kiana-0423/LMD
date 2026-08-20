@@ -31,72 +31,72 @@ export default function DashboardPage() {
   }
 
   const tableSummary = [
-    { label: "分子", value: summary?.moleculeCount ?? 0 },
-    { label: "基础油", value: summary?.baseOilCount ?? 0 },
-    { label: "添加剂", value: summary?.additiveCount ?? 0 },
-    { label: "配方", value: summary?.formulationCount ?? 0 },
-    { label: "配方组分", value: summary?.formulationComponentCount ?? 0 },
-    { label: "实验", value: summary?.experimentCount ?? 0 },
-    { label: "性能结果", value: summary?.performanceResultCount ?? 0 },
-    { label: "附件", value: summary?.attachmentCount ?? 0 },
-    { label: "数据来源", value: summary?.dataSourceCount ?? 0 }
+    { label: "Molecules", value: summary?.moleculeCount ?? 0 },
+    { label: "Base Oils", value: summary?.baseOilCount ?? 0 },
+    { label: "Additives", value: summary?.additiveCount ?? 0 },
+    { label: "Formulations", value: summary?.formulationCount ?? 0 },
+    { label: "Formulation Components", value: summary?.formulationComponentCount ?? 0 },
+    { label: "Experiments", value: summary?.experimentCount ?? 0 },
+    { label: "Performance Results", value: summary?.performanceResultCount ?? 0 },
+    { label: "Attachments", value: summary?.attachmentCount ?? 0 },
+    { label: "Data Sources", value: summary?.dataSourceCount ?? 0 }
   ];
 
   const descriptorSummary = [
-    { label: "描述符记录", value: summary?.descriptorRecordCount ?? 0, color: "blue" },
-    { label: "分子就绪", value: summary?.descriptorReadyCount ?? 0, color: "green" },
-    { label: "真实计算", value: summary?.descriptorRealCount ?? 0, color: "cyan" },
-    { label: "模拟记录", value: summary?.descriptorMockCount ?? 0, color: "gold" },
-    { label: "待处理", value: summary?.descriptorPendingCount ?? 0, color: "orange" },
-    { label: "失败", value: summary?.descriptorFailedCount ?? 0, color: "red" }
+    { label: "Descriptor Records", value: summary?.descriptorRecordCount ?? 0, color: "blue" },
+    { label: "Molecules Ready", value: summary?.descriptorReadyCount ?? 0, color: "green" },
+    { label: "Live Calculations", value: summary?.descriptorRealCount ?? 0, color: "cyan" },
+    { label: "Mock Records", value: summary?.descriptorMockCount ?? 0, color: "gold" },
+    { label: "Pending", value: summary?.descriptorPendingCount ?? 0, color: "orange" },
+    { label: "Failed", value: summary?.descriptorFailedCount ?? 0, color: "red" }
   ];
 
   return (
     <div className="page-grid dashboard-page">
       <PageHeader
-        title="仪表盘"
-        description="从本地 SQLite 工作区实时汇总分子、描述符、配方、实验和文件记录。"
+        title="Dashboard"
+        description="Live summary of molecules, descriptors, formulations, experiments, and files in the local SQLite workspace."
       />
       {loading ? <LoadingBlock /> : null}
       {!loading && errorText ? (
         <Card className="error-panel">
-          <Typography.Title level={4}>仪表盘加载失败</Typography.Title>
+          <Typography.Title level={4}>Failed to load the dashboard</Typography.Title>
           <Typography.Paragraph>{errorText}</Typography.Paragraph>
           <Button type="primary" onClick={loadDashboard}>
-            重试
+            Retry
           </Button>
         </Card>
       ) : null}
       {!loading && !errorText ? (
         <>
       <div className="stats-grid">
-        <StatCard title="分子" value={summary?.moleculeCount ?? 0} />
-        <StatCard title="基础油" value={summary?.baseOilCount ?? 0} />
-        <StatCard title="添加剂" value={summary?.additiveCount ?? 0} />
-        <StatCard title="配方" value={summary?.formulationCount ?? 0} />
-        <StatCard title="实验" value={summary?.experimentCount ?? 0} />
-        <StatCard title="描述符就绪" value={summary?.descriptorReadyCount ?? 0} />
-        <StatCard title="描述符失败" value={summary?.descriptorFailedCount ?? 0} />
-        <StatCard title="描述符记录" value={summary?.descriptorRecordCount ?? 0} />
+        <StatCard title="Molecules" value={summary?.moleculeCount ?? 0} />
+        <StatCard title="Base Oils" value={summary?.baseOilCount ?? 0} />
+        <StatCard title="Additives" value={summary?.additiveCount ?? 0} />
+        <StatCard title="Formulations" value={summary?.formulationCount ?? 0} />
+        <StatCard title="Experiments" value={summary?.experimentCount ?? 0} />
+        <StatCard title="Descriptors Ready" value={summary?.descriptorReadyCount ?? 0} />
+        <StatCard title="Descriptor Failures" value={summary?.descriptorFailedCount ?? 0} />
+        <StatCard title="Descriptor Records" value={summary?.descriptorRecordCount ?? 0} />
       </div>
       <div className="two-column-grid">
-        <Card size="small" title="数据库表记录">
+        <Card size="small" title="Database Records">
           <div className="dashboard-summary-grid">
             {tableSummary.map((item) => (
               <MetricRow key={item.label} label={item.label} value={item.value} color={item.value > 0 ? "blue" : "default"} />
             ))}
           </div>
         </Card>
-        <Card size="small" title="描述符状态">
+        <Card size="small" title="Descriptor Status">
           <div className="dashboard-summary-grid">
             {descriptorSummary.map((item) => (
               <MetricRow key={item.label} label={item.label} value={item.value} color={item.color} />
             ))}
           </div>
         </Card>
-        <Card size="small" title="描述符健康状态">
+        <Card size="small" title="Descriptor Health">
           {molecules.length === 0 ? (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="数据库中暂无分子记录。" />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No molecule records in the database." />
           ) : (
             <div className="dashboard-molecule-grid">
               {molecules.slice(0, 8).map((item) => (
@@ -105,18 +105,18 @@ export default function DashboardPage() {
                     <div className="dashboard-row-label">{item.name}</div>
                     <div className="dashboard-row-subtitle">{item.smilesCanonical}</div>
                   </div>
-                  <Tag color={item.descriptorReady ? "green" : "red"}>{item.descriptorReady ? "就绪" : "需处理"}</Tag>
+                  <Tag color={item.descriptorReady ? "green" : "red"}>{item.descriptorReady ? "Ready" : "Needs attention"}</Tag>
                 </div>
               ))}
             </div>
           )}
         </Card>
-        <Card size="small" title="任务状态">
+        <Card size="small" title="Job Status">
           <div className="dashboard-summary-grid dashboard-summary-grid-single">
-            <MetricRow label="任务总数" value={summary?.jobCount ?? 0} />
-            <MetricRow label="进行中或等待" value={summary?.runningJobCount ?? 0} />
-            <MetricRow label="失败任务" value={summary?.failedJobCount ?? 0} color="red" />
-            <MetricRow label="附件记录" value={summary?.attachmentCount ?? 0} />
+            <MetricRow label="Total Jobs" value={summary?.jobCount ?? 0} />
+            <MetricRow label="Running or Waiting" value={summary?.runningJobCount ?? 0} />
+            <MetricRow label="Failed Jobs" value={summary?.failedJobCount ?? 0} color="red" />
+            <MetricRow label="Attachment Records" value={summary?.attachmentCount ?? 0} />
           </div>
         </Card>
       </div>

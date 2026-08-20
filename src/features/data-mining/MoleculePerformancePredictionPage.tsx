@@ -1,19 +1,44 @@
 import * as echarts from "echarts";
 import { Button, Card, Checkbox, Form, InputNumber, Modal, Select, Slider, Space, Table, Tag, message } from "antd";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../../components/PageHeader";
+import { useLanguage } from "../../i18n/LanguageContext";
+import { translateBusinessText } from "../../i18n/businessTranslations";
 
 const featureRows = [
-  { key: "descriptor", feature: "RDKit/Mordred 描述符", source: "分子库/描述符中心", status: "ready" },
-  { key: "physical", feature: "分子物理性能", source: "分子库", status: "ready" },
-  { key: "target", feature: "实验目标性能", source: "实验与性能", status: "pending" }
+  {
+    key: "descriptor",
+    feature: "RDKit/Mordred Descriptors",
+    source: "Molecule Library / Descriptor Center",
+    status: "ready"
+  },
+  { key: "physical", feature: "Molecular Physical Properties", source: "Molecule Library", status: "ready" },
+  { key: "target", feature: "Experimental Target Performance", source: "Experiments & Performance", status: "pending" }
 ];
 
 const descriptorFilterRows = [
-  { key: "MolLogP", descriptor: "rdkit_MolLogP", group: "理化性质", score: 0.43, reason: "与摩擦系数相关" },
-  { key: "TPSA", descriptor: "rdkit_TPSA", group: "极性/表面积", score: 0.39, reason: "互信息得分高" },
-  { key: "ABC", descriptor: "mordred_ABC", group: "拓扑结构", score: 0.34, reason: "树模型重要性高" },
-  { key: "SlogP", descriptor: "mordred_SLogP", group: "疏水性", score: 0.31, reason: "低共线性保留" }
+  {
+    key: "MolLogP",
+    descriptor: "rdkit_MolLogP",
+    group: "Physicochemical",
+    score: 0.43,
+    reason: "Correlated with friction coefficient"
+  },
+  {
+    key: "TPSA",
+    descriptor: "rdkit_TPSA",
+    group: "Polarity / Surface Area",
+    score: 0.39,
+    reason: "High mutual-information score"
+  },
+  { key: "ABC", descriptor: "mordred_ABC", group: "Topology", score: 0.34, reason: "High tree-model importance" },
+  {
+    key: "SlogP",
+    descriptor: "mordred_SLogP",
+    group: "Hydrophobicity",
+    score: 0.31,
+    reason: "Retained for low collinearity"
+  }
 ];
 
 const shapRows = [
@@ -63,6 +88,8 @@ function buildMetricRows(testRows: typeof baseResultRows) {
 }
 
 export default function MoleculePerformancePredictionPage() {
+  const { language } = useLanguage();
+  const ui = useCallback((text: string) => translateBusinessText(text, language), [language]);
   const chartRef = useRef<HTMLDivElement>(null);
   const shapChartRef = useRef<HTMLDivElement>(null);
   const [trainRatio, setTrainRatio] = useState(80);
@@ -72,7 +99,10 @@ export default function MoleculePerformancePredictionPage() {
   const [shapOpen, setShapOpen] = useState(false);
 
   const split = useMemo(() => {
-    const trainCount = Math.max(1, Math.min(baseResultRows.length - 1, Math.round((baseResultRows.length * trainRatio) / 100)));
+    const trainCount = Math.max(
+      1,
+      Math.min(baseResultRows.length - 1, Math.round((baseResultRows.length * trainRatio) / 100))
+    );
     return {
       trainCount,
       testCount: baseResultRows.length - trainCount,
@@ -93,12 +123,12 @@ export default function MoleculePerformancePredictionPage() {
         trigger: "item",
         formatter: (params: unknown) => {
           const value = (params as { value?: [number, number, string] }).value;
-          return value ? `${value[2]}<br/>实际值：${value[0]}<br/>预测值：${value[1]}` : "";
+          return value ? `${value[2]}<br/>${ui("Actual")}: ${value[0]}<br/>${ui("Predicted")}: ${value[1]}` : "";
         }
       },
-      xAxis: { name: "实际摩擦系数", min: 0.055, max: 0.125, nameGap: 34, nameLocation: "middle" },
+      xAxis: { name: ui("Actual Friction Coefficient"), min: 0.055, max: 0.125, nameGap: 34, nameLocation: "middle" },
       yAxis: {
-        name: "预测摩擦系数",
+        name: ui("Predicted Friction Coefficient"),
         min: 0.055,
         max: 0.125,
         nameLocation: "middle",
@@ -107,14 +137,14 @@ export default function MoleculePerformancePredictionPage() {
       },
       series: [
         {
-          name: "测试集样本",
+          name: ui("Test-set Samples"),
           type: "scatter",
           symbolSize: 9,
           data: points,
           itemStyle: { color: "#1677ff" }
         },
         {
-          name: "理想预测线",
+          name: ui("Ideal Prediction Line"),
           type: "line",
           data: [
             [0.06, 0.06],
@@ -131,12 +161,12 @@ export default function MoleculePerformancePredictionPage() {
       observer.disconnect();
       chart.dispose();
     };
-  }, [split.testRows]);
+  }, [split.testRows, ui]);
 
   useEffect(() => {
     if (!shapOpen || !shapChartRef.current) return;
     const chart = echarts.init(shapChartRef.current);
-    const features = Array.from(new Set(shapRows.map((row) => row.feature))).reverse();
+    const features = Array.from(new Set(shapRows.map((row) => ui(row.feature)))).reverse();
     chart.setOption({
       animation: false,
       grid: { left: 140, right: 72, top: 24, bottom: 54 },
@@ -146,7 +176,7 @@ export default function MoleculePerformancePredictionPage() {
         right: 0,
         top: 24,
         itemHeight: 160,
-        text: ["高", "低"],
+        text: [ui("High"), ui("Low")],
         dimension: 2,
         inRange: { color: ["#1677ff", "#f43f5e"] }
       },
@@ -154,17 +184,19 @@ export default function MoleculePerformancePredictionPage() {
         trigger: "item",
         formatter: (params: unknown) => {
           const value = (params as { data?: [number, string, number, string] }).data;
-          return value ? `${value[3]}<br/>${value[1]}<br/>SHAP：${value[0]}<br/>特征值：${value[2]}` : "";
+          return value
+            ? `${value[3]}<br/>${ui(value[1])}<br/>SHAP: ${value[0]}<br/>${ui("Feature value")}: ${value[2]}`
+            : "";
         }
       },
-      xAxis: { type: "value", name: "SHAP 值", splitLine: { lineStyle: { type: "dashed" } } },
+      xAxis: { type: "value", name: ui("SHAP Value"), splitLine: { lineStyle: { type: "dashed" } } },
       yAxis: { type: "category", data: features },
       series: [
         {
-          name: "样本 SHAP",
+          name: ui("Sample SHAP"),
           type: "scatter",
           symbolSize: 10,
-          data: shapRows.map((row) => [row.shap, row.feature, row.featureValue, row.sample])
+          data: shapRows.map((row) => [row.shap, ui(row.feature), row.featureValue, row.sample])
         }
       ]
     });
@@ -174,37 +206,40 @@ export default function MoleculePerformancePredictionPage() {
       observer.disconnect();
       chart.dispose();
     };
-  }, [shapOpen]);
+  }, [shapOpen, ui]);
 
   return (
     <div className="page-grid molecule-prediction-page">
-      <PageHeader title="分子性能预测" description="分子描述符与物理性能输入，训练目标性能预测模型。" />
+      <PageHeader
+        title="Molecule Performance Prediction"
+        description="Train a target-performance model from molecular descriptors and physical properties."
+      />
       <Card className="table-card prediction-toolbar-card">
         <Form layout="vertical">
           <div className="prediction-controls">
-            <Form.Item className="feature-input-item" label="输入特征">
+            <Form.Item className="feature-input-item" label="Input Features">
               <Checkbox.Group
                 className="feature-checkbox-block"
                 defaultValue={["descriptors", "physical"]}
                 options={[
-                  { value: "descriptors", label: "分子描述符" },
-                  { value: "physical", label: "物理性能" },
-                  { value: "structure", label: "结构元信息" }
+                  { value: "descriptors", label: "Molecular Descriptors" },
+                  { value: "physical", label: "Physical Properties" },
+                  { value: "structure", label: "Structure Metadata" }
                 ]}
               />
             </Form.Item>
-            <Form.Item label="目标性能">
+            <Form.Item label="Target Performance">
               <Select
                 defaultValue="average_friction_coefficient"
                 options={[
-                  { value: "average_friction_coefficient", label: "平均摩擦系数" },
-                  { value: "wear_scar_diameter", label: "磨斑直径" },
-                  { value: "initial_oxidation_temperature", label: "初始氧化温度" },
-                  { value: "extreme_pressure_value", label: "极压值" }
+                  { value: "average_friction_coefficient", label: "Average Friction Coefficient" },
+                  { value: "wear_scar_diameter", label: "Wear Scar Diameter" },
+                  { value: "initial_oxidation_temperature", label: "Initial Oxidation Temperature" },
+                  { value: "extreme_pressure_value", label: "Extreme-pressure Value" }
                 ]}
               />
             </Form.Item>
-            <Form.Item label="机器学习模型">
+            <Form.Item label="Machine-learning Model">
               <Select
                 defaultValue="random_forest"
                 options={[
@@ -215,18 +250,18 @@ export default function MoleculePerformancePredictionPage() {
                 ]}
               />
             </Form.Item>
-            <Form.Item label="描述符筛选">
+            <Form.Item label="Descriptor Selection">
               <Select
                 defaultValue="mutual_info"
                 options={[
-                  { value: "mutual_info", label: "互信息筛选" },
-                  { value: "variance_corr", label: "方差 + 相关性" },
-                  { value: "model_importance", label: "模型重要性" },
-                  { value: "pca", label: "PCA 降维" }
+                  { value: "mutual_info", label: "Mutual Information" },
+                  { value: "variance_corr", label: "Variance + Correlation" },
+                  { value: "model_importance", label: "Model Importance" },
+                  { value: "pca", label: "PCA Reduction" }
                 ]}
               />
             </Form.Item>
-            <Form.Item label="保留描述符">
+            <Form.Item label="Descriptors to Keep">
               <InputNumber
                 min={16}
                 max={512}
@@ -236,7 +271,7 @@ export default function MoleculePerformancePredictionPage() {
                 style={{ width: "100%" }}
               />
             </Form.Item>
-            <Form.Item label={`相关阈值：${corrThreshold.toFixed(2)}`}>
+            <Form.Item label={`Correlation Threshold: ${corrThreshold.toFixed(2)}`}>
               <Slider
                 min={0}
                 max={0.5}
@@ -246,22 +281,33 @@ export default function MoleculePerformancePredictionPage() {
                 tooltip={{ formatter: null }}
               />
             </Form.Item>
-            <Form.Item label={`训练/测试：${trainRatio}/${100 - trainRatio}`}>
-              <Slider min={50} max={90} step={5} value={trainRatio} onChange={setTrainRatio} tooltip={{ formatter: null }} />
+            <Form.Item label={`Train / Test: ${trainRatio}/${100 - trainRatio}`}>
+              <Slider
+                min={50}
+                max={90}
+                step={5}
+                value={trainRatio}
+                onChange={setTrainRatio}
+                tooltip={{ formatter: null }}
+              />
             </Form.Item>
-            <Form.Item label="筛选结果">
+            <Form.Item label="Selection Results">
               <Button block onClick={() => setFilterOpen(true)}>
-                筛选结果
+                View Results
               </Button>
             </Form.Item>
-            <Form.Item label="可解释机器学习">
+            <Form.Item label="Explainable Machine Learning">
               <Button block onClick={() => setShapOpen(true)}>
-                SHAP 可视化
+                SHAP Visualization
               </Button>
             </Form.Item>
-            <Form.Item label="训练动作">
-              <Button type="primary" block onClick={() => message.success("分子性能预测模型训练任务已创建。")}>
-                训练模型
+            <Form.Item label="Training Action">
+              <Button
+                type="primary"
+                block
+                onClick={() => message.success("Molecule-performance model training task created.")}
+              >
+                Train Model
               </Button>
             </Form.Item>
           </div>
@@ -274,14 +320,14 @@ export default function MoleculePerformancePredictionPage() {
               size="small"
               rowKey="key"
               columns={[
-                { title: "特征集", dataIndex: "feature" },
-                { title: "数据来源", dataIndex: "source" },
+                { title: "Feature Set", dataIndex: "feature" },
+                { title: "Data Source", dataIndex: "source" },
                 {
-                  title: "状态",
+                  title: "Status",
                   dataIndex: "status",
                   width: 88,
                   render: (value) => (
-                    <Tag color={value === "ready" ? "green" : "gold"}>{value === "ready" ? "就绪" : "待补充"}</Tag>
+                    <Tag color={value === "ready" ? "green" : "gold"}>{value === "ready" ? "Ready" : "Incomplete"}</Tag>
                   )
                 }
               ]}
@@ -294,8 +340,8 @@ export default function MoleculePerformancePredictionPage() {
               size="small"
               rowKey="key"
               columns={[
-                { title: "指标", dataIndex: "metric" },
-                { title: "测试集", dataIndex: "validation" }
+                { title: "Metric", dataIndex: "metric" },
+                { title: "Test Set", dataIndex: "validation" }
               ]}
               dataSource={metricRows}
               pagination={false}
@@ -306,35 +352,47 @@ export default function MoleculePerformancePredictionPage() {
           className="table-card prediction-chart-card"
           title={
             <Space size={10} wrap>
-              <span>测试结果可视化</span>
-              <Tag color="blue">训练集 {split.trainCount}</Tag>
-              <Tag color="green">测试集 {split.testCount}</Tag>
+              <span>Test-results Visualization</span>
+              <Tag color="blue">Training Set: {split.trainCount}</Tag>
+              <Tag color="green">Test Set: {split.testCount}</Tag>
             </Space>
           }
         >
           <div ref={chartRef} className="prediction-chart" />
         </Card>
       </div>
-      <Modal title="筛选后描述符" open={filterOpen} onCancel={() => setFilterOpen(false)} footer={null} width={760}>
+      <Modal
+        title="Selected Descriptors"
+        open={filterOpen}
+        onCancel={() => setFilterOpen(false)}
+        footer={null}
+        width={760}
+      >
         <Space size={8} wrap className="modal-tag-row">
-          <Tag color="blue">原始 1824</Tag>
-          <Tag color="green">保留 {keepCount}</Tag>
-          <Tag>相关阈值 {corrThreshold.toFixed(2)}</Tag>
+          <Tag color="blue">Original: 1824</Tag>
+          <Tag color="green">Kept: {keepCount}</Tag>
+          <Tag>Correlation Threshold: {corrThreshold.toFixed(2)}</Tag>
         </Space>
         <Table
           size="small"
           rowKey="key"
           columns={[
-            { title: "描述符", dataIndex: "descriptor" },
-            { title: "类别", dataIndex: "group" },
-            { title: "得分", dataIndex: "score", width: 72 },
-            { title: "保留原因", dataIndex: "reason" }
+            { title: "Descriptor", dataIndex: "descriptor" },
+            { title: "Category", dataIndex: "group" },
+            { title: "Score", dataIndex: "score", width: 72 },
+            { title: "Reason Kept", dataIndex: "reason" }
           ]}
           dataSource={descriptorFilterRows}
           pagination={false}
         />
       </Modal>
-      <Modal title="SHAP 可解释可视化" open={shapOpen} onCancel={() => setShapOpen(false)} footer={null} width={780}>
+      <Modal
+        title="SHAP Explainability Visualization"
+        open={shapOpen}
+        onCancel={() => setShapOpen(false)}
+        footer={null}
+        width={780}
+      >
         <div ref={shapChartRef} className="shap-chart" />
       </Modal>
     </div>

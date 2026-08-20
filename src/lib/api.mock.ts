@@ -139,7 +139,7 @@ export async function mockSaveMoleculeWithRequiredDescriptors(
   const molBlock = buildMock3dMolBlock(payload.smiles, payload.name || payload.smiles);
   const molecule: Molecule = {
     id,
-    name: payload.name || "新分子",
+    name: payload.name || "New Molecule",
     aliases: payload.aliases,
     smilesRaw: payload.smiles,
     smilesCanonical: payload.smiles.trim(),
@@ -216,7 +216,7 @@ export async function mockCreateAdditive(payload: CreateAdditivePayload): Promis
   await delay(150);
   const molecule = molecules.find((item) => item.id === payload.moleculeId);
   if (!molecule) {
-    throw new Error(`未找到代表分子：${payload.moleculeId}`);
+    throw new Error(`Representative molecule not found: ${payload.moleculeId}`);
   }
   const createdAt = new Date().toISOString();
   const additive: Additive = {
@@ -320,7 +320,7 @@ export async function mockSaveExperimentWithPerformance(payload: ExperimentPerfo
     id: `exp-${Date.now()}`,
     formulationId: payload.formulationId,
     formulationName: formulation?.name ?? payload.formulationId,
-    testType: payload.testType || "未指定",
+    testType: payload.testType || "Unspecified",
     testStandard: payload.testStandard ?? "",
     instrument: payload.instrument ?? "",
     upperMaterial: payload.upperMaterial ?? "",
@@ -331,9 +331,9 @@ export async function mockSaveExperimentWithPerformance(payload: ExperimentPerfo
     temperatureUnit: "C",
     durationValue: payload.durationValue,
     durationUnit: "min",
-    operator: "当前用户",
+    operator: "Current user",
     experimentDate: createdAt.slice(0, 10),
-    notes: "由实验与性能页面录入。",
+    notes: "Entered from the Experiments & Performance page.",
     createdAt,
     updatedAt: createdAt
   };
@@ -346,7 +346,7 @@ export async function mockSaveExperimentWithPerformance(payload: ExperimentPerfo
     initialOxidationTemperatureValue: payload.initialOxidationTemperatureValue,
     extremePressureValue: payload.extremePressureValue,
     repeatCount: 1,
-    notes: "由实验与性能页面录入。",
+    notes: "Entered from the Experiments & Performance page.",
     createdAt,
     updatedAt: createdAt
   };
@@ -392,7 +392,7 @@ export async function mockUpdateExperimentRecord(experimentId: string, payload: 
       id: `perf-${Date.now()}`,
       experimentId,
       repeatCount: 1,
-      notes: "由实验数据修正生成。",
+      notes: "Generated from experimental-data correction.",
       createdAt: updatedAt,
       updatedAt
     };

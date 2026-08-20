@@ -4,10 +4,10 @@ export const moleculeEntryCategoryOptions = moleculeCategories.map((value) => ({
 export const moleculeEntryFunctionOptions = Object.entries(additiveFunctionLabels).map(([value, label]) => ({ value, label }));
 
 export const saveSteps = [
-  "校验 SMILES",
-  "生成 2D 结构",
-  "生成 3D 结构",
-  "计算 RDKit 描述符",
-  "计算 Mordred 描述符",
-  "保存到 SQLite"
+  "Validate SMILES",
+  "Generate 2D structure",
+  "Generate 3D structure",
+  "Calculate RDKit descriptors",
+  "Calculate Mordred descriptors",
+  "Save to SQLite"
 ];

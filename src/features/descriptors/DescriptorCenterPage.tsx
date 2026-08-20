@@ -76,13 +76,13 @@ export default function DescriptorCenterPage() {
     };
     const content = kind === "all" ? await exportAllDescriptorsCsv() : await exportMlDescriptorMatrixCsv(options);
     downloadTextFile(kind === "all" ? "all-descriptors.csv" : "ml-descriptor-matrix.csv", content, "text/csv;charset=utf-8");
-    message.success("已从隐藏的 descriptors_json 生成 CSV 导出。");
+    message.success("CSV generated from the stored descriptors_json data.");
   }
 
   const columns: ColumnsType<Row> = [
     { title: "ID", dataIndex: "moleculeId", width: 140 },
     {
-      title: "名称类型",
+      title: "Name / Type",
       render: (_, row) => (
         <Space size={6} wrap>
           <span>{row.moleculeName}</span>
@@ -91,7 +91,7 @@ export default function DescriptorCenterPage() {
       )
     },
     {
-      title: "描述符状态",
+      title: "Descriptor Status",
       render: (_, row) => (
         <Space size={6} wrap>
           <Tag color={statusColor(row.rdkitStatus)}>RDKit: {descriptorStatusLabels[row.rdkitStatus] ?? row.rdkitStatus}</Tag>
@@ -105,31 +105,31 @@ export default function DescriptorCenterPage() {
   return (
     <div className="page-grid table-page">
       <PageHeader
-        title="描述符中心"
-        description="管理描述符状态；完整 RDKit/Mordred 描述符在详情或 CSV 导出中展开。"
+        title="Descriptor Center"
+        description="Manage descriptor status. Complete RDKit and Mordred descriptors are available in details and CSV exports."
       />
       <Card className="table-card">
         <div className="table-toolbar descriptor-toolbar">
           <div className="left">
-            <Button onClick={() => downloadCsv("all")}>导出全部 CSV</Button>
-            <Button onClick={() => downloadCsv("ml")}>导出 ML 矩阵</Button>
-            <Button onClick={() => message.info("失败描述符的模拟重算任务已加入队列。")}>
-              重算失败
+            <Button onClick={() => downloadCsv("all")}>Export All CSV</Button>
+            <Button onClick={() => downloadCsv("ml")}>Export ML Matrix</Button>
+            <Button onClick={() => message.info("A mock recalculation task for failed descriptors was queued.")}>
+              Recalculate Failed
             </Button>
             <Button
               type="primary"
               onClick={async () => {
                 await recalculateAllDescriptors();
                 await refresh();
-                message.success("已在模拟模式下重算全部描述符。");
+                message.success("All descriptors recalculated in mock mode.");
               }}
             >
-              重算全部
+              Recalculate All
             </Button>
           </div>
           <div className="right">
             <Checkbox checked={numericOnly} onChange={(event) => setNumericOnly(event.target.checked)}>
-              仅数值
+              Numeric Only
             </Checkbox>
           </div>
         </div>

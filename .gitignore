@@ -4,6 +4,9 @@ dist/
 .npm-cache/
 .pip-cache/
 src-tauri/target/
+src-tauri/binaries/lmd-sidecar-*
 python-sidecar/*.egg-info/
+python-sidecar/build/
+python-sidecar/dist/
 python-sidecar/**/__pycache__/
 python-sidecar/**/*.pyc

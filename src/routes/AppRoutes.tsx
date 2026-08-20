@@ -14,6 +14,7 @@ import FormulationPredictionPage from "../features/data-mining/FormulationPredic
 import MoleculeDesignPage from "../features/data-mining/MoleculeDesignPage";
 import MoleculePerformancePredictionPage from "../features/data-mining/MoleculePerformancePredictionPage";
 import LoadingBlock from "../components/LoadingBlock";
+import SettingsPage from "../features/settings/SettingsPage";
 
 const MoleculeSketcherPage = lazy(() => import("../features/molecule-sketcher/MoleculeSketcherPage"));
 
@@ -49,6 +50,7 @@ export default function AppRoutes() {
       <Route path="/data-mining/formulation-prediction" element={<FormulationPredictionPage />} />
       <Route path="/data-mining/molecule-design" element={<MoleculeDesignPage />} />
       <Route path="/import-export" element={<ImportExportPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

@@ -66,16 +66,16 @@ const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, onChang
 
   return (
     <Card
-      title="分子绘图器"
+      title="Molecule Editor"
       className="ketcher-card"
       extra={
         <Space>
-          <Tag color={ready ? "green" : "blue"}>{ready ? "Ketcher 已就绪" : "Ketcher 加载中"}</Tag>
+          <Tag color={ready ? "green" : "blue"}>{ready ? "Ketcher ready" : "Loading Ketcher"}</Tag>
           <Button size="small" disabled={loading || !ready} onClick={() => ketcherRef.current?.setMolecule("CCO").then(notifyChange)}>
-            示例：乙醇
+            Example: Ethanol
           </Button>
           <Button size="small" disabled={loading || !ready} onClick={() => ketcherRef.current?.setMolecule("").then(() => onChange?.({ smiles: "", molfile: "" }))}>
-            清空
+            Clear
           </Button>
         </Space>
       }
@@ -85,7 +85,7 @@ const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, onChang
           className="ketcher-alert"
           type="error"
           showIcon
-          message="Ketcher 初始化失败"
+          message="Ketcher initialization failed"
           description={errorText}
         />
       )}
@@ -93,7 +93,7 @@ const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, onChang
         {!ready && (
           <div className="ketcher-loading">
             <Spin />
-            <Typography.Text type="secondary">正在加载 Ketcher 分子绘画器...</Typography.Text>
+            <Typography.Text type="secondary">Loading the Ketcher molecule editor...</Typography.Text>
           </div>
         )}
         <Editor

@@ -18,7 +18,7 @@ export default function ExperimentPerformancePage() {
     setSaving(true);
     try {
       const { experiment } = await saveExperimentWithPerformance(values);
-      message.success(`实验已保存到配方库：${experiment.id}`);
+      message.success(`Experiment saved to the formulation library: ${experiment.id}`);
       form.resetFields();
     } finally {
       setSaving(false);
@@ -27,8 +27,8 @@ export default function ExperimentPerformancePage() {
 
   return (
     <div className="page-grid experiment-page experiment-entry-only-page">
-      <PageHeader title="实验与性能" description="记录测试条件、性能结果和附件路径。" />
-      <Card title="实验录入">
+      <PageHeader title="Experiments & Performance" description="Record test conditions, performance results, and attachment paths." />
+      <Card title="Experiment Entry">
         <Form
           form={form}
           layout="vertical"
@@ -41,42 +41,42 @@ export default function ExperimentPerformancePage() {
           }}
         >
           <div className="experiment-form-grid">
-            <Form.Item label="配方" name="formulationId" rules={[{ required: true, message: "请选择配方" }]}>
+            <Form.Item label="Formulation" name="formulationId" rules={[{ required: true, message: "Select a formulation" }]}>
               <Select options={formulations.map((item) => ({ value: item.id, label: item.name }))} />
             </Form.Item>
-            <Form.Item label="测试类型" name="testType" rules={[{ required: true, message: "请选择测试类型" }]}>
+            <Form.Item label="Test Type" name="testType" rules={[{ required: true, message: "Select a test type" }]}>
               <Select
                 options={[
                   { value: "SRV", label: "SRV" },
-                  { value: "four-ball", label: "四球试验" },
-                  { value: "ball-on-disk", label: "球盘试验" },
+                  { value: "four-ball", label: "Four-ball Test" },
+                  { value: "ball-on-disk", label: "Ball-on-disk Test" },
                   { value: "PDSC", label: "PDSC" },
-                  { value: "viscosity", label: "黏度测试" },
-                  { value: "corrosion", label: "腐蚀测试" },
-                  { value: "stability", label: "稳定性测试" },
-                  { value: "other", label: "其他" }
+                  { value: "viscosity", label: "Viscosity Test" },
+                  { value: "corrosion", label: "Corrosion Test" },
+                  { value: "stability", label: "Stability Test" },
+                  { value: "other", label: "Other" }
                 ]}
               />
             </Form.Item>
-            <Form.Item label="测试标准" name="testStandard"><Input /></Form.Item>
-            <Form.Item label="仪器" name="instrument"><Input /></Form.Item>
-            <Form.Item label="上试样材料" name="upperMaterial"><Input /></Form.Item>
-            <Form.Item label="下试样材料" name="lowerMaterial"><Input /></Form.Item>
-            <Form.Item label="实验日期" name="experimentDate"><Input type="date" /></Form.Item>
-            <Form.Item label="操作者" name="operator"><Input /></Form.Item>
-            <Form.Item label="载荷" name="loadValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="温度" name="temperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="时长" name="durationValue"><InputNumber addonAfter="min" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="平均摩擦系数" name="averageFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="稳定摩擦系数" name="stableFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="磨斑直径" name="wearScarDiameterValue"><InputNumber addonAfter="um" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="初始氧化温度" name="initialOxidationTemperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="极压值" name="extremePressureValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="重复次数" name="repeatCount"><InputNumber min={1} style={{ width: "100%" }} /></Form.Item>
-            <Form.Item label="备注" name="notes"><Input /></Form.Item>
-            <Form.Item label="操作">
+            <Form.Item label="Test Standard" name="testStandard"><Input /></Form.Item>
+            <Form.Item label="Instrument" name="instrument"><Input /></Form.Item>
+            <Form.Item label="Upper Specimen Material" name="upperMaterial"><Input /></Form.Item>
+            <Form.Item label="Lower Specimen Material" name="lowerMaterial"><Input /></Form.Item>
+            <Form.Item label="Experiment Date" name="experimentDate"><Input type="date" /></Form.Item>
+            <Form.Item label="Operator" name="operator"><Input /></Form.Item>
+            <Form.Item label="Load" name="loadValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Temperature" name="temperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Duration" name="durationValue"><InputNumber addonAfter="min" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Average Friction Coefficient" name="averageFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Stable Friction Coefficient" name="stableFrictionCoefficient"><InputNumber style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Wear Scar Diameter" name="wearScarDiameterValue"><InputNumber addonAfter="um" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Initial Oxidation Temperature" name="initialOxidationTemperatureValue"><InputNumber addonAfter="C" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Extreme-pressure Value" name="extremePressureValue"><InputNumber addonAfter="N" style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Repeat Count" name="repeatCount"><InputNumber min={1} style={{ width: "100%" }} /></Form.Item>
+            <Form.Item label="Notes" name="notes"><Input /></Form.Item>
+            <Form.Item label="Actions">
               <Button type="primary" block loading={saving} onClick={saveExperiment}>
-                保存实验与性能
+                Save Experiment and Performance
               </Button>
             </Form.Item>
           </div>

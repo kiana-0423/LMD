@@ -73,10 +73,10 @@ export default function FormulationEntryPage() {
           ...additiveComponents
         ]
       });
-      message.success(`配方已保存：${formulation.name}`);
+      message.success(`Formulation saved: ${formulation.name}`);
       form.resetFields();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : typeof error === "string" ? error : "配方保存失败。";
+      const errorMessage = error instanceof Error ? error.message : typeof error === "string" ? error : "Failed to save the formulation.";
       message.error(errorMessage);
     } finally {
       setSaving(false);
@@ -98,7 +98,7 @@ export default function FormulationEntryPage() {
 
   return (
     <div className="page-grid entry-page formulation-entry-page">
-      <PageHeader title="配方录入" description="选择基础油和多个添加剂，定义各组分比例并保存为配方。" />
+      <PageHeader title="Formulation Entry" description="Select a base oil and additives, define component ratios, and save the formulation." />
       <Card>
         <Form
           form={form}
@@ -112,25 +112,25 @@ export default function FormulationEntryPage() {
         >
           <div className="two-column-grid">
             <div className="form-section">
-              <Form.Item label="配方名称" name="name" rules={[{ required: true, message: "请输入配方名称。" }]}>
-                <Input placeholder="例如：PAO-6 + ZDDP 1.0%" />
+              <Form.Item label="Formulation Name" name="name" rules={[{ required: true, message: "Enter a formulation name." }]}>
+                <Input placeholder="Example: PAO-6 + ZDDP 1.0%" />
               </Form.Item>
-              <Form.Item label="基础油" name="baseOilId" rules={[{ required: true, message: "请选择基础油。" }]}>
-                <Select showSearch options={baseOilOptions} optionFilterProp="label" placeholder="选择基础油" />
+              <Form.Item label="Base Oil" name="baseOilId" rules={[{ required: true, message: "Select a base oil." }]}>
+                <Select showSearch options={baseOilOptions} optionFilterProp="label" placeholder="Select a base oil" />
               </Form.Item>
               <Space size={12} wrap>
                 <Form.Item
-                  label="基础油比例"
+                  label="Base-oil Ratio"
                   name="baseOilConcentration"
-                  rules={[{ required: true, message: "请输入基础油比例。" }]}
+                  rules={[{ required: true, message: "Enter the base-oil ratio." }]}
                 >
                   <InputNumber min={0} precision={4} />
                 </Form.Item>
-                <Form.Item label="单位" name="baseOilConcentrationUnit">
+                <Form.Item label="Unit" name="baseOilConcentrationUnit">
                   <Select options={unitOptions} style={{ width: 140 }} />
                 </Form.Item>
               </Space>
-              <Form.Item label="制备方法" name="preparationMethod">
+              <Form.Item label="Preparation Method" name="preparationMethod">
                 <Select
                   options={["stirring", "ultrasonication", "heating", "other"].map((value) => ({
                     value,
@@ -139,17 +139,17 @@ export default function FormulationEntryPage() {
                 />
               </Form.Item>
               <Space size={12} wrap>
-                <Form.Item label="制备温度" name="preparationTemperature">
+                <Form.Item label="Preparation Temperature" name="preparationTemperature">
                   <InputNumber addonAfter="C" style={{ width: 160 }} />
                 </Form.Item>
-                <Form.Item label="制备时间" name="preparationTime">
+                <Form.Item label="Preparation Time" name="preparationTime">
                   <InputNumber addonAfter="min" style={{ width: 160 }} />
                 </Form.Item>
               </Space>
-              <Form.Item label="稳定性观察" name="stabilityObservation">
+              <Form.Item label="Stability Observation" name="stabilityObservation">
                 <Input.TextArea rows={3} />
               </Form.Item>
-              <Form.Item label="备注" name="notes">
+              <Form.Item label="Notes" name="notes">
                 <Input.TextArea rows={3} />
               </Form.Item>
             </div>
@@ -160,39 +160,39 @@ export default function FormulationEntryPage() {
                     {fields.map((field, index) => (
                       <div key={field.key} className="form-section">
                         <Space className="modal-action-row">
-                          <strong>{`添加剂 ${index + 1}`}</strong>
+                          <strong>{`Additive ${index + 1}`}</strong>
                           <Button size="small" danger onClick={() => remove(field.name)}>
-                            删除
+                            Delete
                           </Button>
                         </Space>
                         <Form.Item
-                          label="添加剂"
+                          label="Additive"
                           name={[field.name, "additiveId"]}
-                          rules={[{ required: true, message: "请选择添加剂。" }]}
+                          rules={[{ required: true, message: "Select an additive." }]}
                         >
-                          <Select showSearch options={additiveOptions} optionFilterProp="label" placeholder="选择添加剂" />
+                          <Select showSearch options={additiveOptions} optionFilterProp="label" placeholder="Select an additive" />
                         </Form.Item>
                         <Space size={12} wrap>
                           <Form.Item
-                            label="比例"
+                            label="Ratio"
                             name={[field.name, "concentrationValue"]}
-                            rules={[{ required: true, message: "请输入添加剂比例。" }]}
+                            rules={[{ required: true, message: "Enter the additive ratio." }]}
                           >
                             <InputNumber min={0} precision={4} />
                           </Form.Item>
-                          <Form.Item label="单位" name={[field.name, "concentrationUnit"]}>
+                          <Form.Item label="Unit" name={[field.name, "concentrationUnit"]}>
                             <Select options={unitOptions} style={{ width: 140 }} />
                           </Form.Item>
                         </Space>
-                        <Form.Item label="说明" name={[field.name, "notes"]}>
+                        <Form.Item label="Description" name={[field.name, "notes"]}>
                           <Input />
                         </Form.Item>
                       </div>
                     ))}
                     <Space className="modal-action-row">
-                      <Button onClick={() => add({ concentrationUnit: "wt%" })}>添加添加剂</Button>
+                      <Button onClick={() => add({ concentrationUnit: "wt%" })}>Add Additive</Button>
                       <Button type="primary" loading={saving} onClick={saveFormulation}>
-                        保存配方
+                        Save Formulation
                       </Button>
                     </Space>
                   </>

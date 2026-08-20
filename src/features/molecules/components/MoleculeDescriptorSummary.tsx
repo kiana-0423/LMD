@@ -7,20 +7,20 @@ export default function MoleculeDescriptorSummary({ molecule }: { molecule: Mole
   const navigate = useNavigate();
 
   return (
-    <Card size="small" title="描述符摘要">
+    <Card size="small" title="Descriptor Summary">
       <Space direction="vertical" size={12}>
         <Space wrap>
           <Tag color={molecule.descriptorReady ? "green" : "red"}>
-            {molecule.descriptorReady ? "描述符就绪" : "描述符未就绪"}
+            {molecule.descriptorReady ? "Descriptors ready" : "Descriptors not ready"}
           </Tag>
           <Tag>RDKit: {descriptorStatusLabels[molecule.rdkitDescriptorStatus] ?? molecule.rdkitDescriptorStatus}</Tag>
           <Tag>Mordred: {descriptorStatusLabels[molecule.mordredDescriptorStatus] ?? molecule.mordredDescriptorStatus}</Tag>
         </Space>
         <Typography.Text type="secondary">
-          完整 RDKit 与 Mordred 描述符请在描述符中心查看。
+          View the complete RDKit and Mordred descriptors in the Descriptor Center.
         </Typography.Text>
         <Button type="primary" onClick={() => navigate("/descriptors")}>
-          前往描述符中心
+          Open Descriptor Center
         </Button>
       </Space>
     </Card>

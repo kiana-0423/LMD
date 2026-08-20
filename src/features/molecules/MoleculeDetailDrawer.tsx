@@ -23,16 +23,16 @@ export default function MoleculeDetailDrawer({
       <Tabs
         className="molecule-detail-tabs"
         items={[
-          { key: "overview", label: "概览", children: <MoleculePropertyPanel molecule={molecule} /> },
-          { key: "2d", label: "2D 结构", children: <MoleculeViewer2D molecule={molecule} /> },
-          { key: "3d", label: "3D 结构", children: <MoleculeViewer3D molecule={molecule} /> },
+          { key: "overview", label: "Overview", children: <MoleculePropertyPanel molecule={molecule} /> },
+          { key: "2d", label: "2D Structure", children: <MoleculeViewer2D molecule={molecule} /> },
+          { key: "3d", label: "3D Structure", children: <MoleculeViewer3D molecule={molecule} /> },
           {
             key: "descriptors",
-            label: "描述符摘要",
+            label: "Descriptor Summary",
             children: <MoleculeDescriptorSummary molecule={molecule} />
           },
-          { key: "formulations", label: "相关配方", children: <FormulationUsageTable /> },
-          { key: "notes", label: "备注", children: <MoleculeDesignNotesPanel molecule={molecule} /> }
+          { key: "formulations", label: "Related Formulations", children: <FormulationUsageTable /> },
+          { key: "notes", label: "Notes", children: <MoleculeDesignNotesPanel molecule={molecule} /> }
         ]}
       />
     </Drawer>
@@ -44,18 +44,18 @@ function FormulationUsageTable() {
     {
       key: "usage-1",
       formulation: "PAO-6 + ZDDP 1.0%",
-      role: "添加剂",
+      role: "Additive",
       concentration: "1.0 wt%",
       experiments: 2,
-      performance: "最佳摩擦系数 0.082"
+      performance: "Best friction coefficient: 0.082"
     }
   ];
   const columns: ColumnsType<(typeof rows)[number]> = [
-    { title: "配方", dataIndex: "formulation" },
-    { title: "角色", dataIndex: "role", render: (value) => <Tag>{value}</Tag> },
-    { title: "浓度", dataIndex: "concentration" },
-    { title: "关联实验", dataIndex: "experiments" },
-    { title: "性能摘要", dataIndex: "performance" }
+    { title: "Formulation", dataIndex: "formulation" },
+    { title: "Role", dataIndex: "role", render: (value) => <Tag>{value}</Tag> },
+    { title: "Concentration", dataIndex: "concentration" },
+    { title: "Related Experiments", dataIndex: "experiments" },
+    { title: "Performance Summary", dataIndex: "performance" }
   ];
   return <Table size="small" columns={columns} dataSource={rows} pagination={false} />;
 }

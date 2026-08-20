@@ -66,11 +66,11 @@ export default function BaseAdditiveLibraryPage() {
       if (activeTab === "base-oils") {
         const values = await baseOilForm.validateFields();
         await createBaseOil(values);
-        message.success("基础油已保存。");
+        message.success("Base oil saved.");
       } else {
         const values = await additiveForm.validateFields();
         await createAdditive(values);
-        message.success("添加剂已保存。");
+        message.success("Additive saved.");
       }
       setCreateOpen(false);
       await refresh();
@@ -98,7 +98,7 @@ export default function BaseAdditiveLibraryPage() {
   const baseOilColumns: ColumnsType<BaseOil> = [
     { title: "ID", dataIndex: "id", width: 140 },
     {
-      title: "名称类型",
+      title: "Name / Type",
       render: (_, row) => (
         <Space size={6} wrap>
           <span>{row.name}</span>
@@ -106,16 +106,16 @@ export default function BaseAdditiveLibraryPage() {
         </Space>
       )
     },
-    { title: "代表分子", dataIndex: "representativeMoleculeId", render: (value) => value || "-" },
+    { title: "Representative Molecule", dataIndex: "representativeMoleculeId", render: (value) => value || "-" },
     {
-      title: "操作",
+      title: "Actions",
       width: 210,
       render: (_, row) => (
         <Space size={6}>
-          <Button size="small" onClick={() => setSelectedBaseOil(row)}>查看</Button>
-          <Button size="small" onClick={() => message.info("编辑基础油功能将在下一阶段接入表单。")}>编辑</Button>
+          <Button size="small" onClick={() => setSelectedBaseOil(row)}>View</Button>
+          <Button size="small" onClick={() => message.info("Base-oil editing will be added to the form in a future release.")}>Edit</Button>
           <Button size="small" danger onClick={() => confirmDeleteBaseOil(row)}>
-            删除
+            Delete
           </Button>
         </Space>
       )
@@ -125,7 +125,7 @@ export default function BaseAdditiveLibraryPage() {
   const additiveColumns: ColumnsType<Additive> = [
     { title: "ID", dataIndex: "id", width: 140 },
     {
-      title: "名称类型",
+      title: "Name / Type",
       render: (_, row) => (
         <Space size={6} wrap>
           <span>{row.moleculeName}</span>
@@ -133,16 +133,16 @@ export default function BaseAdditiveLibraryPage() {
         </Space>
       )
     },
-    { title: "代表分子", dataIndex: "moleculeId" },
+    { title: "Representative Molecule", dataIndex: "moleculeId" },
     {
-      title: "操作",
+      title: "Actions",
       width: 210,
       render: (_, row) => (
         <Space size={6}>
-          <Button size="small" onClick={() => setSelectedAdditive(row)}>查看</Button>
-          <Button size="small" onClick={() => message.info("编辑添加剂功能将在下一阶段接入表单。")}>编辑</Button>
+          <Button size="small" onClick={() => setSelectedAdditive(row)}>View</Button>
+          <Button size="small" onClick={() => message.info("Additive editing will be added to the form in a future release.")}>Edit</Button>
           <Button size="small" danger onClick={() => confirmDeleteAdditive(row)}>
-            删除
+            Delete
           </Button>
         </Space>
       )
@@ -151,40 +151,40 @@ export default function BaseAdditiveLibraryPage() {
 
   function confirmDeleteBaseOil(row: BaseOil) {
     Modal.confirm({
-      title: "确认删除基础油？",
+      title: "Delete this base oil?",
       content: row.name,
-      okText: "删除",
+      okText: "Delete",
       okButtonProps: { danger: true },
-      cancelText: "取消",
+      cancelText: "Cancel",
       onOk: async () => {
         const result = await deleteBaseOil(row.id);
         if (!result.success && !result.deleted) {
-          message.warning("未找到需要删除的基础油记录。");
+          message.warning("The base-oil record was not found.");
           return;
         }
         await refresh();
         if (selectedBaseOil?.id === row.id) setSelectedBaseOil(undefined);
-        message.success("已从数据源删除。");
+        message.success("Deleted from the data source.");
       }
     });
   }
 
   function confirmDeleteAdditive(row: Additive) {
     Modal.confirm({
-      title: "确认删除添加剂？",
+      title: "Delete this additive?",
       content: row.moleculeName,
-      okText: "删除",
+      okText: "Delete",
       okButtonProps: { danger: true },
-      cancelText: "取消",
+      cancelText: "Cancel",
       onOk: async () => {
         const result = await deleteAdditive(row.id);
         if (!result.success && !result.deleted) {
-          message.warning("未找到需要删除的添加剂记录。");
+          message.warning("The additive record was not found.");
           return;
         }
         await refresh();
         if (selectedAdditive?.id === row.id) setSelectedAdditive(undefined);
-        message.success("已从数据源删除。");
+        message.success("Deleted from the data source.");
       }
     });
   }
@@ -192,13 +192,13 @@ export default function BaseAdditiveLibraryPage() {
   return (
     <div className="page-grid table-page">
       <PageHeader
-        title="基础油/添加剂库"
-        description="管理可能没有 SMILES 的基础油，以及与分子库记录关联的添加剂。"
+        title="Base Oils / Additives"
+        description="Manage base oils that may not have SMILES and additives linked to Molecule Library records."
         extra={
           <Space wrap>
-            <Button onClick={() => openCreateModal("base-oils")}>新建基础油</Button>
+            <Button onClick={() => openCreateModal("base-oils")}>New Base Oil</Button>
             <Button type="primary" onClick={() => openCreateModal("additives")}>
-              新建添加剂
+              New Additive
             </Button>
           </Space>
         }
@@ -210,7 +210,7 @@ export default function BaseAdditiveLibraryPage() {
           items={[
             {
               key: "base-oils",
-              label: "基础油",
+              label: "Base Oils",
               children: (
                 <Table
                   size="small"
@@ -224,7 +224,7 @@ export default function BaseAdditiveLibraryPage() {
             },
             {
               key: "additives",
-              label: "添加剂",
+              label: "Additives",
               children: (
                 <Table
                   size="small"
@@ -241,81 +241,81 @@ export default function BaseAdditiveLibraryPage() {
       </Card>
       <Modal
         width={760}
-        title={activeTab === "base-oils" ? "新建基础油" : "新建添加剂"}
+        title={activeTab === "base-oils" ? "New Base Oil" : "New Additive"}
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         onOk={handleCreate}
         confirmLoading={creating}
-        okText="保存"
-        cancelText="取消"
+        okText="Save"
+        cancelText="Cancel"
       >
         {activeTab === "base-oils" ? (
           <Form form={baseOilForm} layout="vertical">
-            <Form.Item label="名称" name="name" rules={[{ required: true, message: "请输入基础油名称。" }]}>
-              <Input placeholder="例如：PAO-6" />
+            <Form.Item label="Name" name="name" rules={[{ required: true, message: "Enter a base-oil name." }]}>
+              <Input placeholder="Example: PAO-6" />
             </Form.Item>
-            <Form.Item label="基础油类型" name="baseOilType">
-              <Input placeholder="例如：Group III、PAO、Ester" />
+            <Form.Item label="Base-oil Type" name="baseOilType">
+              <Input placeholder="Example: Group III, PAO, Ester" />
             </Form.Item>
-            <Form.Item label="代表分子" name="representativeMoleculeId">
-              <Select allowClear showSearch options={moleculeOptions} optionFilterProp="label" placeholder="可选，关联分子库记录" />
+            <Form.Item label="Representative Molecule" name="representativeMoleculeId">
+              <Select allowClear showSearch options={moleculeOptions} optionFilterProp="label" placeholder="Optional Molecule Library record" />
             </Form.Item>
             <Space size={12} wrap>
-              <Form.Item label="40C 黏度" name="viscosity40c">
+              <Form.Item label="Viscosity at 40°C" name="viscosity40c">
                 <InputNumber min={0} precision={3} />
               </Form.Item>
-              <Form.Item label="100C 黏度" name="viscosity100c">
+              <Form.Item label="Viscosity at 100°C" name="viscosity100c">
                 <InputNumber min={0} precision={3} />
               </Form.Item>
-              <Form.Item label="黏度指数" name="viscosityIndex">
+              <Form.Item label="Viscosity Index" name="viscosityIndex">
                 <InputNumber precision={1} />
               </Form.Item>
-              <Form.Item label="密度" name="density">
+              <Form.Item label="Density" name="density">
                 <InputNumber min={0} precision={4} />
               </Form.Item>
-              <Form.Item label="倾点" name="pourPoint">
+              <Form.Item label="Pour Point" name="pourPoint">
                 <InputNumber precision={1} />
               </Form.Item>
-              <Form.Item label="闪点" name="flashPoint">
+              <Form.Item label="Flash Point" name="flashPoint">
                 <InputNumber precision={1} />
               </Form.Item>
             </Space>
-            <Form.Item label="供应商" name="supplier">
+            <Form.Item label="Supplier" name="supplier">
               <Input />
             </Form.Item>
-            <Form.Item label="批次" name="batchNumber">
+            <Form.Item label="Batch" name="batchNumber">
               <Input />
             </Form.Item>
-            <Form.Item label="备注" name="notes">
+            <Form.Item label="Notes" name="notes">
               <Input.TextArea rows={3} />
             </Form.Item>
           </Form>
         ) : (
           <Form form={additiveForm} layout="vertical">
-            <Form.Item label="代表分子" name="moleculeId" rules={[{ required: true, message: "请选择代表分子。" }]}>
-              <Select showSearch options={moleculeOptions} optionFilterProp="label" placeholder="从分子库选择添加剂分子" />
+            <Form.Item label="Representative Molecule" name="moleculeId" rules={[{ required: true, message: "Select a representative molecule." }]}>
+              <Select showSearch options={moleculeOptions} optionFilterProp="label" placeholder="Select an additive molecule from the library" />
             </Form.Item>
-            <Form.Item label="功能类型" name="functionTypes">
+            <Form.Item label="Function Types" name="functionTypes">
               <Select mode="multiple" options={additiveFunctionOptions} />
             </Form.Item>
-            <Form.Item label="活性元素" name="activeElements">
+            <Form.Item label="Active Elements" name="activeElements">
               <Select mode="tags" options={["C", "H", "O", "N", "S", "P", "Zn", "Mo", "B", "Cl"].map((value) => ({ value, label: value }))} />
             </Form.Item>
             <Space size={12} wrap>
-              <Form.Item label="最低典型浓度" name="typicalConcentrationMin">
+              <Form.Item label="Minimum Typical Concentration" name="typicalConcentrationMin">
                 <InputNumber min={0} precision={3} />
               </Form.Item>
-              <Form.Item label="最高典型浓度" name="typicalConcentrationMax">
+              <Form.Item label="Maximum Typical Concentration" name="typicalConcentrationMax">
                 <InputNumber min={0} precision={3} />
               </Form.Item>
-              <Form.Item label="浓度单位" name="concentrationUnit">
+              <Form.Item label="Concentration Unit" name="concentrationUnit">
                 <Input placeholder="wt%" />
               </Form.Item>
             </Space>
-            <Form.Item label="兼容基础油" name="compatibleBaseOils">
-              <Select mode="tags" options={baseOilOptions} placeholder="可输入或选择已有基础油名称" />
+            <Form.Item label="Compatible Base Oils" name="compatibleBaseOils">
+              <Select mode="tags" options={baseOilOptions} placeholder="Enter or select existing base-oil names" />
             </Form.Item>
-            <Form.Item label="应用说明" name="applicationNotes">
+            <Form.Item label="Application Notes" name="applicationNotes">
               <Input.TextArea rows={3} />
             </Form.Item>
           </Form>
@@ -323,19 +323,19 @@ export default function BaseAdditiveLibraryPage() {
       </Modal>
       <Modal
         width={760}
-        title="基础油完整数据"
+        title="Complete Base-oil Data"
         open={Boolean(selectedBaseOil)}
         onCancel={() => setSelectedBaseOil(undefined)}
-        footer={<Button type="primary" onClick={() => setSelectedBaseOil(undefined)}>关闭</Button>}
+        footer={<Button type="primary" onClick={() => setSelectedBaseOil(undefined)}>Close</Button>}
       >
         {selectedBaseOil && <BaseOilDetails item={selectedBaseOil} />}
       </Modal>
       <Modal
         width={760}
-        title="添加剂完整数据"
+        title="Complete Additive Data"
         open={Boolean(selectedAdditive)}
         onCancel={() => setSelectedAdditive(undefined)}
-        footer={<Button type="primary" onClick={() => setSelectedAdditive(undefined)}>关闭</Button>}
+        footer={<Button type="primary" onClick={() => setSelectedAdditive(undefined)}>Close</Button>}
       >
         {selectedAdditive && <AdditiveDetails item={selectedAdditive} />}
       </Modal>
@@ -348,20 +348,20 @@ function BaseOilDetails({ item }: { item: BaseOil }) {
     <Card size="small" title={`${item.id} · ${item.name}`} className="detail-data-card">
       <Descriptions size="small" bordered column={2}>
         <Descriptions.Item label="ID">{item.id}</Descriptions.Item>
-        <Descriptions.Item label="名称类型">{item.name} / {item.baseOilType}</Descriptions.Item>
-        <Descriptions.Item label="代表分子">{item.representativeMoleculeId || "-"}</Descriptions.Item>
-        <Descriptions.Item label="供应商">{item.supplier || "-"}</Descriptions.Item>
-        <Descriptions.Item label="40C 黏度">{item.viscosity40c ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="100C 黏度">{item.viscosity100c ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="黏度指数">{item.viscosityIndex ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="密度">{item.density ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="倾点">{item.pourPoint ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="闪点">{item.flashPoint ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="批次">{item.batchNumber || "-"}</Descriptions.Item>
-        <Descriptions.Item label="配方数量">{item.formulationCount}</Descriptions.Item>
-        <Descriptions.Item label="备注" span={2}>{item.notes || "-"}</Descriptions.Item>
-        <Descriptions.Item label="创建时间">{item.createdAt}</Descriptions.Item>
-        <Descriptions.Item label="更新时间">{item.updatedAt}</Descriptions.Item>
+        <Descriptions.Item label="Name / Type">{item.name} / {item.baseOilType}</Descriptions.Item>
+        <Descriptions.Item label="Representative Molecule">{item.representativeMoleculeId || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Supplier">{item.supplier || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Viscosity at 40°C">{item.viscosity40c ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Viscosity at 100°C">{item.viscosity100c ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Viscosity Index">{item.viscosityIndex ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Density">{item.density ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Pour Point">{item.pourPoint ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Flash Point">{item.flashPoint ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Batch">{item.batchNumber || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Formulation Count">{item.formulationCount}</Descriptions.Item>
+        <Descriptions.Item label="Notes" span={2}>{item.notes || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Created">{item.createdAt}</Descriptions.Item>
+        <Descriptions.Item label="Updated">{item.updatedAt}</Descriptions.Item>
       </Descriptions>
     </Card>
   );
@@ -372,24 +372,24 @@ function AdditiveDetails({ item }: { item: Additive }) {
     <Card size="small" title={`${item.id} · ${item.moleculeName}`} className="detail-data-card">
       <Descriptions size="small" bordered column={2}>
         <Descriptions.Item label="ID">{item.id}</Descriptions.Item>
-        <Descriptions.Item label="名称类型">
+        <Descriptions.Item label="Name / Type">
           <Space size={4} wrap>
             <span>{item.moleculeName}</span>
             {item.functionTypes.map((value) => <Tag key={value}>{additiveFunctionLabels[value] ?? value}</Tag>)}
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label="代表分子">{item.moleculeId}</Descriptions.Item>
-        <Descriptions.Item label="活性元素">{item.activeElements.join(", ") || "-"}</Descriptions.Item>
-        <Descriptions.Item label="典型浓度">
+        <Descriptions.Item label="Representative Molecule">{item.moleculeId}</Descriptions.Item>
+        <Descriptions.Item label="Active Elements">{item.activeElements.join(", ") || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Typical Concentration">
           {item.typicalConcentrationMin}-{item.typicalConcentrationMax} {item.concentrationUnit}
         </Descriptions.Item>
-        <Descriptions.Item label="兼容基础油">{item.compatibleBaseOils.join(", ") || "-"}</Descriptions.Item>
-        <Descriptions.Item label="配方数量">{item.formulationCount}</Descriptions.Item>
-        <Descriptions.Item label="最佳摩擦系数">{item.bestFrictionCoefficient ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="最佳磨斑直径">{item.bestWearScarDiameter ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label="应用说明" span={2}>{item.applicationNotes || "-"}</Descriptions.Item>
-        <Descriptions.Item label="创建时间">{item.createdAt}</Descriptions.Item>
-        <Descriptions.Item label="更新时间">{item.updatedAt}</Descriptions.Item>
+        <Descriptions.Item label="Compatible Base Oils">{item.compatibleBaseOils.join(", ") || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Formulation Count">{item.formulationCount}</Descriptions.Item>
+        <Descriptions.Item label="Best Friction Coefficient">{item.bestFrictionCoefficient ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Best Wear Scar Diameter">{item.bestWearScarDiameter ?? "-"}</Descriptions.Item>
+        <Descriptions.Item label="Application Notes" span={2}>{item.applicationNotes || "-"}</Descriptions.Item>
+        <Descriptions.Item label="Created">{item.createdAt}</Descriptions.Item>
+        <Descriptions.Item label="Updated">{item.updatedAt}</Descriptions.Item>
       </Descriptions>
     </Card>
   );

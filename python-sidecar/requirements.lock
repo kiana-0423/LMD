@@ -1,8 +1,10 @@
-lmd-sidecar==0.1.0
+-e .
 matplotlib==3.11.0
 mordred==1.2.0
 numpy==1.23.5
+openpyxl==3.1.5
 pandas==2.3.3
+pyinstaller==6.22.2
 pytest==9.0.3
 rdkit==2026.3.3
 scikit-learn==1.7.2

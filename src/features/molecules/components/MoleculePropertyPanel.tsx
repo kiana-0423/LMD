@@ -15,21 +15,21 @@ export default function MoleculePropertyPanel({ molecule }: { molecule: Molecule
 
   return (
     <div className="drawer-key-grid">
-      <Field label="名称" value={molecule.name} />
-      <Field label="类别" value={moleculeCategoryLabels[molecule.category] ?? molecule.category} />
+      <Field label="Name" value={molecule.name} />
+      <Field label="Category" value={moleculeCategoryLabels[molecule.category] ?? molecule.category} />
       <Field label="SMILES" value={molecule.smilesRaw} full />
-      <Field label="规范 SMILES" value={molecule.smilesCanonical} full />
+      <Field label="Canonical SMILES" value={molecule.smilesCanonical} full />
       <Field label="InChI" value={molecule.inchi} full />
       <Field label="InChIKey" value={molecule.inchiKey} />
-      <Field label="分子式" value={molecule.formula} />
-      <Field label="分子量" value={molecule.molecularWeight} />
-      <Field label="添加剂功能标签" value={functionTags || "-"} />
-      <Field label="数据来源" value={molecule.dataSource} />
-      <Field label="created from Ketcher" value={molecule.source === "ketcher" ? "是" : "否"} />
-      <Field label="导入方式" value={molecule.importMode || "manual_save"} />
-      <Field label="imported as new molecule" value={molecule.importMode === "new_import" || molecule.importMode === "new_copy" ? "是" : "否"} />
+      <Field label="Molecular Formula" value={molecule.formula} />
+      <Field label="Molecular Weight" value={molecule.molecularWeight} />
+      <Field label="Additive Function Tags" value={functionTags || "-"} />
+      <Field label="Data Source" value={molecule.dataSource} />
+      <Field label="Created from Ketcher" value={molecule.source === "ketcher" ? "Yes" : "No"} />
+      <Field label="Import Mode" value={molecule.importMode || "manual_save"} />
+      <Field label="Imported as New Molecule" value={molecule.importMode === "new_import" || molecule.importMode === "new_copy" ? "Yes" : "No"} />
       <Field label="duplicate of molecule_id" value={molecule.duplicateOf || "-"} />
-      <Field label="备注" value={molecule.notes} full />
+      <Field label="Notes" value={molecule.notes} full />
     </div>
   );
 }

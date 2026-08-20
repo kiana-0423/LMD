@@ -66,20 +66,20 @@ export default function MoleculeLibraryPage() {
 
   function confirmDelete(row: Molecule) {
     Modal.confirm({
-      title: "确认删除分子？",
+      title: "Delete this molecule?",
       content: row.name,
-      okText: "删除",
+      okText: "Delete",
       okButtonProps: { danger: true },
-      cancelText: "取消",
+      cancelText: "Cancel",
       onOk: async () => {
         const result = await deleteMolecule(row.id);
         if (!result.success && !result.deleted) {
-          message.warning("未找到需要删除的分子记录。");
+          message.warning("The molecule record was not found.");
           return;
         }
         await refresh();
         if (selected?.id === row.id) setSelected(undefined);
-        message.success("已从数据源删除。");
+        message.success("Deleted from the data source.");
       }
     });
   }
@@ -87,7 +87,7 @@ export default function MoleculeLibraryPage() {
   const columns: ColumnsType<Molecule> = [
     { title: "ID", dataIndex: "id", width: 140 },
     {
-      title: "名称类型",
+      title: "Name / Type",
       render: (_, record) => (
         <Space size={6} wrap>
           <span>{record.name}</span>
@@ -97,7 +97,7 @@ export default function MoleculeLibraryPage() {
       )
     },
     {
-      title: "代表分子",
+      title: "Representative Molecule",
       render: (_, record) => (
         <Space size={6} wrap>
           <span className="mono">{record.formula || record.inchiKey || record.smilesCanonical}</span>
@@ -108,14 +108,14 @@ export default function MoleculeLibraryPage() {
       )
     },
     {
-      title: "操作",
+      title: "Actions",
       width: 300,
       render: (_, record) => (
         <Space size={6}>
-          <Button size="small" onClick={() => setSelected(record)}>查看</Button>
-          <Button size="small" onClick={() => message.info("编辑分子功能请使用分子绘画页面。")}>编辑</Button>
+          <Button size="small" onClick={() => setSelected(record)}>View</Button>
+          <Button size="small" onClick={() => message.info("Use Molecule Sketcher to edit molecules.")}>Edit</Button>
           <Button size="small" danger onClick={() => confirmDelete(record)}>
-            删除
+            Delete
           </Button>
           <Button size="small" onClick={() => navigate(`/molecule-sketcher?moleculeId=${record.id}`)}>
             Open in Sketcher
@@ -128,16 +128,16 @@ export default function MoleculeLibraryPage() {
   return (
     <div className="page-grid table-page molecule-library-page">
       <PageHeader
-        title="分子库"
-        description="分子表格仅显示描述符状态；完整 RDKit 与 Mordred 描述符保存在数据库中，并在详情抽屉中查看摘要。"
+        title="Molecule Library"
+        description="The table shows descriptor status. Complete RDKit and Mordred descriptors are stored in the database and summarized in the details drawer."
       />
       {loading ? <LoadingBlock /> : null}
       {!loading && errorText ? (
         <Card className="error-panel">
-          <Typography.Title level={4}>分子库加载失败</Typography.Title>
+          <Typography.Title level={4}>Failed to load the molecule library</Typography.Title>
           <Typography.Paragraph>{errorText}</Typography.Paragraph>
           <Button type="primary" onClick={refresh}>
-            重试
+            Retry
           </Button>
         </Card>
       ) : null}
@@ -147,14 +147,14 @@ export default function MoleculeLibraryPage() {
           <div className="left">
             <Input.Search
               allowClear
-              placeholder="搜索名称、SMILES、InChIKey"
+              placeholder="Search name, SMILES, or InChIKey"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               style={{ width: 320 }}
             />
             <Select
               allowClear
-              placeholder="类别"
+              placeholder="Category"
               value={category}
               onChange={setCategory}
               style={{ width: 220 }}
@@ -162,15 +162,15 @@ export default function MoleculeLibraryPage() {
             />
           </div>
           <Space className="right">
-            <Button type="primary" onClick={() => navigate("/molecule-sketcher")}>打开分子绘画</Button>
+            <Button type="primary" onClick={() => navigate("/molecule-sketcher")}>Open Molecule Sketcher</Button>
             <Select
-              placeholder="包含元素"
+              placeholder="Contains element"
               style={{ width: 180 }}
               options={["S", "P", "N", "O", "B", "Mo", "Zn"].map((value) => ({ value, label: value }))}
             />
             <Select
               allowClear
-              placeholder="来源"
+              placeholder="Source"
               style={{ width: 170 }}
               value={source}
               onChange={setSource}
@@ -178,7 +178,7 @@ export default function MoleculeLibraryPage() {
             />
             <Select
               allowClear
-              placeholder="导入方式"
+              placeholder="Import mode"
               style={{ width: 170 }}
               value={importMode}
               onChange={setImportMode}
@@ -186,12 +186,12 @@ export default function MoleculeLibraryPage() {
             />
             <Select
               allowClear
-              placeholder="重复状态"
+              placeholder="Duplicate status"
               style={{ width: 160 }}
               value={duplicateStatus}
               onChange={setDuplicateStatus}
               options={[
-                { value: "original", label: "原始记录" },
+                { value: "original", label: "Original record" },
                 { value: "duplicate", label: "Duplicate copy" }
               ]}
             />
@@ -203,7 +203,7 @@ export default function MoleculeLibraryPage() {
           columns={columns}
           dataSource={filtered}
           tableLayout="fixed"
-          locale={{ emptyText: "数据库中暂无分子记录。" }}
+          locale={{ emptyText: "No molecule records in the database." }}
           pagination={{ pageSize: 6, showSizeChanger: false }}
         />
       </Card>

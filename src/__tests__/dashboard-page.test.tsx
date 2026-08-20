@@ -3,6 +3,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import DashboardPage from "../features/dashboard/DashboardPage";
+import DocumentTranslationBridge from "../i18n/DocumentTranslationBridge";
+import { LanguageProvider } from "../i18n/LanguageContext";
 
 const apiMock = vi.hoisted(() => ({
   getDashboardSummary: vi.fn(),
@@ -34,6 +36,7 @@ const summary = {
 
 describe("DashboardPage", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     apiMock.getDashboardSummary.mockReset();
     apiMock.listMolecules.mockReset();
   });
@@ -49,16 +52,16 @@ describe("DashboardPage", () => {
     apiMock.getDashboardSummary.mockRejectedValueOnce(new Error("database unavailable"));
     apiMock.listMolecules.mockResolvedValueOnce([]);
     render(<DashboardPage />);
-    expect(await screen.findByText("仪表盘加载失败")).toBeTruthy();
+    expect(await screen.findByText("Failed to load the dashboard")).toBeTruthy();
     expect(screen.getByText("database unavailable")).toBeTruthy();
-    expect(screen.getByText("重 试")).toBeTruthy();
+    expect(screen.getByText("Retry")).toBeTruthy();
   });
 
   it("shows an empty molecule health state", async () => {
     apiMock.getDashboardSummary.mockResolvedValueOnce(summary);
     apiMock.listMolecules.mockResolvedValueOnce([]);
     render(<DashboardPage />);
-    expect(await screen.findByText("数据库中暂无分子记录。")).toBeTruthy();
+    expect(await screen.findByText("No molecule records in the database.")).toBeTruthy();
   });
 
   it("renders loaded dashboard metrics and molecule health", async () => {
@@ -69,6 +72,21 @@ describe("DashboardPage", () => {
     render(<DashboardPage />);
     await waitFor(() => expect(screen.getByText("Ethanol")).toBeTruthy());
     expect(screen.getByText("CCO")).toBeTruthy();
-    expect(screen.getByText("就绪")).toBeTruthy();
+    expect(screen.getByText("Ready")).toBeTruthy();
+  });
+
+  it("renders the dashboard in the saved Chinese language", async () => {
+    window.localStorage.setItem("lmd.language.v2", "zh-CN");
+    apiMock.getDashboardSummary.mockResolvedValueOnce(summary);
+    apiMock.listMolecules.mockResolvedValueOnce([]);
+    render(
+      <LanguageProvider>
+        <DocumentTranslationBridge />
+        <DashboardPage />
+      </LanguageProvider>
+    );
+    expect(await screen.findByRole("heading", { name: "仪表盘" })).toBeTruthy();
+    expect(screen.getByText("从本地 SQLite 工作区实时汇总分子、描述符、配方、实验和文件记录。")).toBeTruthy();
+    expect(screen.getByText("数据库记录")).toBeTruthy();
   });
 });

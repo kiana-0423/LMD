@@ -31,7 +31,7 @@ export default function MoleculeEntryPage() {
         additiveFunctionTags: values.additiveFunctionTags ?? []
       });
       setSaved(molecule);
-      message.success("分子已保存，并已写入 RDKit + Mordred 描述符记录。");
+      message.success("Molecule saved with RDKit and Mordred descriptor records.");
     } catch (error) {
       message.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -41,9 +41,9 @@ export default function MoleculeEntryPage() {
 
   function saveWithConfirmation() {
     Modal.confirm({
-      title: "是否使用模拟 Mordred 描述符保存？",
+      title: "Save with mock Mordred descriptors?",
       content:
-        "开发模式可以保存模拟 Mordred 描述符，但记录必须明确标记为 descriptor_status = mock 且 mode = mock。",
+        "Development mode can save mock Mordred descriptors, but records must be marked descriptor_status = mock and mode = mock.",
       onOk: () => runSave(true)
     });
   }
@@ -51,21 +51,21 @@ export default function MoleculeEntryPage() {
   return (
     <div className="page-grid entry-page">
       <PageHeader
-        title="分子录入"
-        description="保存分子并生成 RDKit 与 Mordred 描述符记录；第一阶段 MVP 可使用明确标记的模拟描述符。"
+        title="Molecule Entry"
+        description="Save molecules and generate RDKit and Mordred descriptor records. The MVP may use clearly marked mock descriptors."
       />
       <Form
         form={form}
         layout="vertical"
         initialValues={{
           category: "candidate",
-          dataSource: "手工录入",
+          dataSource: "Manual entry",
           additiveFunctionTags: ["antiwear"]
         }}
       >
         <div className="two-column-grid">
           <SmilesInputCard category={category} />
-          <Card title="计算进度">
+          <Card title="Calculation Progress">
             <Steps
               direction="vertical"
               current={saving ? current : saved ? saveSteps.length : 0}
@@ -74,13 +74,13 @@ export default function MoleculeEntryPage() {
             <Progress className="entry-progress" percent={saved ? 100 : saving ? Math.round(((current + 1) / saveSteps.length) * 100) : 0} />
             <Space wrap>
               <Button type="primary" loading={saving} onClick={() => runSave(false)}>
-                保存分子并计算描述符
+                Save Molecule and Calculate Descriptors
               </Button>
               <Button loading={saving} onClick={saveWithConfirmation}>
-                使用模拟描述符保存
+                Save with Mock Descriptors
               </Button>
               <Button disabled={!saved} onClick={() => navigate("/molecules")}>
-                在分子库中查看
+                View in Molecule Library
               </Button>
             </Space>
           </Card>
@@ -88,19 +88,19 @@ export default function MoleculeEntryPage() {
       </Form>
       {saved && (
         <div className="two-column-grid">
-          <MoleculeStructurePreview svg={saved.structureSvg} title="生成的 2D 结构" />
-          <Card title="生成的分子元数据">
+          <MoleculeStructurePreview svg={saved.structureSvg} title="Generated 2D Structure" />
+          <Card title="Generated Molecule Metadata">
             <Typography.Paragraph>
-              <strong>规范 SMILES：</strong> <span className="mono">{saved.smilesCanonical}</span>
+              <strong>Canonical SMILES:</strong> <span className="mono">{saved.smilesCanonical}</span>
             </Typography.Paragraph>
             <Typography.Paragraph>
               <strong>InChIKey：</strong> <span className="mono">{saved.inchiKey}</span>
             </Typography.Paragraph>
             <Typography.Paragraph>
-              <strong>分子式：</strong> {saved.formula}
+              <strong>Molecular Formula:</strong> {saved.formula}
             </Typography.Paragraph>
             <Typography.Paragraph>
-              <strong>分子量：</strong> {saved.molecularWeight}
+              <strong>Molecular Weight:</strong> {saved.molecularWeight}
             </Typography.Paragraph>
           </Card>
         </div>

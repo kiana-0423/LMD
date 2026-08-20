@@ -20,7 +20,7 @@ Failure:
 {"ok":false,"error":"error message","warnings":[]}
 ```
 
-## Install
+## Development Install
 
 ```bash
 cd python-sidecar
@@ -50,10 +50,37 @@ python -m lmd_sidecar.main predict --input examples/predict.json
 
 Development mode can return mock/fallback data when optional dependencies are absent. Production mode must not skip Mordred descriptors; call `calculate-required-descriptors` with `allow_mock: false` to enforce that behavior.
 
-## Packaging Note
+## Build a Self-contained Sidecar
 
-The first Windows packaging target should use PyInstaller `--onedir` rather than `--onefile`, because RDKit packaging is usually the hardest part.
+Use Python 3.10, 3.11, or 3.12. Install the pinned build environment from this directory, then run the cross-platform builder:
 
 ```bash
-pyinstaller --onedir --name lmd-sidecar lmd_sidecar/main.py
+python -m pip install -r requirements.lock
+cd ..
+python scripts/build_sidecar.py
+```
+
+The script builds a PyInstaller single-file executable, verifies that its bundled RDKit performs a real calculation, and copies it into `src-tauri/binaries` using Tauri's target-triple naming convention. End users therefore do not need Python, Conda, or the scientific packages.
+
+PyInstaller is not a cross-compiler. Run the command on every operating system and CPU architecture that you release, or use the repository's GitHub Actions workflow. Expected names include:
+
+```text
+lmd-sidecar-aarch64-apple-darwin
+lmd-sidecar-x86_64-pc-windows-msvc.exe
+```
+
+The source tree may contain a small macOS development launcher at the first path. `python scripts/build_sidecar.py` replaces it locally with the real packaged executable before a production Tauri build. Generated executables are release artifacts and should not be committed.
+
+Single-file mode is easy to ship but extracts its Python runtime into a temporary directory at startup. If startup later becomes a performance issue, migrate the Tauri resource layout to PyInstaller's one-directory mode.
+
+## Package the Desktop App
+
+From the repository root, with the build environment activated:
+
+```bash
+# macOS
+npm run desktop:build:mac
+
+# Windows (run on Windows)
+npm run desktop:build:windows
 ```

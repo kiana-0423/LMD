@@ -9,8 +9,8 @@ import StatCard from "../components/StatCard";
 
 describe("shared components", () => {
   it("renders EmptyState with a custom description", () => {
-    render(<EmptyState description="没有结果" />);
-    expect(screen.getByText("没有结果")).toBeTruthy();
+    render(<EmptyState description="No results" />);
+    expect(screen.getByText("No results")).toBeTruthy();
   });
 
   it("renders LoadingBlock skeleton content", () => {
@@ -19,15 +19,15 @@ describe("shared components", () => {
   });
 
   it("renders StatCard title and value", () => {
-    render(<StatCard title="分子" value={12} />);
-    expect(screen.getByText("分子")).toBeTruthy();
+    render(<StatCard title="Molecules" value={12} />);
+    expect(screen.getByText("Molecules")).toBeTruthy();
     expect(screen.getByText("12")).toBeTruthy();
   });
 
   it("renders PageHeader description and extra actions", () => {
-    render(<PageHeader title="页面标题" description="页面描述" extra={<button type="button">操作</button>} />);
-    expect(screen.getByRole("heading", { name: "页面标题" })).toBeTruthy();
-    expect(screen.getByText("页面描述")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "操作" })).toBeTruthy();
+    render(<PageHeader title="Page Title" description="Page description" extra={<button type="button">Action</button>} />);
+    expect(screen.getByRole("heading", { name: "Page Title" })).toBeTruthy();
+    expect(screen.getByText("Page description")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Action" })).toBeTruthy();
   });
 });

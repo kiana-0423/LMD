@@ -33,16 +33,16 @@ export default function ImportExportPage() {
 
   async function importFile() {
     if (!filePath.trim()) {
-      message.warning("请输入本地 Excel/CSV 文件路径。");
+      message.warning("Enter a local Excel or CSV file path.");
       return;
     }
     setImporting(true);
     try {
       const response = await importExcelWithSidecar(filePath.trim());
       setResult(response);
-      message.success("导入任务已完成。");
+      message.success("Import completed.");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "导入失败");
+      message.error(error instanceof Error ? error.message : "Import failed");
     } finally {
       setImporting(false);
     }
@@ -51,7 +51,7 @@ export default function ImportExportPage() {
   async function exportMolecules() {
     const content = await exportMoleculeLibraryCsv();
     downloadTextFile("molecule-library.csv", content, "text/csv;charset=utf-8");
-    message.success("已导出分子库 CSV。");
+    message.success("Molecule library CSV exported.");
   }
 
   async function exportDescriptors() {
@@ -65,31 +65,28 @@ export default function ImportExportPage() {
     };
     const content = await exportMlDescriptorMatrixCsv(options);
     downloadTextFile("descriptor-matrix.csv", content, "text/csv;charset=utf-8");
-    message.success("已导出描述符矩阵 CSV。");
+    message.success("Descriptor matrix CSV exported.");
   }
 
   return (
     <div className="page-grid">
-      <PageHeader title="导入/导出" description="导入分子表，导出分子库和描述符矩阵。" />
+      <PageHeader title="Import / Export" description="Import molecule tables and export the molecule library or descriptor matrix." />
       <Card className="table-card">
         <Space direction="vertical" size={16} style={{ width: "100%" }}>
           <Space.Compact style={{ width: "100%" }}>
-            <Input value={filePath} onChange={(event) => setFilePath(event.target.value)} placeholder="Excel/CSV 文件路径" />
+            <Input value={filePath} onChange={(event) => setFilePath(event.target.value)} placeholder="Excel/CSV file path" />
             <Button type="primary" icon={<UploadOutlined />} loading={importing} onClick={importFile}>
-              导入
+              Import
             </Button>
           </Space.Compact>
           {result ? (
             <Alert
               type="success"
               showIcon
-              message="导入结果"
+              message="Import Result"
               description={
                 <Typography.Text>
-                  类型 {String(result.import_kind ?? result.importKind ?? "preview_only")}，
-                  写入 {String(result.imported_count ?? result.importedCount ?? 0)} 条，
-                  自动创建分子 {String(result.created_molecule_count ?? result.createdMoleculeCount ?? 0)} 条，
-                  跳过 {String(result.skipped_count ?? result.skippedCount ?? 0)} 条，预览 {previewRows.length} 行
+                  Type: {String(result.import_kind ?? result.importKind ?? "preview_only")}; imported: {String(result.imported_count ?? result.importedCount ?? 0)}; automatically created molecules: {String(result.created_molecule_count ?? result.createdMoleculeCount ?? 0)}; skipped: {String(result.skipped_count ?? result.skippedCount ?? 0)}; preview rows: {previewRows.length}
                 </Typography.Text>
               }
             />
@@ -103,15 +100,15 @@ export default function ImportExportPage() {
         <div className="table-toolbar">
           <div className="left">
             <Button icon={<DownloadOutlined />} onClick={exportMolecules}>
-              导出分子库 CSV
+              Export Molecule Library CSV
             </Button>
             <Button icon={<DownloadOutlined />} onClick={exportDescriptors}>
-              导出描述符矩阵 CSV
+              Export Descriptor Matrix CSV
             </Button>
           </div>
           <div className="right">
             <Checkbox checked={numericOnly} onChange={(event) => setNumericOnly(event.target.checked)}>
-              仅数值
+              Numeric Only
             </Checkbox>
           </div>
         </div>
