@@ -1,0 +1,47 @@
+// Two shapes the AST audit did not look at, both of which reach the screen.
+//
+// A default parameter value is a string the caller never passes and therefore never translates —
+// it is the value most users see. A string returned from a function called inside JSX is rendered
+// by whatever renders the call, and looking only at the call site sees an identifier.
+import { Card, Table } from "antd";
+
+type Row = { id: string; status: string; note?: string };
+
+// A default parameter value: every caller that omits the argument shows this text.
+export function describeStatus(status: string, fallback = "Not recorded yet") {
+  if (!status) return fallback;
+  // A string returned from a branch, rendered wherever this function is called.
+  if (status === "pending") return "Waiting in the queue";
+  return status;
+}
+
+function noteFor(row: Row) {
+  // A return inside an arrow body, and a return statement, both producing visible text.
+  return row.note ?? "No note was written for this row";
+}
+
+const summarise = (rows: Row[]) => (rows.length === 0 ? "Nothing to summarise" : `${rows.length}`);
+
+export default function AuditFixtureReturns({ rows }: { rows: Row[] }) {
+  return (
+    <Card>
+      {/* A string returned from a call inside a JSX expression. */}
+      <div>{summarise(rows)}</div>
+      <Table
+        rowKey="id"
+        dataSource={rows}
+        columns={[
+          {
+            dataIndex: "status",
+            render: (value: string) => describeStatus(value)
+          },
+          {
+            dataIndex: "note",
+            // A render callback whose body is a bare string.
+            render: (_: unknown, row: Row) => noteFor(row)
+          }
+        ]}
+      />
+    </Card>
+  );
+}

@@ -1,0 +1,7 @@
+// Fixture: a production component importing a browser-demo module, which is how
+// buildMock3dMolBlock ended up generating fake coordinates in the 3D viewer.
+import { buildMock3dMolBlock } from "../../../lib/mockStructure";
+
+export default function MockImport() {
+  return <pre>{buildMock3dMolBlock("CCO", "Ethanol")}</pre>;
+}

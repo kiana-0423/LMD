@@ -1,0 +1,13 @@
+// Fixture: a fabricated scientific table declared inline, which is how the Related Formulations
+// panel displayed a PAO-6 + ZDDP record that existed nowhere in the database.
+export default function FabricatedTable() {
+  const rows = [
+    {
+      key: "usage-1",
+      formulation: "PAO-6 + ZDDP 1.0%",
+      concentration: "1.0 wt%",
+      performance: "Best friction coefficient: 0.082"
+    }
+  ];
+  return <div>{rows.length}</div>;
+}

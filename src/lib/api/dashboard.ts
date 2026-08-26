@@ -1,7 +1,6 @@
 import type { DashboardSummary } from "../../types";
-import { mockGetDashboardSummary } from "../api.mock";
-import { invokeOrMock } from "../tauri";
+import { invokeCommand } from "../tauri";
 
 export async function getDashboardSummary() {
-  return invokeOrMock<DashboardSummary>("get_dashboard_summary", {}, mockGetDashboardSummary);
+  return invokeCommand<DashboardSummary>("get_dashboard_summary", {});
 }

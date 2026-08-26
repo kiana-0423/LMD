@@ -1,0 +1,5 @@
+// Fixture: fixed sample paths shown to the user as if they were real workspace files.
+export default function MockPaths() {
+  const files = ["files/imports/mock-source.csv", "files/reports/mock-report.pdf"];
+  return <ul>{files.map((file) => <li key={file}>{file}</li>)}</ul>;
+}

@@ -19,7 +19,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import PageErrorBoundary from "../components/PageErrorBoundary";
 import { APP_NAME } from "../lib/constants";
 import { useLanguage, type MessageKey } from "../i18n/LanguageContext";
-import { invokeOrMock } from "../lib/tauri";
+import { invokeCommand, isDemoMode, isTauriRuntime } from "../lib/tauri";
 import styles from "./MainLayout.module.css";
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -70,9 +70,10 @@ const createMenuItems = (t: (key: MessageKey) => string) => [
     label: t("menu.dataMining"),
     type: "group" as const,
     children: [
+      { key: "/analysis", label: t("menu.analysis"), icon: <BarChartOutlined /> },
       { key: "/data-mining/molecule-performance", label: t("menu.moleculePerformance"), icon: <LineChartOutlined /> },
       { key: "/data-mining/formulation-prediction", label: t("menu.formulationPrediction"), icon: <ExperimentOutlined /> },
-      { key: "/data-mining/molecule-design", label: t("menu.moleculeDesign"), icon: <BulbOutlined /> }
+      { key: "/data-mining/molecule-screening", label: t("menu.moleculeScreening"), icon: <BulbOutlined /> }
     ]
   },
   {
@@ -99,17 +100,11 @@ export default function MainLayout() {
   useEffect(() => {
     let cancelled = false;
 
-    invokeOrMock<WorkspaceStatusResponse>("get_workspace_status", {}, async () => ({
-      data: {
-        workspace_path: "LMD_Workspace",
-        sqlite_status: "unavailable",
-        python_sidecar_status: "mock"
-      }
-    }))
-      .then((response) => {
+    invokeCommand<WorkspaceStatusResponse>("get_workspace_status", {})
+      .then((response: WorkspaceStatusResponse) => {
         if (!cancelled) setWorkspaceStatus(response.data ?? {});
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         if (!cancelled) {
           setWorkspaceStatus({
             sqlite_status: "unavailable",
@@ -138,7 +133,7 @@ export default function MainLayout() {
         className={styles.appSider}
       >
         <div className={styles.brandBlock}>
-          <img className={styles.brandLogo} src="/logo.svg" alt="LMD logo" />
+          <img className={styles.brandLogo} src="/logo.png" alt={t("ui.lmdLogo")} />
           <div>
             <Typography.Text className={styles.brandTitle}>{APP_NAME}</Typography.Text>
           </div>
@@ -159,6 +154,14 @@ export default function MainLayout() {
             <Typography.Title level={4}>{APP_NAME}</Typography.Title>
             <Typography.Text type="secondary">{t("app.subtitle")}</Typography.Text>
           </div>
+          {/* Two different states, and conflating them is how a broken desktop build starts
+              looking like a demo. Demo mode is labelled; a browser with no demo flag is told that
+              its data operations will be refused. */}
+          {isDemoMode() ? (
+            <Tag color="gold" className={styles.mockModeTag}>{t("status.browserMockMode")}</Tag>
+          ) : !isTauriRuntime() ? (
+            <Tag color="red" className={styles.mockModeTag}>{t("status.desktopOnlyMode")}</Tag>
+          ) : null}
         </Header>
         <Content className={styles.appContent}>
           <PageErrorBoundary>
@@ -167,7 +170,11 @@ export default function MainLayout() {
         </Content>
         <Footer className={styles.statusFooter}>
           <Space size="middle" wrap>
-            <span>{t("status.workspace")}：{workspaceStatus.workspace_path ?? "LMD_Workspace"}</span>
+            <span>
+              {t("status.workspace")}：
+              {/* i18n-exempt: a directory name on disk, shown verbatim. */}
+              <span translate="no">{workspaceStatus.workspace_path ?? "LMD_Workspace"}</span>
+            </span>
             <Tag color={sqliteReady ? "green" : "red"}>{sqliteReady ? t("status.sqliteReady") : t("status.sqliteUnavailable")}</Tag>
             <Tag color={sidecarTagColor(sidecarStatus)} title={workspaceStatus.python_sidecar_error ?? undefined}>
               {sidecarTagText(sidecarStatus, t)}

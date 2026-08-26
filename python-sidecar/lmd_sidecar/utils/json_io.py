@@ -19,8 +19,19 @@ def make_success(data: dict[str, Any], warnings: list[str] | None = None) -> dic
     return {"ok": True, "data": data, "warnings": warnings or []}
 
 
-def make_error(error: str, warnings: list[str] | None = None) -> dict[str, Any]:
-    return {"ok": False, "error": error, "warnings": warnings or []}
+def make_error(
+    code: str,
+    detail: str,
+    params: dict[str, str | int | float] | None = None,
+    warnings: list[str] | None = None,
+) -> dict[str, Any]:
+    """Builds a localizable failure without losing its diagnostic detail."""
+
+    return {
+        "ok": False,
+        "error": {"code": code, "params": params or {}, "detail": detail},
+        "warnings": warnings or [],
+    }
 
 
 def sanitize_for_json(value: Any) -> Any:

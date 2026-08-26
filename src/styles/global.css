@@ -369,8 +369,9 @@ body {
   border-radius: 6px;
 }
 
-.structure-preview svg {
+.structure-preview img {
   max-width: 100%;
+  max-height: 420px;
   height: auto;
 }
 

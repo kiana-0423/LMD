@@ -20,7 +20,7 @@ import type {
   Molecule,
   MoleculeDescriptor,
   PerformanceResult
-} from "../types";
+} from "../../types";
 
 export type SaveMoleculeWithRequiredDescriptorsPayload = {
   name: string;
@@ -30,7 +30,6 @@ export type SaveMoleculeWithRequiredDescriptorsPayload = {
   dataSource: string;
   notes: string;
   additiveFunctionTags: string[];
-  allowMock: boolean;
 };
 
 export type ExperimentPerformancePayload = {
@@ -110,13 +109,25 @@ export async function mockGetMolecule(id: string): Promise<Molecule | undefined>
   return molecules.find((item) => item.id === id);
 }
 
-export async function mockGenerateMolecule3d(smiles: string) {
-  const molBlock = buildMock3dMolBlock(smiles);
+export async function mockGenerateMolecule3d(moleculeId: string) {
+  const molecule = molecules.find((item) => item.id === moleculeId);
+  if (!molecule) throw new Error(`Molecule not found: ${moleculeId}`);
+  const smiles = molecule.smilesCanonical || molecule.smilesRaw;
+  const molBlock = buildMock3dMolBlock(smiles, molecule.name);
+  molecule.molBlock = molBlock;
+  molecule.sdfBlock = buildMockSdfBlock(molBlock);
+  molecule.pdbBlock = buildMockPdbBlock(smiles, molecule.name);
+  molecule.molFilePath = `files/structures/${moleculeId}.mol`;
+  molecule.sdfFilePath = `files/structures/${moleculeId}.sdf`;
+  molecule.pdbFilePath = `files/structures/${moleculeId}.pdb`;
+  molecule.updatedAt = new Date().toISOString();
   return {
-    mode: "mock",
-    mol_block: molBlock,
-    sdf_block: buildMockSdfBlock(molBlock),
-    pdb_block: buildMockPdbBlock(smiles)
+    molecule,
+    molFilePath: molecule.molFilePath,
+    sdfFilePath: molecule.sdfFilePath,
+    pdbFilePath: molecule.pdbFilePath,
+    atomCount: molBlock.split("\n").length,
+    mode: "mock"
   };
 }
 
@@ -158,7 +169,7 @@ export async function mockSaveMoleculeWithRequiredDescriptors(
     sdfBlock: buildMockSdfBlock(molBlock),
     pdbBlock: buildMockPdbBlock(payload.smiles, payload.name || "MOCK MOLECULE"),
     rdkitDescriptorStatus: "mock",
-    mordredDescriptorStatus: payload.allowMock ? "mock" : "calculated",
+    mordredDescriptorStatus: "calculated",
     descriptorReady: true,
     sourceId: "manual",
     dataSource: payload.dataSource,
@@ -369,12 +380,12 @@ export async function mockDeleteExperimentRecord(experimentId: string) {
   const formulation = formulations.find((item) => item.id === experiment?.formulationId);
   if (formulation) updateFormulationPerformanceSummary(formulation);
   updateDashboardCounts();
-  return { success: experimentIndex >= 0 };
+  return { success: experimentIndex >= 0, deleted: experimentIndex >= 0 };
 }
 
 export async function mockUpdateExperimentRecord(experimentId: string, payload: Partial<ExperimentPerformancePayload>) {
   const experiment = experiments.find((item) => item.id === experimentId);
-  if (!experiment) return { success: false };
+  if (!experiment) throw new Error(`Experiment not found: ${experimentId}`);
   const updatedAt = new Date().toISOString();
   experiment.testType = payload.testType ?? experiment.testType;
   experiment.testStandard = payload.testStandard ?? "";
@@ -406,7 +417,7 @@ export async function mockUpdateExperimentRecord(experimentId: string, payload: 
   result.updatedAt = updatedAt;
   const formulation = formulations.find((item) => item.id === experiment.formulationId);
   if (formulation) updateFormulationPerformanceSummary(formulation);
-  return { success: true, experiment, result };
+  return experiment;
 }
 
 export async function mockExportAllDescriptorsCsv() {
@@ -619,4 +630,71 @@ function estimateMolWeight(smiles: string) {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// --- Browser demo mode only -------------------------------------------------------------
+// These keep the in-memory demo consistent when the app runs outside Tauri. They are never
+// reached from the desktop application: `invokeOrMock` only falls back when the Tauri runtime
+// is absent, and the sidebar shows a mock-mode badge whenever that happens.
+
+export async function mockUpdateBaseOil(id: string, payload: Partial<CreateBaseOilPayload>) {
+  const existing = baseOils.find((item) => item.id === id);
+  if (!existing) throw new Error(`Base oil not found: ${id}`);
+  Object.assign(existing, payload, { updatedAt: new Date().toISOString() });
+  return existing;
+}
+
+export async function mockUpdateAdditive(id: string, payload: Partial<CreateAdditivePayload>) {
+  const existing = additives.find((item) => item.id === id);
+  if (!existing) throw new Error(`Additive not found: ${id}`);
+  Object.assign(existing, payload, { updatedAt: new Date().toISOString() });
+  return existing;
+}
+
+export async function mockUpdateFormulation(id: string, payload: Partial<CreateFormulationPayload>) {
+  const existing = formulations.find((item) => item.id === id);
+  if (!existing) throw new Error(`Formulation not found: ${id}`);
+  Object.assign(existing, payload, { updatedAt: new Date().toISOString() });
+  return existing;
+}
+
+export async function mockUpdatePerformanceResult(id: string, payload: Record<string, unknown>) {
+  const existing = performanceResults.find((item) => item.id === id);
+  if (!existing) throw new Error(`Performance result not found: ${id}`);
+  Object.assign(existing, payload, { updatedAt: new Date().toISOString() });
+  return existing;
+}
+
+export async function mockDeletePerformanceResult(id: string) {
+  const index = performanceResults.findIndex((item) => item.id === id);
+  if (index >= 0) performanceResults.splice(index, 1);
+  return { success: index >= 0, deleted: index >= 0 };
+}
+
+export async function mockCopyFormulation(id: string, name?: string) {
+  const source = formulations.find((item) => item.id === id);
+  if (!source) throw new Error(`Formulation not found: ${id}`);
+  const now = new Date().toISOString();
+  const copy: Formulation = {
+    ...source,
+    id: `form-${Date.now()}`,
+    name: name?.trim() || `${source.name} Copy`,
+    // Measurements belong to the original mixture.
+    experimentCount: 0,
+    bestAverageFrictionCoefficient: undefined,
+    bestWearScarDiameter: undefined,
+    highestOxidationTemperature: undefined,
+    createdAt: now,
+    updatedAt: now
+  };
+  formulations.unshift(copy);
+  updateDashboardCounts();
+  return copy;
+}
+
+export async function mockCompareFormulations(ids: string[]) {
+  const found = ids.map((id) => formulations.find((item) => item.id === id));
+  const missing = ids.filter((_, index) => !found[index]);
+  if (missing.length) throw new Error(`These formulations are no longer in the database: ${missing.join(", ")}`);
+  return found as Formulation[];
 }

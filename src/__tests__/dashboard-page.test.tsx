@@ -3,15 +3,18 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import DashboardPage from "../features/dashboard/DashboardPage";
-import DocumentTranslationBridge from "../i18n/DocumentTranslationBridge";
+import KetcherTranslationBridge from "../features/molecule-sketcher/KetcherTranslationBridge";
 import { LanguageProvider } from "../i18n/LanguageContext";
+import { renderWithLanguage } from "./renderWithLanguage";
 
-const apiMock = vi.hoisted(() => ({
-  getDashboardSummary: vi.fn(),
-  listMolecules: vi.fn()
-}));
-
-vi.mock("../lib/api", () => apiMock);
+// Built from the real API contract, so a component that calls a function this test never thought
+// about gets a working stub instead of an unhandled rejection.
+const apiMock = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
+vi.mock("../lib/api", async () => {
+  const { createApiMock } = await import("./apiMock");
+  Object.assign(apiMock, createApiMock());
+  return apiMock;
+});
 
 const summary = {
   moleculeCount: 1,
@@ -38,38 +41,47 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
     apiMock.getDashboardSummary.mockReset();
-    apiMock.listMolecules.mockReset();
+    apiMock.listMoleculePage.mockReset();
   });
 
   it("shows a loading skeleton while requests are pending", () => {
     apiMock.getDashboardSummary.mockReturnValue(new Promise(() => undefined));
-    apiMock.listMolecules.mockReturnValue(new Promise(() => undefined));
-    const { container } = render(<DashboardPage />);
+    apiMock.listMoleculePage.mockReturnValue(new Promise(() => undefined));
+    const { container } = renderWithLanguage(<DashboardPage />);
     expect(container.querySelector(".ant-skeleton")).toBeTruthy();
   });
 
   it("shows an error card and retry action when loading fails", async () => {
-    apiMock.getDashboardSummary.mockRejectedValueOnce(new Error("database unavailable"));
-    apiMock.listMolecules.mockResolvedValueOnce([]);
-    render(<DashboardPage />);
+    apiMock.getDashboardSummary.mockRejectedValueOnce(
+      new Error("[record.notFound] database unavailable")
+    );
+    apiMock.listMoleculePage.mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 8 });
+    renderWithLanguage(<DashboardPage />);
     expect(await screen.findByText("Failed to load the dashboard")).toBeTruthy();
-    expect(screen.getByText("database unavailable")).toBeTruthy();
+    // The code becomes a translated sentence; the diagnostic behind it survives word for word,
+    // and the bracketed code itself never reaches the screen.
+    expect(screen.getByText(/That record is not in the database\./)).toBeTruthy();
+    expect(screen.getByText(/database unavailable/)).toBeTruthy();
+    expect(screen.queryByText(/\[record\.notFound\]/)).toBeNull();
     expect(screen.getByText("Retry")).toBeTruthy();
   });
 
   it("shows an empty molecule health state", async () => {
     apiMock.getDashboardSummary.mockResolvedValueOnce(summary);
-    apiMock.listMolecules.mockResolvedValueOnce([]);
-    render(<DashboardPage />);
+    apiMock.listMoleculePage.mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 8 });
+    renderWithLanguage(<DashboardPage />);
     expect(await screen.findByText("No molecule records in the database.")).toBeTruthy();
   });
 
   it("renders loaded dashboard metrics and molecule health", async () => {
     apiMock.getDashboardSummary.mockResolvedValueOnce(summary);
-    apiMock.listMolecules.mockResolvedValueOnce([
-      { id: "mol-1", name: "Ethanol", smilesCanonical: "CCO", descriptorReady: true }
-    ]);
-    render(<DashboardPage />);
+    apiMock.listMoleculePage.mockResolvedValueOnce({
+      items: [{ id: "mol-1", name: "Ethanol", smilesCanonical: "CCO", descriptorReady: true }],
+      total: 1,
+      page: 1,
+      pageSize: 8
+    });
+    renderWithLanguage(<DashboardPage />);
     await waitFor(() => expect(screen.getByText("Ethanol")).toBeTruthy());
     expect(screen.getByText("CCO")).toBeTruthy();
     expect(screen.getByText("Ready")).toBeTruthy();
@@ -78,10 +90,10 @@ describe("DashboardPage", () => {
   it("renders the dashboard in the saved Chinese language", async () => {
     window.localStorage.setItem("lmd.language.v2", "zh-CN");
     apiMock.getDashboardSummary.mockResolvedValueOnce(summary);
-    apiMock.listMolecules.mockResolvedValueOnce([]);
+    apiMock.listMoleculePage.mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 8 });
     render(
       <LanguageProvider>
-        <DocumentTranslationBridge />
+        <KetcherTranslationBridge />
         <DashboardPage />
       </LanguageProvider>
     );

@@ -49,20 +49,13 @@ def safe_import_mordred():
         return {"ok": False, "error": str(exc)}
 
 
-def calculate_mordred_descriptors(smiles: str, ignore_3d: bool = True, allow_mock: bool = True) -> tuple[dict[str, Any], list[str]]:
+def calculate_mordred_descriptors(smiles: str, ignore_3d: bool = True) -> tuple[dict[str, Any], list[str]]:
     mordred = safe_import_mordred()
     if not mordred["ok"]:
-        if not allow_mock:
-            raise RuntimeError("Mordred descriptors are required but Mordred is not installed.")
-        descriptors = _mock_mordred_descriptors(smiles)
-        return {
-            "descriptor_set": "mordred",
-            "descriptor_version": "1.2.0-mock",
-            "descriptor_count": len(descriptors),
-            "ignore_3d": ignore_3d,
-            "mode": "mock",
-            "descriptors": descriptors,
-        }, [f"Mordred unavailable; returning development mock descriptors: {mordred['error']}"]
+        raise RuntimeError(
+            "Mordred descriptors are required but Mordred is not available in the packaged "
+            f"sidecar: {mordred['error']}"
+        )
 
     mol = mordred["Chem"].MolFromSmiles(smiles)
     if mol is None:
@@ -77,14 +70,3 @@ def calculate_mordred_descriptors(smiles: str, ignore_3d: bool = True, allow_moc
         "mode": "real",
         "descriptors": {str(key): value for key, value in result.items()},
     }, []
-
-
-def _mock_mordred_descriptors(smiles: str) -> dict[str, Any]:
-    return {
-        "ABC": round(len(smiles) * 1.17, 4),
-        "ABCGG": round(len(smiles) * 1.03, 4),
-        "nAtom": max(1, len(smiles)),
-        "ATS0dv": round(len(smiles) * 7.5, 4),
-        "nAcid": 1 if "P" in smiles else 0,
-        "nBase": 1 if "N" in smiles else 0,
-    }

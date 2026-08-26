@@ -11,9 +11,17 @@ def test_make_success_preserves_warnings():
     assert result["warnings"] == ["mock warning"]
 
 
-def test_make_error_uses_error_key():
-    result = make_error("failed")
-    assert result == {"ok": False, "error": "failed", "warnings": []}
+def test_make_error_uses_a_structured_error():
+    result = make_error("model.trainingFailed", "failed", {"command": "train-model"})
+    assert result == {
+        "ok": False,
+        "error": {
+            "code": "model.trainingFailed",
+            "params": {"command": "train-model"},
+            "detail": "failed",
+        },
+        "warnings": [],
+    }
 
 
 def test_sanitize_for_json_replaces_non_finite_float():

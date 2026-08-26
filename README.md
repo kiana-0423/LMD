@@ -10,19 +10,31 @@ The project is currently an MVP. It provides a working Tauri desktop foundation,
 
 - React, TypeScript, Ant Design, and Vite provide the user interface.
 - Tauri 2 and Rust provide the desktop shell, SQLite initialization, local file management, database commands, and sidecar integration.
-- Python provides SMILES standardization, RDKit and Mordred descriptors, 2D/3D structure generation, Excel preprocessing, and prediction placeholders.
+- Python provides SMILES standardization, RDKit and Mordred descriptors, 2D/3D structure generation and format conversion, Excel/CSV preprocessing, and scikit-learn model training and prediction.
 - SQLite stores local application data in the workspace database `lmd.sqlite`.
 
 ## Requirements
 
 These requirements are for developers and release builders only. People who install a finished LMD package do not need Node.js, Rust, Python, Conda, RDKit, or SQLite.
 
-- Node.js `20.19+` or `22.12+`
-- npm
+- Node.js `22.12.0` or newer within the 22 line (`.nvmrc` and `.node-version` both pin `22.12.0`)
+- npm `10.5.0` or newer
 - Stable Rust and Cargo
 - Python `3.10–3.12`
-- RDKit, Mordred, NumPy, pandas, SciPy, scikit-learn, and Matplotlib
+- The exact dependency set in `python-sidecar/requirements.lock` — RDKit, Mordred, networkx,
+  NumPy, pandas, SciPy, scikit-learn, joblib, openpyxl, and their pinned transitive packages
 - Platform-specific Tauri build prerequisites
+
+One Node version, stated once. `package.json` `engines`, `.nvmrc`, `.node-version`, the CI
+workflow and this list are compared by `npm run audit:node-requirements`, which also fails when an
+installed dependency declares a newer Node than the repository targets — that is how Ketcher 3.15,
+which requires Node 24.14.1, is kept from silently contradicting a Node 22 build. LMD pins
+`ketcher-react` and `ketcher-standalone` to `3.14.0`, the newest release in the same major line
+that supports Node 22.
+
+The same is true of Python: the supported range is declared in `python-sidecar/pyproject.toml`,
+`scripts/build_sidecar.py`, `scripts/resolve-python.mjs` and this file, and
+`npm run audit:python-requirements` fails when they disagree.
 
 RDKit is often easier to install from conda-forge than from pip.
 
@@ -34,23 +46,57 @@ Install frontend dependencies:
 npm install --include=dev
 ```
 
-Create the Python environment and install the sidecar:
+Create the Python environment and install the exact dependency set the sidecar is tested with:
 
 ```bash
-conda create -n lmd-build python=3.11 -y
-conda activate lmd-build
-conda install -c conda-forge rdkit numpy pandas scipy scikit-learn matplotlib -y
-python -m pip install mordred pyinstaller
-python -m pip install -e ./python-sidecar
+# A project-local virtual environment. The resolver finds this automatically; nothing has to be
+# exported and no environment has to stay activated.
+python3.11 -m venv python-sidecar/.venv
+python-sidecar/.venv/bin/python -m pip install -r python-sidecar/requirements.lock
+```
+
+Conda works just as well, and is often easier for RDKit:
+
+```bash
+conda create -n lmd python=3.11 -y
+conda activate lmd
+python -m pip install -r python-sidecar/requirements.lock
 ```
 
 Start the complete desktop application:
 
 ```bash
-export PYTHON="$CONDA_PREFIX/bin/python"
-export LMD_PYTHON_SIDECAR_DIR="$PWD/python-sidecar"
 npm run tauri dev
 ```
+
+**No `PYTHON` export is needed.** Every script that needs Python goes through
+`scripts/resolve-python.mjs`, which searches in this order and *runs* each candidate to read its
+real version — a name on `PATH` proves nothing, and `python3` is 3.9 on a stock macOS:
+
+1. `LMD_PYTHON` — an explicit choice for this project
+2. `PYTHON` — the conventional override
+3. `CONDA_PREFIX` — the environment that is already active
+4. `VIRTUAL_ENV`, then `.venv` or `python-sidecar/.venv`
+5. `py -3.12` / `py -3.11` / `py -3.10` on Windows
+6. `python3.12`, `python3.11`, `python3.10`
+7. `python3`, then `python` — accepted only if the version is supported
+
+It prints the interpreter it chose, and when none is usable it says what to install rather than
+failing with "command not found". Check it directly with:
+
+```bash
+npm run python
+```
+
+`tauri dev` installs the development sidecar launcher automatically. Running the Rust toolchain
+directly does not, so install it once before `cargo test`, `cargo clippy`, or `cargo build`:
+
+```bash
+npm run sidecar:prepare-dev
+```
+
+Without it the Tauri build script fails with `resource path binaries/lmd-sidecar-<triple> doesn't
+exist`, because the packaged sidecar is never committed to the repository.
 
 Start only the browser UI:
 
@@ -71,7 +117,7 @@ cd ..
 npm run desktop:build:mac
 ```
 
-This first packages Python, RDKit, Mordred, pandas, and the other runtime libraries into a native sidecar, validates the sidecar, and then creates the Tauri app and DMG. The DMG is written under `src-tauri/target/release/bundle/dmg/`.
+This first packages Python, RDKit, Mordred, networkx, pandas, openpyxl, SciPy, scikit-learn and joblib into a native sidecar, then runs that executable through every production command — health, descriptors, batch descriptors, 3D generation, format conversion, CSV and XLSX import/export, and a full train/predict/describe cycle across three separate processes — before creating the Tauri app and DMG. The DMG is written under `src-tauri/target/release/bundle/dmg/`.
 
 Windows packages must be built on Windows because PyInstaller and Tauri package native binaries. On a Windows x64 build machine, install Node.js 22, stable Rust, Python 3.11, and the Tauri Windows prerequisites, then run:
 
@@ -101,7 +147,9 @@ CI output without certificates is suitable for internal testing, but public rele
 
 ## Project Structure
 
-- `src/`: React application, features, API wrappers, localization, and mock data
+- `src/`: React application, features, API wrappers, and localization
+  - `src/i18n/locales/`: one module per language; English is bundled, the other two are chunks
+  - `src/lib/demo/`: the browser demo's sample records, reachable only in a `VITE_DEMO_MODE` build
 - `src-tauri/`: Rust backend, SQLite schema, Tauri commands, paths, and bundle configuration
 - `python-sidecar/`: Python CLI and scientific-computing services
 - `public/`: frontend static assets
@@ -118,10 +166,15 @@ Generated directories such as `dist/`, `node_modules/`, `src-tauri/target/`, Pyt
 - Base Oils / Additives library
 - Formulation Library and Formulation Entry
 - Experiments & Performance entry
-- Molecule-performance prediction
-- Formulation prediction
-- Molecule design
-- Import / Export workflows
+- Analysis: distributions, additive/base-oil/formulation comparisons, concentration trends, and
+  descriptor-performance correlation (Pearson and Spearman)
+- Molecule-performance prediction from a locally trained scikit-learn model
+- Molecule Screening: ranks existing library molecules with a trained model
+- Formulation prediction from a locally trained scikit-learn model
+- Two-stage Import / Export: preview a file, review the detected type, columns, warnings and row
+  counts, then confirm — the database is not touched until you do
+- Settings with workspace path, database path, schema version, integrity check, verified backups,
+  restore, and an exportable diagnostics report
 - English, Simplified Chinese, and Japanese settings, with English as the default
 
 ## Architecture Notes
@@ -130,12 +183,187 @@ React calls Rust through Tauri commands. Rust owns all SQLite writes and invokes
 
 Structure files, exports, attachments, reports, and models should be stored under the workspace directory. The database should store relative paths.
 
-Production mode should use real descriptor calculations and must not silently substitute mock results for unavailable scientific dependencies.
+Production mode uses real descriptor calculations and does not substitute mock results for
+unavailable scientific dependencies. There is no `allow_mock` switch and no code path that can
+produce a placeholder descriptor: a missing RDKit or Mordred raises an actionable error, and the
+Rust persistence layer refuses to store any descriptor record whose mode is not `real`.
+
+Every database connection is opened through `db::open_database`, which enables foreign keys and
+WAL and sets a busy timeout. Schema changes are versioned with `PRAGMA user_version` and applied
+in order by `db::migrations::apply_migrations`.
+
+Every list pages in SQL rather than loading a table into the browser, and every aggregate is a
+join rather than a query per row. `list_base_oils_page`, `list_additives_page`,
+`list_formulations_page`, `list_experiments_page` and `list_performance_results_page` take a
+bounded page request and return the total the database counted; the selectors use
+`search_base_oils`, `search_additives` and `search_formulations`, which return an id, a label and a
+short qualifier rather than whole records. Ordering is always `created_at DESC, id DESC`, because
+`created_at` alone is not a total order — two records written in the same second would tie, and a
+row could appear on two pages while another was never shown.
+
+Descriptor values are only sent to the frontend when a caller explicitly asks for them, and the
+Descriptor Centre reads the status of a whole page in one query rather than one call per molecule.
+
+Writing an experiment and its performance result is a single transaction
+(`save_experiment_with_performance`): both rows are written, or neither. Deleting a base oil or an
+additive that formulations still reference is refused, and the refusal names the formulations;
+removing them anyway is a separate command that requires an explicit acknowledgement and reports
+every component it removed.
+
+CSV exports are generated in Rust from SQLite and written to the workspace `exports/` directory;
+the browser build falls back to a download of demo content. Exported fields are quoted and
+formula-prefixed values are escaped so a spreadsheet cannot execute them.
+
+Analysis and model training read stored records only. Descriptor records whose `mode` is not
+`real` are excluded from correlations, training, and prediction, and the sidecar no longer has any
+code path that can produce a placeholder descriptor: a missing RDKit or Mordred is an error.
+
+Models are trained by the packaged sidecar with scikit-learn, saved under `files/models/` in the
+active workspace, and recorded in the `models` table together with the feature order, metrics,
+algorithm, sample count, dataset mode, and validation split method — so a model's provenance is
+readable after a restart, not only in the response of the call that created it.
+
+Long-running work writes a row to the `jobs` table before it starts and closes it on every exit
+path. A job that ends without reporting an outcome is marked `failed`, so nothing is left claiming
+to be `running`. Descriptor batch history is shown in the Descriptor Center. Prediction loads that bundle back and refuses any molecule that is
+missing a feature the model was trained on. When a workspace has too few records, training returns
+an error stating how many are required and how many exist — it never fabricates a result.
+
+There are exactly three runtime states, and they are mutually exclusive:
+
+- **Desktop** — inside Tauri. Every call is a real command; demo data is not in the bundle at all.
+- **Explicit demo** — outside Tauri, built with `VITE_DEMO_MODE=true` (`npm run build:demo`). Calls
+  are answered by `src/lib/demo/adapter.ts`, loaded on demand, and the sidebar shows a badge.
+- **Anything else** — outside Tauri without the flag. Every data call fails with
+  `[app.desktopOnly]`. This is the important one: a clear refusal is honest, invented data is not.
+
+`npm run analyze:bundle` fails the build if any mock marker appears in a desktop bundle.
+
+The molecule editor loads Indigo as separate Worker and WebAssembly assets
+(`ketcher-standalone/dist/binaryWasmNoRender`) rather than the default entry, which inlines the
+whole engine as Base64 inside a 16 MB JavaScript file. Both assets ship inside the installer and
+are read over the Tauri custom protocol; nothing reaches the network. The `-norender` Indigo build
+is used because LMD never asks Indigo to render an image — Ketcher draws in the browser and every
+conversion goes through Ketcher itself or the RDKit sidecar.
+
+## Checks
+
+Continuous integration runs these on every push and pull request, and `build` only runs after they
+pass. To run them locally:
+
+```bash
+npm run typecheck
+npm run lint
+npm test -- --run
+npm run audit                    # placeholders, strings, Node/Python consistency, command surface
+npm run build
+npm run analyze:bundle           # bundle budgets, and mock markers in the desktop build
+npm ls --depth=0
+
+npm run sidecar:prepare-dev      # required before the Rust steps
+cd src-tauri && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test
+
+npm run sidecar:check-lock       # the active environment against requirements.lock
+npm run sidecar:test             # pytest, through the resolved interpreter
+```
+
+`npm run audit` runs, in order: unresolved production placeholders, hard-coded user-visible
+strings, the Python version range declared consistently across four files, the Node version
+declared consistently across five, the Tauri command surface (nothing registered that is unused,
+nothing invoked that is unregistered), and the audits' own tests.
 
 ## Current Limitations
 
-- Some create and edit workflows remain MVP placeholders.
-- Direct Rust-side expansion of `descriptors_json` for exports is not complete.
-- Signed installers still require clean-machine validation, especially on Windows.
-- Batch queues, complete model training, prediction services, and comprehensive import validation need further development.
-- Test coverage should continue to expand across the frontend, Rust database layer, and Python services.
+- **Clean-machine installer validation is outstanding.** The checks in
+  `docs/installer-smoke-tests.md` must be run on real macOS and Windows machines that have no
+  Node.js, Rust, Python, or Conda. A successful build is not evidence that an installed package
+  runs.
+- **CI artifacts are unsigned unless signing secrets are configured.** When they are, the workflow
+  imports the certificate, signs, and verifies the result with `codesign --verify` or
+  `Get-AuthenticodeSignature`, failing the job if verification fails; it reports the signing state
+  of every artifact in the job summary. Gatekeeper, notarization stapling, SmartScreen reputation,
+  and MSI uninstall/reinstall are **not** verified by CI and remain outstanding — see
+  `docs/installer-smoke-tests.md`.
+- **The `'wasm-unsafe-eval'` CSP directive has not been runtime-verified.** It replaced the much
+  broader `'unsafe-eval'` on static evidence: `ketcher-standalone`'s indigo worker calls
+  `WebAssembly.instantiate`, and the production bundle contains no `eval(` or `new Function(`.
+  Step 7 of the macOS smoke test confirms it against the packaged app, and records the rollback.
+- **Every string LMD renders comes from the key catalogue, including the ones the backend
+  produces.** `src/i18n/LanguageContext.tsx` holds the English, Simplified Chinese, and Japanese
+  text for every page, drawer, modal, table column, empty state, validation message, and toast.
+  `scripts/audit-untranslated.mjs` walks the TypeScript AST and fails the build if a new literal
+  appears — in a JSX attribute or text node, an object property, a `||` or `??` fallback, a
+  ternary, a state initializer or setter, a thrown `Error`, a template literal, a custom prop such
+  as `ariaLabel`, a default parameter value, a `return`, or a string handed to a helper that
+  renders it. It reads `.ts` as well as `.tsx`. A test asserts every key resolves in all three
+  languages. The DOM translation bridge survives for one purpose only: Ketcher's own chrome, which
+  a third-party bundle renders outside React and which therefore cannot be given keys. It runs
+  inside `[data-i18n-ketcher]` and nowhere else.
+- **Backend prose is a message descriptor, not a sentence.** Rust and the Python sidecar send a
+  `code` naming the situation, the `params` the sentence needs, and an untranslated `detail`
+  carrying the specifics. `src/lib/backendMessages.ts` assembles the sentence in the current
+  language. This covers performance metric names, analysis method and missing-value descriptions,
+  insufficient-data messages, dataset interpretations, training and exclusion warnings, validation
+  split descriptions, skipped-prediction reasons, and job status summaries. Tokens such as
+  `baseOils` and `wt%` are translated; molecule names, units, paths and SMILES arrive as parameters
+  and are substituted unchanged. `src/__tests__/backend-message-contract.test.ts` reads the Rust and
+  Python sources and fails when a code exists on one side and not the other, or renders with an
+  unfilled placeholder in any language; `src/__tests__/backend-language.test.tsx` renders non-empty
+  backend results in Chinese and Japanese and asserts the English never reaches the screen.
+- **Backend errors carry a stable code and an English detail.** A command returns, for example,
+  `[model.basisMismatch] 'Blend 3' records concentrations as 'wt%'…`. The frontend translates the
+  code into the user's language and shows the detail — an id, a unit, a path, a SQLite message —
+  exactly as it arrived, because that is what makes the error actionable. An error whose code this
+  build does not recognise is shown in full rather than replaced by a tidier sentence, and the
+  bracketed code itself is never rendered.
+- **A model records one concentration basis, and a prediction must match it exactly.** A training
+  dataset may contain rows from exactly one of `wt%`, `unrecorded`, or `none`; where several are
+  present the most informative wins, in that order, and every other row is excluded and counted in
+  `excludedOtherBasis`. A `none` row is never given an imputed concentration. Every prediction
+  screen builds its request through `src/lib/concentrationPolicy.ts`: a `wt%` model is sent a
+  positive value and a convertible mass unit, an `unrecorded` model a positive value and no unit
+  key at all, and a `none` model neither — its candidates are built from component ids alone. No
+  concentration is ever defaulted on the user's behalf.
+- **Database and file values are never translated.** Molecule names, file names, workspace paths,
+  SMILES, InChI and InChIKey, formulas, model names, and imported values are marked
+  `translate="no"` and kept out of the catalogue. A literal that is an example of *data* rather
+  than interface text — the sample molecule name in the entry form — carries an `i18n-exempt`
+  comment naming the reason.
+- **Molecule Screening ranks existing library molecules.** LMD does not generate new structures.
+- **Model training covers regression targets only** (Ridge, random forest, histogram gradient
+  boosting). There is no classification support, and LMD ships no pre-trained lubricant model —
+  every metric shown in the app is measured on the records in your own workspace. The R² figures in
+  the Python test suite come from a synthetic fixture with a planted linear relationship; they
+  validate the pipeline and say nothing about lubricant-domain accuracy.
+- **Two dataset semantics, locked per page.** `additive_component` produces one row per additive
+  component per measured result — a molecule-level predictor whose target is the performance of the
+  whole mixture. `formulation_aggregate` produces one row per result, combining additive
+  descriptors by concentration-weighted mean alongside base-oil properties and composition
+  summaries. Molecule Performance Prediction trains and predicts the first; Formulation Prediction
+  the second; Molecule Screening uses molecule-level models only. A model records its mode, and a
+  prediction addressed to the wrong one is refused rather than answered. Both group by formulation
+  for validation splitting.
+- **Concentration units are converted only where arithmetic suffices.** wt%, mass fraction, ppm by
+  mass, mg/kg, and g/kg all convert to weight percent. mol%, vol%, mg/mL, g/L and molarity need a
+  molar mass or a density the workspace does not record, so records using them are excluded from
+  training and counted, with a warning naming the unit. A blend that mixes a recorded unit with an
+  unrecorded one is excluded too. A workspace that records no units anywhere still trains, with a
+  warning saying so. Each model stores the feature schema version and the concentration basis it
+  was fitted under; a model from another schema is listed but refuses to predict until retrained.
+- **Opening an attached file in an external application is not available.** It would require a
+  shell permission this build deliberately does not grant; Export copies the file somewhere you
+  can open it instead.
+- **Attachment file selection is by absolute path.** A native file-picker dialog is not wired up,
+  so the path is typed or pasted.
+- **Attachment deletion is compensating, not transactional across both stores.** Files are moved to
+  a workspace `.trash` directory, the SQLite transaction commits, and only then are they destroyed;
+  a failed transaction restores them. A file that is present but cannot be moved aside aborts the
+  delete before any row is touched, so the workspace never gains a file nothing references, and a
+  file that cannot be destroyed afterwards is reported in `cleanupFailures` and shown to the user
+  rather than hidden behind a "Deleted" message. There is one delete command,
+  `delete_attachment_record`, used by every entity type.
+- **A generated 3D structure is published by a single database update.** Each generation writes its
+  files to versioned paths of their own, so the structure already on disk is never overwritten; the
+  `UPDATE` that points the molecule at the new files is the publish. A failure before it leaves the
+  previous structure byte-for-byte intact, and the superseded files are removed only afterwards,
+  with any that could not be removed reported.

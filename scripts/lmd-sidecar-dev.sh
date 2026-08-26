@@ -37,10 +37,37 @@ python_is_compatible() {
   "$1" -c 'import sys; raise SystemExit(0 if (3, 10) <= sys.version_info[:2] < (3, 13) else 1)' >/dev/null 2>&1
 }
 
+# The same order as scripts/resolve-python.mjs, which is the documented one. This launcher is
+# spawned by the Rust side during `tauri dev`, so it cannot call the Node resolver — but it must
+# not disagree with it either, or `npm run tauri dev` would use a different interpreter from every
+# other sidecar script.
 resolve_python_bin() {
   local repo_dir
   repo_dir="$(dirname "$SIDECAR_DIR")"
 
+  # 1. An explicit choice for this project.
+  if [[ -n "${LMD_PYTHON:-}" ]] && python_is_compatible "${LMD_PYTHON}"; then
+    printf '%s\n' "${LMD_PYTHON}"
+    return 0
+  fi
+
+  # 2. The conventional override.
+  if [[ -n "${PYTHON:-}" ]] && command -v "$PYTHON" >/dev/null 2>&1 && python_is_compatible "$PYTHON"; then
+    command -v "$PYTHON"
+    return 0
+  fi
+
+  # 3. The environment that is already active.
+  if [[ -n "${CONDA_PREFIX:-}" ]] && python_is_compatible "${CONDA_PREFIX}/bin/python"; then
+    printf '%s\n' "${CONDA_PREFIX}/bin/python"
+    return 0
+  fi
+  if [[ -n "${VIRTUAL_ENV:-}" ]] && python_is_compatible "${VIRTUAL_ENV}/bin/python"; then
+    printf '%s\n' "${VIRTUAL_ENV}/bin/python"
+    return 0
+  fi
+
+  # 4. A project-local environment.
   if [[ -x "$repo_dir/.conda/lmd/bin/python" ]] && python_is_compatible "$repo_dir/.conda/lmd/bin/python"; then
     printf '%s\n' "$repo_dir/.conda/lmd/bin/python"
     return 0
@@ -48,11 +75,6 @@ resolve_python_bin() {
 
   if [[ -x "$SIDECAR_DIR/.venv/bin/python" ]] && python_is_compatible "$SIDECAR_DIR/.venv/bin/python"; then
     printf '%s\n' "$SIDECAR_DIR/.venv/bin/python"
-    return 0
-  fi
-
-  if [[ -n "${PYTHON:-}" ]] && command -v "$PYTHON" >/dev/null 2>&1 && python_is_compatible "$PYTHON"; then
-    command -v "$PYTHON"
     return 0
   fi
 
@@ -71,7 +93,7 @@ resolve_python_bin() {
 }
 
 PYTHON_BIN="$(resolve_python_bin)" || {
-  printf 'Unable to locate Python 3.10-3.12 for python-sidecar. Create python-sidecar/.venv or set PYTHON.\n' >&2
+  printf 'Unable to locate Python 3.10-3.12 for python-sidecar. Set LMD_PYTHON, activate a Conda\nenvironment, or create python-sidecar/.venv. See scripts/resolve-python.mjs.\n' >&2
   exit 1
 }
 

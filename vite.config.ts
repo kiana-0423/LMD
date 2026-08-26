@@ -20,7 +20,20 @@ export default defineConfig(({ mode }) => {
       setupFiles: ["./src/__tests__/setup.ts"]
     },
     build: {
-      target: "es2020"
+      target: "es2020",
+      // Written so `scripts/analyze-bundle.mjs` can work out which chunks the browser loads before
+      // it can render anything, rather than guessing from file names.
+      manifest: true,
+      // Deliberately left at Vite's default. Raising it would silence the warning about Ketcher's
+      // bundled template library without making the file any smaller; the analysis script reports
+      // the real sizes and fails on a budget instead.
+      rollupOptions: {
+        output: {
+          // Assets keep their source name, so `indigo-ketcher-norender-1.42.0.wasm` is
+          // recognisable in a build listing rather than an opaque hash.
+          assetFileNames: "assets/[name]-[hash][extname]"
+        }
+      }
     }
   };
 });

@@ -7,14 +7,26 @@ license = ""
 repository = ""
 edition = "2021"
 
+# The application logic lives in a library target so the integration tests can call the real
+# command implementations rather than re-creating them.
+[lib]
+name = "lubricant_materials_database"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lubricant-materials-database"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }
 
 [dependencies]
 tauri = { version = "2.0.0", features = [] }
 tauri-plugin-shell = "2.0.0"
+tauri-plugin-dialog = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.10", features = ["v4", "serde"] }
+tokio = { version = "1", features = ["time"] }

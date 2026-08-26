@@ -1,14 +1,14 @@
 import { Button, Select, Space, Switch, Tag, Typography, message } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { generateMolecule3d } from "../../../lib/api";
-import { buildMock3dMolBlock } from "../../../lib/mockStructure";
-import { translateBusinessText } from "../../../i18n/businessTranslations";
+import { exportMoleculeFile, generateMolecule3d } from "../../../lib/api";
+import { chooseSaveDestination } from "../../../lib/dialogs";
 import { useLanguage } from "../../../i18n/LanguageContext";
 import type { Molecule } from "../../../types";
+import { backendErrorText } from "../../../lib/backendErrors";
 
 type Atom3D = { index: number; element: string; x: number; y: number; z: number };
 type Bond3D = { from: number; to: number; order: number };
-type ParsedStructure = { atoms: Atom3D[]; bonds: Bond3D[]; source: "saved" | "generated-preview" | "empty" };
+type ParsedStructure = { atoms: Atom3D[]; bonds: Bond3D[]; source: "saved" | "empty" };
 type DragState = { x: number; y: number; rotateX: number; rotateY: number } | undefined;
 
 const elementColors: Record<string, string> = {
@@ -31,8 +31,15 @@ const isoView = {
   zoom: 1
 };
 
-export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
-  const { language } = useLanguage();
+export default function MoleculeViewer3D({
+  molecule,
+  onGenerated
+}: {
+  molecule: Molecule;
+  /** Lets the drawer refresh its other tabs once a structure has been stored. */
+  onGenerated?: (molecule: Molecule) => void;
+}) {
+  const { t } = useLanguage();
   const [style, setStyle] = useState("ball-and-stick");
   const [rotateX, setRotateX] = useState(isoView.rotateX);
   const [rotateY, setRotateY] = useState(isoView.rotateY);
@@ -52,23 +59,21 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
     molecule.pdbBlock ||
     "";
 
+  // Only real coordinates are ever rendered. Guessing atom positions in the browser would look
+  // exactly like a computed structure while describing nothing.
   const parsed = useMemo(() => {
     const saved = parseStructure(rawStructure);
     if (saved.atoms.length) return { ...saved, source: "saved" as const };
-    if (molecule.smilesCanonical) {
-      const preview = parseStructure(buildMock3dMolBlock(molecule.smilesCanonical, molecule.name));
-      return { ...preview, source: preview.atoms.length ? ("generated-preview" as const) : ("empty" as const) };
-    }
     return { atoms: [], bonds: [], source: "empty" as const };
-  }, [molecule.name, molecule.smilesCanonical, rawStructure]);
+  }, [rawStructure]);
 
   const scene = useMemo(
     () => projectStructure(parsed, rotateX, rotateY, style, zoom),
     [parsed, rotateX, rotateY, style, zoom]
   );
   useEffect(() => {
-    drawCanvas(canvasRef.current, scene, translateBusinessText("Atom instances", language));
-  }, [language, scene]);
+    drawCanvas(canvasRef.current, scene, t("viewer3d.atomInstances"));
+  }, [scene, t]);
 
   useEffect(() => {
     if (!autoRotate) return undefined;
@@ -84,50 +89,81 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
     return () => cancelAnimationFrame(frame);
   }, [autoRotate]);
 
-  const styleLabels: Record<string, string> = {
-    "ball-and-stick": "Ball and Stick",
-    stick: "Stick",
-    sphere: "Sphere",
-    line: "Wireframe"
-  };
+  const styleOptions = [
+    { value: "ball-and-stick", label: t("viewer3d.styleBallAndStick") },
+    { value: "stick", label: t("viewer3d.styleStick") },
+    { value: "sphere", label: t("viewer3d.styleSphere") },
+    { value: "line", label: t("viewer3d.styleLine") }
+  ];
 
   async function generate3d() {
-    const smiles = molecule.smilesCanonical || molecule.smilesRaw;
-    if (!smiles) {
-      message.error("Cannot generate a 3D structure without SMILES.");
+    if (!molecule.smilesCanonical && !molecule.smilesRaw) {
+      message.error(t("viewer3d.noSmiles"));
       return;
     }
     setGenerating(true);
     try {
-      const result = await generateMolecule3d(smiles);
-      const molBlock = String(result.mol_block ?? "");
-      const sdfBlock = String(result.sdf_block ?? "");
-      const pdbBlock = String(result.pdb_block ?? "");
-      if (!molBlock && !sdfBlock && !pdbBlock) throw new Error("3D generation returned no structure block.");
+      // The backend loads the SMILES from SQLite, writes the structure files into the workspace,
+      // and returns the refreshed record, so the result survives a restart.
+      const result = await generateMolecule3d(molecule.id);
+      const saved = result.molecule;
+      const molBlock = String(saved?.molBlock ?? "");
+      const sdfBlock = String(saved?.sdfBlock ?? "");
+      const pdbBlock = String(saved?.pdbBlock ?? "");
+      const usable = [sdfBlock, molBlock, pdbBlock].find((block) => parseStructure(block).atoms.length);
+      if (!usable) {
+        throw new Error(t("viewer3d.noCoordinates"));
+      }
       setGeneratedBlocks({ molBlock, sdfBlock, pdbBlock });
-      message.success("3D structure generated.");
+      onGenerated?.(saved);
+      const cleanupFailures = result.cleanupFailures ?? [];
+      if (cleanupFailures.length > 0) {
+        // The structure is stored correctly; an old file that could not be removed is still worth
+        // saying out loud rather than hiding behind a success message.
+        message.warning(`${t("viewer3d.cleanupWarning")} ${cleanupFailures.join("; ")}`);
+      } else {
+        message.success(t("viewer3d.generated"));
+      }
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Failed to generate the 3D structure.");
+      // The failure keeps its own summary rather than a generic one, and its detail survives.
+      message.error(`${t("viewer3d.generateFailed")} ${backendErrorText(error, t)}`);
     } finally {
       setGenerating(false);
     }
   }
 
-  function exportBlock(format: "mol" | "sdf" | "pdb") {
-    const content =
-      format === "sdf"
-        ? generatedBlocks?.sdfBlock || molecule.sdfBlock
-        : format === "mol"
-          ? generatedBlocks?.molBlock || molecule.molBlock
-          : generatedBlocks?.pdbBlock || molecule.pdbBlock;
-    if (!content) return;
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${molecule.name}.${format}`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  /**
+   * Writes one structure format to a location the user chose.
+   *
+   * The conversion happens in the sidecar rather than here: exporting a PDB from a molecule that
+   * only has a MOL block used to save the MOL block under a `.pdb` name, which is a file that
+   * claims to be something it is not.
+   */
+  async function exportBlock(format: "mol" | "sdf" | "pdb") {
+    const source =
+      generatedBlocks?.molBlock || molecule.molBlock || molecule.smilesCanonical;
+    if (!source) return;
+    const inputFormat = generatedBlocks?.molBlock || molecule.molBlock ? "mol" : "smiles";
+    try {
+      const savePath = await chooseSaveDestination({
+        title: t("dialog.chooseDestination"),
+        defaultPath: `${molecule.name || molecule.id}.${format}`,
+        filters: [{ name: format.toUpperCase(), extensions: [format] }]
+      });
+      if (!savePath) {
+        message.info(t("dialog.cancelled"));
+        return;
+      }
+      const result = await exportMoleculeFile({
+        inputText: source,
+        inputFormat,
+        outputFormat: format,
+        savePath
+      });
+      message.success(`${t("ui.exportedShort")} ${result.savedPath}`);
+    } catch (error) {
+      message.error(backendErrorText(error, t));
+    }
   }
 
   function resetView() {
@@ -164,35 +200,30 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
         <Select
           value={style}
           style={{ width: 180 }}
-          options={[
-            { value: "ball-and-stick", label: "Ball and Stick" },
-            { value: "stick", label: "Stick" },
-            { value: "sphere", label: "Sphere" },
-            { value: "line", label: "Wireframe" }
-          ]}
+          options={styleOptions}
           onChange={setStyle}
         />
         <Button loading={generating} onClick={generate3d}>
-          {parsed.source === "saved" ? "Regenerate 3D" : "Generate 3D"}
+          {parsed.source === "saved" ? t("viewer3d.regenerate") : t("viewer3d.generate")}
         </Button>
-        <Button disabled={!molecule.molBlock && !generatedBlocks?.molBlock} onClick={() => exportBlock("mol")}>
-          Export MOL
+        <Button disabled={!molecule.molBlock && !generatedBlocks?.molBlock} onClick={() => void exportBlock("mol")}>
+          {t("viewer3d.exportMol")}
         </Button>
-        <Button disabled={!molecule.sdfBlock && !generatedBlocks?.sdfBlock} onClick={() => exportBlock("sdf")}>
-          Export SDF
+        <Button disabled={!molecule.sdfBlock && !generatedBlocks?.sdfBlock} onClick={() => void exportBlock("sdf")}>
+          {t("viewer3d.exportSdf")}
         </Button>
-        <Button disabled={!molecule.pdbBlock && !generatedBlocks?.pdbBlock} onClick={() => exportBlock("pdb")}>
-          Export PDB
+        <Button disabled={!molecule.pdbBlock && !generatedBlocks?.pdbBlock} onClick={() => void exportBlock("pdb")}>
+          {t("viewer3d.exportPdb")}
         </Button>
-        <Button onClick={resetView}>Reset View</Button>
+        <Button onClick={resetView}>{t("viewer3d.resetView")}</Button>
         <Switch
           checked={autoRotate}
           onChange={setAutoRotate}
-          checkedChildren="Auto Rotate"
-          unCheckedChildren="Auto Rotate"
+          checkedChildren={t("viewer3d.autoRotate")}
+          unCheckedChildren={t("viewer3d.autoRotate")}
         />
-        <Tag color={parsed.source === "saved" ? "green" : "gold"}>
-          {parsed.source === "saved" ? "Loaded 3D Structure" : "SMILES Preview Structure"}
+        <Tag color={parsed.source === "saved" ? "green" : "default"}>
+          {parsed.source === "saved" ? t("viewer3d.loaded") : t("viewer3d.none")}
         </Tag>
       </Space>
       <div className="viewer-shell molecule-3d-shell molecule-3d-clean-shell">
@@ -202,7 +233,7 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
             className="molecule-3d-canvas"
             width={640}
             height={360}
-            aria-label={`${molecule.name} 3D structure`}
+            aria-label={`${molecule.name} ${t("ui.structure3dLabel")}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -211,19 +242,22 @@ export default function MoleculeViewer3D({ molecule }: { molecule: Molecule }) {
           />
         ) : (
           <div className="molecule-3d-empty">
-            <Typography.Text strong>No renderable 3D coordinates</Typography.Text>
+            <Typography.Text strong>{t("viewer3d.emptyTitle")}</Typography.Text>
             <Typography.Text type="secondary">
-              Confirm that the molecule has SMILES, or click “Generate 3D”.
+              {molecule.smilesCanonical || molecule.smilesRaw
+                ? t("viewer3d.emptyWithSmiles")
+                : t("viewer3d.emptyWithoutSmiles")}
             </Typography.Text>
           </div>
         )}
       </div>
       <div className="molecule-3d-meta">
         <Typography.Text type="secondary">
-          Drag to rotate and scroll to zoom. Display mode: {styleLabels[style] ?? style}
+          {t("viewer3d.interactionHint")} {t("viewer3d.displayMode")}:{" "}
+          {styleOptions.find((option) => option.value === style)?.label ?? style}
         </Typography.Text>
         <Typography.Text type="secondary">
-          Zoom {zoom.toFixed(2)}x · X {Math.round(rotateX)}° · Y {Math.round(rotateY)}°
+          {`${t("ui.zoomAxes")}: ${zoom.toFixed(2)}x · ${Math.round(rotateX)}° · ${Math.round(rotateY)}°`}
         </Typography.Text>
       </div>
     </div>

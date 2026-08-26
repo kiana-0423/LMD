@@ -4,6 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import EmptyState from "../components/EmptyState";
 import LoadingBlock from "../components/LoadingBlock";
+import { LanguageProvider } from "../i18n/LanguageContext";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 
@@ -13,9 +14,17 @@ describe("shared components", () => {
     expect(screen.getByText("No results")).toBeTruthy();
   });
 
-  it("renders LoadingBlock skeleton content", () => {
-    const { container } = render(<LoadingBlock />);
+  it("renders LoadingBlock as a labelled status region", () => {
+    // The label is what a screen reader announces while a route's chunk is being read. Without it
+    // the wait is silent, and a page that is arriving is indistinguishable from one that is empty.
+    const { container } = render(
+      <LanguageProvider>
+        <LoadingBlock />
+      </LanguageProvider>
+    );
     expect(container.querySelector(".ant-skeleton")).toBeTruthy();
+    expect(screen.getByRole("status")).toBeTruthy();
+    expect(screen.getByLabelText("Loading...")).toBeTruthy();
   });
 
   it("renders StatCard title and value", () => {

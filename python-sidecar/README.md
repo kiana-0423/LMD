@@ -69,7 +69,12 @@ lmd-sidecar-aarch64-apple-darwin
 lmd-sidecar-x86_64-pc-windows-msvc.exe
 ```
 
-The source tree may contain a small macOS development launcher at the first path. `python scripts/build_sidecar.py` replaces it locally with the real packaged executable before a production Tauri build. Generated executables are release artifacts and should not be committed.
+The source tree does not track either launcher or executable. `tauri dev`
+generates an ignored local launcher automatically; `python
+scripts/build_sidecar.py` replaces it locally with the real packaged executable
+before a production build. The release hook rejects missing files and launch
+scripts. Generated executables are release artifacts and should not be
+committed.
 
 Single-file mode is easy to ship but extracts its Python runtime into a temporary directory at startup. If startup later becomes a performance issue, migrate the Tauri resource layout to PyInstaller's one-directory mode.
 

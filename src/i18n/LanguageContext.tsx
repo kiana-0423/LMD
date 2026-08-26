@@ -1,134 +1,47 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import enUS, { type MessageCatalogue, type MessageKey } from "./locales/en-US";
+import { interpolate, type MessageParams } from "./interpolate";
 
 export const SUPPORTED_LANGUAGES = ["zh-CN", "en-US", "ja-JP"] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
 const STORAGE_KEY = "lmd.language.v2";
 
-const messages = {
-  "zh-CN": {
-    "app.subtitle": "本地润滑材料数据库与智能设计 MVP",
-    "app.nameChinese": "LMD",
-    "menu.dashboardGroup": "仪表盘",
-    "menu.dashboard": "仪表盘",
-    "menu.database": "数据库",
-    "menu.molecules": "分子库",
-    "menu.descriptors": "描述符中心",
-    "menu.baseAdditive": "基础油/添加剂库",
-    "menu.formulations": "配方库",
-    "menu.experiments": "实验与性能",
-    "menu.input": "录入",
-    "menu.moleculeEntry": "分子录入",
-    "menu.moleculeSketcher": "分子绘画",
-    "menu.formulationEntry": "配方录入",
-    "menu.dataMining": "数据挖掘",
-    "menu.moleculePerformance": "分子性能预测",
-    "menu.formulationPrediction": "配方预测",
-    "menu.moleculeDesign": "分子设计",
-    "menu.system": "系统",
-    "menu.importExport": "导入/导出",
-    "menu.settings": "设置",
-    "status.workspace": "工作区",
-    "status.sqliteReady": "SQLite 就绪",
-    "status.sqliteUnavailable": "SQLite 未就绪",
-    "status.sidecarReal": "Python Sidecar 真实模式",
-    "status.sidecarMock": "Python Sidecar 模拟模式",
-    "status.sidecarUnavailable": "Python Sidecar 不可用",
-    "status.sidecarChecking": "Python Sidecar 检查中",
-    "settings.title": "设置",
-    "settings.description": "管理应用的显示与偏好设置。",
-    "settings.languageCard": "语言与地区",
-    "settings.language": "界面语言",
-    "settings.languageHelp": "更改会立即生效，并在下次启动时保留。",
-    "language.zh-CN": "简体中文",
-    "language.en-US": "English",
-    "language.ja-JP": "日本語"
-  },
-  "en-US": {
-    "app.subtitle": "Local Lubricant Materials Database & Intelligent Design MVP",
-    "app.nameChinese": "LMD",
-    "menu.dashboardGroup": "Dashboard",
-    "menu.dashboard": "Dashboard",
-    "menu.database": "Database",
-    "menu.molecules": "Molecule Library",
-    "menu.descriptors": "Descriptor Center",
-    "menu.baseAdditive": "Base Oils / Additives",
-    "menu.formulations": "Formulation Library",
-    "menu.experiments": "Experiments & Performance",
-    "menu.input": "Data Entry",
-    "menu.moleculeEntry": "Molecule Entry",
-    "menu.moleculeSketcher": "Molecule Sketcher",
-    "menu.formulationEntry": "Formulation Entry",
-    "menu.dataMining": "Data Mining",
-    "menu.moleculePerformance": "Molecule Performance",
-    "menu.formulationPrediction": "Formulation Prediction",
-    "menu.moleculeDesign": "Molecule Design",
-    "menu.system": "System",
-    "menu.importExport": "Import / Export",
-    "menu.settings": "Settings",
-    "status.workspace": "Workspace",
-    "status.sqliteReady": "SQLite Ready",
-    "status.sqliteUnavailable": "SQLite Not Ready",
-    "status.sidecarReal": "Python Sidecar: Live",
-    "status.sidecarMock": "Python Sidecar: Mock",
-    "status.sidecarUnavailable": "Python Sidecar Unavailable",
-    "status.sidecarChecking": "Checking Python Sidecar",
-    "settings.title": "Settings",
-    "settings.description": "Manage display and application preferences.",
-    "settings.languageCard": "Language & Region",
-    "settings.language": "Interface language",
-    "settings.languageHelp": "Changes apply immediately and are kept for the next launch.",
-    "language.zh-CN": "简体中文",
-    "language.en-US": "English",
-    "language.ja-JP": "日本語"
-  },
-  "ja-JP": {
-    "app.subtitle": "ローカル潤滑材料データベース＆インテリジェント設計 MVP",
-    "app.nameChinese": "LMD",
-    "menu.dashboardGroup": "ダッシュボード",
-    "menu.dashboard": "ダッシュボード",
-    "menu.database": "データベース",
-    "menu.molecules": "分子ライブラリ",
-    "menu.descriptors": "記述子センター",
-    "menu.baseAdditive": "基油・添加剤ライブラリ",
-    "menu.formulations": "配合ライブラリ",
-    "menu.experiments": "実験・性能",
-    "menu.input": "データ入力",
-    "menu.moleculeEntry": "分子入力",
-    "menu.moleculeSketcher": "分子描画",
-    "menu.formulationEntry": "配合入力",
-    "menu.dataMining": "データマイニング",
-    "menu.moleculePerformance": "分子性能予測",
-    "menu.formulationPrediction": "配合予測",
-    "menu.moleculeDesign": "分子設計",
-    "menu.system": "システム",
-    "menu.importExport": "インポート・エクスポート",
-    "menu.settings": "設定",
-    "status.workspace": "ワークスペース",
-    "status.sqliteReady": "SQLite 準備完了",
-    "status.sqliteUnavailable": "SQLite 未準備",
-    "status.sidecarReal": "Python Sidecar：実行モード",
-    "status.sidecarMock": "Python Sidecar：モックモード",
-    "status.sidecarUnavailable": "Python Sidecar 利用不可",
-    "status.sidecarChecking": "Python Sidecar 確認中",
-    "settings.title": "設定",
-    "settings.description": "表示とアプリケーションの設定を管理します。",
-    "settings.languageCard": "言語と地域",
-    "settings.language": "表示言語",
-    "settings.languageHelp": "変更はすぐに反映され、次回起動時にも保持されます。",
-    "language.zh-CN": "简体中文",
-    "language.en-US": "English",
-    "language.ja-JP": "日本語"
-  }
-} as const;
-
-export type MessageKey = keyof (typeof messages)["zh-CN"];
+export type Translate = (key: MessageKey, params?: MessageParams) => string;
 
 type LanguageContextValue = {
   language: Language;
   setLanguage: (language: Language) => void;
-  t: (key: MessageKey) => string;
+  t: Translate;
+  /** True while a locale chunk is being fetched. English stays on screen meanwhile. */
+  loading: boolean;
+  /**
+   * Set when a locale chunk could not be loaded.
+   *
+   * The interface keeps working in English rather than going blank: a user who cannot read the
+   * labels can still see that something failed, whereas an empty window tells them nothing.
+   */
+  loadError?: string;
 };
+
+/**
+ * The locale chunks, as dynamic imports.
+ *
+ * Written as literal `import()` calls rather than a computed path so the bundler can see all three
+ * and emit one chunk each. They are ordinary files inside the application bundle: switching
+ * language reads from disk, never from a network, which is what keeps the whole feature working
+ * offline.
+ */
+const LOADERS: Record<Exclude<Language, "en-US">, () => Promise<{ default: MessageCatalogue }>> = {
+  "zh-CN": () => import("./locales/zh-CN"),
+  "ja-JP": () => import("./locales/ja-JP")
+};
+
+const LOADED: Partial<Record<Language, MessageCatalogue>> = { "en-US": enUS };
+
+// eslint-disable-next-line react-refresh/only-export-components
+export { interpolate };
+export type { MessageKey, MessageParams };
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
@@ -140,15 +53,68 @@ function initialLanguage(): Language {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>(initialLanguage);
+  // Held separately from `language` so the interface only re-renders once the words are actually
+  // there. Switching to a language whose chunk is still loading would otherwise blank every label.
+  const [catalogue, setCatalogue] = useState<MessageCatalogue>(
+    () => LOADED[initialLanguage()] ?? enUS
+  );
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string>();
+  // Guards against a slow first switch overwriting a faster second one.
+  const requestRef = useRef(0);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, language);
     document.documentElement.lang = language;
   }, [language]);
 
+  useEffect(() => {
+    const cached = LOADED[language];
+    if (cached) {
+      setCatalogue(cached);
+      setLoading(false);
+      setLoadError(undefined);
+      return;
+    }
+    const request = (requestRef.current += 1);
+    setLoading(true);
+    setLoadError(undefined);
+    let cancelled = false;
+    LOADERS[language as Exclude<Language, "en-US">]()
+      .then((module) => {
+        LOADED[language] = module.default;
+        // A stale response must not replace a newer one, and an unmounted provider must not be
+        // written to at all.
+        if (cancelled || request !== requestRef.current) return;
+        setCatalogue(module.default);
+      })
+      .catch((error: unknown) => {
+        if (cancelled || request !== requestRef.current) return;
+        // English is already on screen and stays there. The failure is reported rather than
+        // swallowed, because a language that silently does not switch looks like a broken button.
+        setLoadError(error instanceof Error ? error.message : String(error));
+        setCatalogue(enUS);
+      })
+      .finally(() => {
+        if (!cancelled && request === requestRef.current) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language]);
+
   const value = useMemo<LanguageContextValue>(
-    () => ({ language, setLanguage, t: (key) => messages[language][key] }),
-    [language]
+    () => ({
+      language,
+      setLanguage,
+      // The English entry is the fallback for a key a locale chunk somehow lacks; the compile-time
+      // `MessageCatalogue` type makes that unreachable, and it costs nothing to be sure.
+      t: (key, params) => interpolate(catalogue[key] ?? enUS[key] ?? String(key), params),
+      loading,
+      loadError
+    }),
+    [language, catalogue, loading, loadError]
   );
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

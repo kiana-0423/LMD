@@ -1,0 +1,38 @@
+// Every shape a regex-only audit used to miss.
+//
+// None of these strings is routed through the translation catalogue, so each one renders in
+// English whatever language the user chose. They are gathered into one fixture because they are
+// one class of defect: text that reaches the screen without passing through `t(...)`.
+import { Button, Card, message } from "antd";
+import { useState } from "react";
+
+function shout(text: string) {
+  return text;
+}
+
+export default function AuditFixtureShapes({ value }: { value?: string }) {
+  // A state initializer: the first thing the user sees.
+  const [statusText, setStatusText] = useState("Waiting for input");
+
+  function run() {
+    // A setter call.
+    setStatusText("Working on it");
+    // A thrown error, which reaches the screen through an error boundary or a catch.
+    if (!value) throw new Error("Nothing was selected to work on.");
+    // A visible string handed to a helper.
+    message.error(shout("That did not work"));
+  }
+
+  return (
+    <Card
+      // A custom prop, not a DOM attribute.
+      ariaLabel="Fixture panel"
+      // A fallback for a missing value.
+      title={value || "No value recorded"}
+    >
+      {/* JSX text mixed with an expression. */}
+      <span>Current status: {statusText}</span>
+      <Button onClick={run}>Run it</Button>
+    </Card>
+  );
+}

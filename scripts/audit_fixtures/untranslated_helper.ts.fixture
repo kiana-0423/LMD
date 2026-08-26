@@ -1,0 +1,12 @@
+// A `.ts` file, not `.tsx`: visible strings live outside components too.
+//
+// This one throws a message a user will read and hands another to a reporting helper, both in a
+// module the previous audit did not even open.
+export function reportOutcome(message: string) {
+  return message;
+}
+
+export function check(value: number) {
+  if (value < 0) throw new Error("A measurement cannot be negative.");
+  return reportOutcome("The measurement looks fine.");
+}

@@ -1,61 +1,73 @@
-import { Drawer, Table, Tabs, Tag } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { Drawer, Tabs } from "antd";
+import { useLanguage } from "../../i18n/LanguageContext";
 import type { Molecule } from "../../types";
+import FormulationUsageTable from "./components/FormulationUsageTable";
 import MoleculeDescriptorSummary from "./components/MoleculeDescriptorSummary";
 import MoleculeDesignNotesPanel from "./components/MoleculeDesignNotesPanel";
 import MoleculePropertyPanel from "./components/MoleculePropertyPanel";
 import MoleculeViewer2D from "./components/MoleculeViewer2D";
 import MoleculeViewer3D from "./components/MoleculeViewer3D";
+import MoleculeFilesPanel from "./components/MoleculeFilesPanel";
 
 export default function MoleculeDetailDrawer({
   molecule,
   open,
-  onClose
+  onClose,
+  onGenerated
 }: {
   molecule?: Molecule;
   open: boolean;
   onClose: () => void;
+  /**
+   * Called with the refreshed record after a 3D structure is generated and stored.
+   *
+   * Without this the drawer would keep showing the record it opened with, so the Files panel and
+   * the library behind it would still describe a molecule that has no structure — until the user
+   * reopened them and discovered otherwise.
+   */
+  onGenerated?: (molecule: Molecule) => void;
 }) {
+  const { t } = useLanguage();
   if (!molecule) return null;
 
   return (
-    <Drawer width={760} title={molecule.name} open={open} onClose={onClose} destroyOnClose>
+    <Drawer width={760} title={<span translate="no">{molecule.name}</span>} open={open} onClose={onClose} destroyOnClose>
       <Tabs
         className="molecule-detail-tabs"
         items={[
-          { key: "overview", label: "Overview", children: <MoleculePropertyPanel molecule={molecule} /> },
-          { key: "2d", label: "2D Structure", children: <MoleculeViewer2D molecule={molecule} /> },
-          { key: "3d", label: "3D Structure", children: <MoleculeViewer3D molecule={molecule} /> },
+          { key: "overview", label: t("molecule.tabOverview"), children: <MoleculePropertyPanel molecule={molecule} /> },
+          { key: "2d", label: t("molecule.tab2d"), children: <MoleculeViewer2D molecule={molecule} /> },
+          {
+            key: "3d",
+            label: t("molecule.tab3d"),
+            children: <MoleculeViewer3D molecule={molecule} onGenerated={onGenerated} />
+          },
           {
             key: "descriptors",
-            label: "Descriptor Summary",
+            label: t("molecule.tabDescriptors"),
             children: <MoleculeDescriptorSummary molecule={molecule} />
           },
-          { key: "formulations", label: "Related Formulations", children: <FormulationUsageTable /> },
-          { key: "notes", label: "Notes", children: <MoleculeDesignNotesPanel molecule={molecule} /> }
+          {
+            key: "formulations",
+            label: t("molecule.tabFormulations"),
+            // The tab body is only mounted when opened, so the query runs on demand.
+            children: <FormulationUsageTable moleculeId={molecule.id} />
+          },
+          {
+            key: "files",
+            label: t("molecule.tabFiles"),
+            // Keyed on the stored structure paths: generating a structure changes them, which
+            // remounts the panel so it lists the new files instead of the previous ones.
+            children: (
+              <MoleculeFilesPanel
+                key={`${molecule.molFilePath ?? ""}|${molecule.sdfFilePath ?? ""}|${molecule.pdbFilePath ?? ""}`}
+                molecule={molecule}
+              />
+            )
+          },
+          { key: "notes", label: t("molecule.tabNotes"), children: <MoleculeDesignNotesPanel molecule={molecule} /> }
         ]}
       />
     </Drawer>
   );
-}
-
-function FormulationUsageTable() {
-  const rows = [
-    {
-      key: "usage-1",
-      formulation: "PAO-6 + ZDDP 1.0%",
-      role: "Additive",
-      concentration: "1.0 wt%",
-      experiments: 2,
-      performance: "Best friction coefficient: 0.082"
-    }
-  ];
-  const columns: ColumnsType<(typeof rows)[number]> = [
-    { title: "Formulation", dataIndex: "formulation" },
-    { title: "Role", dataIndex: "role", render: (value) => <Tag>{value}</Tag> },
-    { title: "Concentration", dataIndex: "concentration" },
-    { title: "Related Experiments", dataIndex: "experiments" },
-    { title: "Performance Summary", dataIndex: "performance" }
-  ];
-  return <Table size="small" columns={columns} dataSource={rows} pagination={false} />;
 }

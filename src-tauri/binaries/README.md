@@ -6,8 +6,9 @@ For macOS Apple Silicon development, Tauri expects:
 lmd-sidecar-aarch64-apple-darwin
 ```
 
-The checked-in macOS file is only a development launcher for the local
-`python-sidecar` package. It is not suitable for a standalone release.
+No sidecar executable is checked into Git. `npm run tauri dev` generates an
+ignored launcher for the local `python-sidecar` package before Tauri starts.
+That launcher is development-only and is never valid for a standalone release.
 
 For Windows x64 builds, Tauri expects:
 
@@ -20,3 +21,7 @@ Python interpreter and dependencies, verifies the executable, and writes the
 correct filename here before `tauri build` runs. PyInstaller builds must run on
 the target operating system; use `.github/workflows/build-desktop.yml` to build
 macOS and Windows artifacts without maintaining both machines locally.
+
+The Tauri release hook runs `python scripts/verify_release_sidecar.py` and fails
+the build if the expected file is missing or is a shell launcher rather than a
+native Mach-O, PE, or ELF executable.

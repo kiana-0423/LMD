@@ -1,0 +1,13 @@
+// A component that types its label directly instead of looking it up.
+//
+// This renders in English whichever language the user chose. The audit exists to catch exactly
+// this, because it is invisible in a screenshot taken by an English-speaking reviewer.
+import { Button, Card } from "antd";
+
+export default function AuditFixtureHardcodedString() {
+  return (
+    <Card title="Descriptor Summary">
+      <Button onClick={() => undefined}>Recalculate everything</Button>
+    </Card>
+  );
+}

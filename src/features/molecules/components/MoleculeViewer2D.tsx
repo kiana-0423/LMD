@@ -2,14 +2,16 @@ import { Button, Space, message } from "antd";
 import { useState } from "react";
 import MoleculeStructurePreview from "../../../components/MoleculeStructurePreview";
 import type { Molecule } from "../../../types";
+import { useLanguage } from "../../../i18n/LanguageContext";
 
 export default function MoleculeViewer2D({ molecule }: { molecule: Molecule }) {
+  const { t } = useLanguage();
   const [zoom, setZoom] = useState(1);
   const svg = molecule.structureSvg || fallbackStructureSvg(molecule);
 
   async function copySmiles() {
     await navigator.clipboard.writeText(molecule.smilesCanonical);
-    message.success("Canonical SMILES copied.");
+    message.success(t("ui.canonicalSmilesCopied"));
   }
 
   function downloadSvg() {
@@ -25,14 +27,14 @@ export default function MoleculeViewer2D({ molecule }: { molecule: Molecule }) {
   return (
     <div>
       <Space className="viewer-toolbar" wrap>
-        <Button onClick={() => setZoom((value) => Math.min(2.4, value + 0.2))}>Zoom In</Button>
-        <Button onClick={() => setZoom((value) => Math.max(0.5, value - 0.2))}>Zoom Out</Button>
-        <Button onClick={() => setZoom(1)}>Reset View</Button>
-        <Button onClick={downloadSvg}>Download SVG</Button>
-        <Button onClick={copySmiles}>Copy Canonical SMILES</Button>
+        <Button onClick={() => setZoom((value) => Math.min(2.4, value + 0.2))}>{t("ui.zoomIn")}</Button>
+        <Button onClick={() => setZoom((value) => Math.max(0.5, value - 0.2))}>{t("ui.zoomOut")}</Button>
+        <Button onClick={() => setZoom(1)}>{t("ui.resetView")}</Button>
+        <Button onClick={downloadSvg}>{t("ui.downloadSvg")}</Button>
+        <Button onClick={copySmiles}>{t("ui.copyCanonicalSmiles")}</Button>
       </Space>
       <div style={{ transform: `scale(${zoom})`, transformOrigin: "center", transition: "transform 120ms ease" }}>
-        <MoleculeStructurePreview svg={svg} title="2D Structure" />
+        <MoleculeStructurePreview svg={svg} title={t("ui.2dStructure")} />
       </div>
     </div>
   );

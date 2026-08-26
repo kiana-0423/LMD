@@ -1,16 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
-  additiveFunctionLabels,
-  descriptorStatusLabels,
+  additiveFunctionLabelKeys,
+  additiveFunctionTags,
+  commonOptionLabelKeys,
+  descriptorStatusLabelKeys,
   formalRoutes,
   moleculeCategories,
-  moleculeCategoryLabels
+  moleculeCategoryLabelKeys
 } from "../lib/constants";
+import { SUPPORTED_LANGUAGES } from "../i18n/LanguageContext";
+import { messagesForLanguage } from "../i18n/catalogues";
 
 describe("constants", () => {
-  it("defines a label for every molecule category", () => {
+  it("defines a label key for every molecule category", () => {
     for (const category of moleculeCategories) {
-      expect(moleculeCategoryLabels[category]).toBeTruthy();
+      expect(moleculeCategoryLabelKeys[category]).toBeTruthy();
+    }
+  });
+
+  it("defines a label key for every additive function tag", () => {
+    for (const tag of additiveFunctionTags) {
+      expect(additiveFunctionLabelKeys[tag]).toBeTruthy();
     }
   });
 
@@ -22,19 +32,32 @@ describe("constants", () => {
         "/descriptors",
         "/data-mining/molecule-performance",
         "/data-mining/formulation-prediction",
-        "/data-mining/molecule-design"
+        "/data-mining/molecule-screening"
       ])
     );
   });
 
-  it("maps common descriptor statuses to display labels", () => {
-    expect(descriptorStatusLabels.calculated).toBe("Calculated");
-    expect(descriptorStatusLabels.mock).toBe("Mock");
-    expect(descriptorStatusLabels.failed).toBe("Failed");
+  it("names labels by key rather than by English text", () => {
+    // The point of the change these guard: a stored code maps to a key, and the key is what gets
+    // translated. Storing the English word here would freeze the interface in one language.
+    expect(descriptorStatusLabelKeys.calculated).toBe("label.calculated");
+    expect(descriptorStatusLabelKeys.failed).toBe("label.failed");
+    expect(additiveFunctionLabelKeys.antiwear).toBe("label.antiwearAgent");
   });
 
-  it("contains additive function labels used by forms", () => {
-    expect(additiveFunctionLabels.antiwear).toBe("Antiwear agent");
-    expect(additiveFunctionLabels.antioxidant).toBe("Antioxidant");
+  it("resolves every label key in every language", () => {
+    const keys = [
+      ...Object.values(moleculeCategoryLabelKeys),
+      ...Object.values(additiveFunctionLabelKeys),
+      ...Object.values(descriptorStatusLabelKeys),
+      ...Object.values(commonOptionLabelKeys)
+    ];
+    expect(keys.length).toBeGreaterThan(20);
+    for (const language of SUPPORTED_LANGUAGES) {
+      const messages = messagesForLanguage(language);
+      for (const key of keys) {
+        expect(messages[key], `${key} is missing from ${language}`).toBeTruthy();
+      }
+    }
   });
 });

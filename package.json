@@ -6,23 +6,38 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:demo": "VITE_DEMO_MODE=true tsc && VITE_DEMO_MODE=true vite build --outDir dist-demo",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "format": "prettier --write src/",
     "preview": "vite preview",
-    "sidecar:build": "python scripts/build_sidecar.py",
+    "python": "node scripts/resolve-python.mjs",
+    "sidecar:build": "node scripts/resolve-python.mjs scripts/build_sidecar.py",
+    "sidecar:prepare-dev": "node scripts/resolve-python.mjs scripts/prepare_sidecar_dev.py",
+    "sidecar:verify-release": "node scripts/resolve-python.mjs scripts/verify_release_sidecar.py",
+    "sidecar:check-lock": "node scripts/resolve-python.mjs scripts/check_python_lock.py",
+    "sidecar:test": "node scripts/resolve-python.mjs -m pytest -q python-sidecar",
     "desktop:build": "npm run sidecar:build && tauri build",
     "desktop:build:mac": "npm run sidecar:build && CI=true tauri build --bundles app,dmg",
     "desktop:build:windows": "npm run sidecar:build && tauri build --bundles nsis,msi",
     "tauri": "tauri",
-    "test": "vitest"
+    "test": "vitest",
+    "analyze:bundle": "node scripts/analyze-bundle.mjs",
+    "audit:placeholders": "node scripts/resolve-python.mjs scripts/check_no_placeholders.py",
+    "audit:i18n": "node scripts/audit-untranslated.mjs",
+    "audit:python-requirements": "node scripts/resolve-python.mjs scripts/check_python_requirements.py",
+    "audit:node-requirements": "node scripts/check-node-requirements.mjs",
+    "audit:commands": "node scripts/check-command-surface.mjs",
+    "audit": "npm run audit:placeholders && npm run audit:i18n && npm run audit:python-requirements && npm run audit:node-requirements && npm run audit:commands && node scripts/resolve-python.mjs scripts/test_check_no_placeholders.py"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",
     "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
     "antd": "^5.20.0",
     "echarts": "^6.1.0",
-    "ketcher-react": "^3.15.0",
-    "ketcher-standalone": "^3.15.0",
+    "ketcher-react": "3.14.0",
+    "ketcher-standalone": "3.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0"
@@ -45,5 +60,10 @@
     "typescript": "^5.5.4",
     "vite": "^8.1.2",
     "vitest": "^4.1.9"
-  }
+  },
+  "engines": {
+    "node": ">=22.12.0 <23",
+    "npm": ">=10.5.0"
+  },
+  "packageManager": "npm@10.9.8"
 }

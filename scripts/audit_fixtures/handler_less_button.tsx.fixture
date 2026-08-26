@@ -1,0 +1,15 @@
+// Fixture: a visible button with no handler. The previous audit accepted this because `disabled`
+// and `loading` were treated as sufficient behaviour.
+import { Button } from "antd";
+
+export default function HandlerLessButton() {
+  return (
+    <div>
+      <Button size="small">Open</Button>
+      <Button size="small" disabled>
+        Export
+      </Button>
+      <button type="button">Delete</button>
+    </div>
+  );
+}

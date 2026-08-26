@@ -1,30 +1,35 @@
 import { Card, Form, Input, Select } from "antd";
 import { moleculeEntryCategoryOptions, moleculeEntryFunctionOptions } from "./moleculeEntry.schema";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function SmilesInputCard({ category }: { category?: string }) {
+  const { t } = useLanguage();
   return (
-    <Card title="Molecule Identity">
-      <Form.Item name="name" label="Name" rules={[{ required: true, message: "Enter a name." }]}>
-        <Input placeholder="Ethanol" />
+    <Card title={t("ui.moleculeIdentity")}>
+      <Form.Item name="name" label={t("ui.name")} rules={[{ required: true, message: t("ui.enterAName") }]}>
+        <Input placeholder="Ethanol" /> {/* i18n-exempt: an example molecule name reads the same in every language. */}
       </Form.Item>
-      <Form.Item name="aliases" label="Aliases">
-        <Input placeholder="Separate multiple aliases with commas" />
+      <Form.Item name="aliases" label={t("ui.aliases")}>
+        <Input placeholder={t("ui.separateMultipleAliasesWithCommas")} />
       </Form.Item>
-      <Form.Item name="smiles" label="SMILES" rules={[{ required: true, message: "Enter a SMILES string." }]}>
+      <Form.Item name="smiles" label="SMILES" rules={[{ required: true, message: t("ui.enterASmilesString") }]}>
         <Input className="mono" placeholder="CCO" />
       </Form.Item>
-      <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-        <Select options={moleculeEntryCategoryOptions} />
+      <Form.Item name="category" label={t("ui.category")} rules={[{ required: true }]}>
+        <Select options={moleculeEntryCategoryOptions.map((item) => ({ value: item.value, label: t(item.key) }))} />
       </Form.Item>
       {category === "additive" && (
-        <Form.Item name="additiveFunctionTags" label="Function Tags">
-          <Select mode="multiple" options={moleculeEntryFunctionOptions} />
+        <Form.Item name="additiveFunctionTags" label={t("ui.functionTags")}>
+          <Select
+            mode="multiple"
+            options={moleculeEntryFunctionOptions.map((item) => ({ value: item.value, label: t(item.key) }))}
+          />
         </Form.Item>
       )}
-      <Form.Item name="dataSource" label="Data Source">
-        <Input placeholder="Manual entry" />
+      <Form.Item name="dataSource" label={t("ui.dataSource")}>
+        <Input placeholder={t("ui.manualEntry")} />
       </Form.Item>
-      <Form.Item name="notes" label="Notes">
+      <Form.Item name="notes" label={t("ui.notes")}>
         <Input.TextArea rows={3} />
       </Form.Item>
     </Card>

@@ -3,15 +3,126 @@ name: Build desktop installers
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+  pull_request:
 
 permissions:
   contents: read
 
 jobs:
+  checks:
+    name: Source checks
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: python-sidecar/requirements.lock
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install sidecar dependencies
+        run: python -m pip install -r python-sidecar/requirements.lock
+
+      # --- Consistency gates -------------------------------------------------------------------
+      # Each of these fails on a state that would otherwise only be discovered by a user: a
+      # dependency set that does not match what the sidecar was tested with, two files disagreeing
+      # about which Node or Python version this repository supports, a command registered in Rust
+      # that nothing calls, or a translation key that exists in one language and not the others.
+
+      - name: Check the Python environment matches the lock
+        run: python scripts/check_python_lock.py
+
+      - name: Check Node and Python requirements agree across the repository
+        run: |
+          node scripts/check-node-requirements.mjs
+          python scripts/check_python_requirements.py
+
+      - name: Check the Tauri command surface has no unused or missing commands
+        run: node scripts/check-command-surface.mjs
+
+      - name: Check the test schema copy matches schema.rs
+        run: |
+          python scripts/sync_test_schema.py
+          git diff --exit-code -- src-tauri/src/db/schema_for_tests.sql \
+            || (echo "::error::schema_for_tests.sql is stale; run python scripts/sync_test_schema.py" && exit 1)
+
+      - name: Check every translation key exists in every language
+        run: node scripts/check-translation-coverage.mjs
+
+      - name: Type-check frontend
+        run: npm run typecheck
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Test frontend
+        run: npm test -- --run
+
+      - name: Build frontend
+        run: npm run build
+
+      # The bundle budgets, and the check that no browser-demo dataset reached a desktop build.
+      # Both fail the job rather than printing a number nobody reads.
+      - name: Analyse the desktop bundle
+        run: npm run analyze:bundle
+
+      - name: Build and analyse the browser demo separately
+        run: |
+          VITE_DEMO_MODE=true npx vite build --outDir dist-demo
+          node scripts/analyze-bundle.mjs --dir dist-demo --allow-demo
+
+      - name: Prepare development sidecar
+        run: node scripts/resolve-python.mjs scripts/prepare_sidecar_dev.py
+
+      - name: Check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Lint Rust
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test Rust
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Test Python sidecar
+        working-directory: python-sidecar
+        run: python -m pytest -q
+
+      - name: Check the Python environment still matches the lock
+        run: python -m pip check
+
+      - name: Run every repository audit
+        run: npm run audit
+
   build:
     name: ${{ matrix.name }}
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -33,6 +144,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -40,7 +155,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Set up Python
@@ -57,14 +172,155 @@ jobs:
         run: npm ci
 
       - name: Install sidecar dependencies
-        working-directory: python-sidecar
-        run: python -m pip install -r requirements.lock
+        run: python -m pip install -r python-sidecar/requirements.lock
+
+      # The `checks` job ran every consistency gate. The one that must run *here* too is the lock:
+      # this is the machine whose environment is compiled into the shipped executable.
+      - name: Check the build environment matches the lock
+        run: python scripts/check_python_lock.py
 
       - name: Build and verify self-contained sidecar
         run: python scripts/build_sidecar.py
 
+      # The installed release binary, not the one in dist/: this is the file Tauri will bundle.
+      # Every production command runs against it before packaging, on the native builder for this
+      # platform, so a dependency missing from the executable fails here rather than on a user's
+      # machine.
+      - name: Verify the installed release sidecar end to end
+        run: python scripts/verify_release_sidecar.py
+
+      # --- macOS signing -------------------------------------------------------------------
+      # Follows the Tauri v2 guidance: decode the .p12, import it into a temporary keychain,
+      # grant codesign non-interactive access, and resolve the identity for the build.
+      - name: Import the macOS signing certificate
+        id: macos_signing
+        if: runner.os == 'macOS' && env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/lmd-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/certificate.p12"
+
+          # Without this, codesign blocks on a GUI prompt that never appears on a runner.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | grep -o '"[^"]*"' | head -n 1 | tr -d '"')"
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::The certificate imported but no codesigning identity was found."
+            exit 1
+          fi
+          echo "Resolved signing identity: $IDENTITY"
+          echo "identity=$IDENTITY" >> "$GITHUB_OUTPUT"
+
+      - name: Import the Windows signing certificate
+        id: windows_signing
+        if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $pfxPath = Join-Path $env:RUNNER_TEMP "certificate.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $imported = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfxPath -Force
+          $thumbprint = $imported.Thumbprint
+          Write-Host "Resolved certificate thumbprint: $thumbprint"
+          "thumbprint=$thumbprint" >> $env:GITHUB_OUTPUT
+
+      - name: Configure Tauri signing
+        id: signing_config
+        shell: bash
+        env:
+          MACOS_IDENTITY: ${{ steps.macos_signing.outputs.identity }}
+          WINDOWS_THUMBPRINT: ${{ steps.windows_signing.outputs.thumbprint }}
+        run: |
+          set -euo pipefail
+          if [ -n "${MACOS_IDENTITY:-}" ]; then
+            echo "APPLE_SIGNING_IDENTITY=$MACOS_IDENTITY" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "${WINDOWS_THUMBPRINT:-}" ]; then
+            python scripts/configure_windows_signing.py "$WINDOWS_THUMBPRINT"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No signing secrets are configured. These artifacts are UNSIGNED and are for internal testing only. See docs/installer-smoke-tests.md."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build desktop installers
+        env:
+          # Notarization runs only when every credential is present; Tauri skips it otherwise.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run tauri build -- --bundles ${{ matrix.bundles }}
+
+      - name: Verify the macOS signature
+        if: runner.os == 'macOS' && steps.signing_config.outputs.signed == 'true'
+        run: |
+          set -euo pipefail
+          APP="$(find src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' | head -n 1)"
+          if [ -z "$APP" ]; then echo "::error::No .app bundle was produced."; exit 1; fi
+          # Only a passing verification may be reported as signed.
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          if [ -n "${{ secrets.APPLE_ID }}" ]; then
+            if spctl --assess --type execute --verbose "$APP"; then
+              echo "Gatekeeper assessment passed (signed and notarized)."
+            else
+              echo "::warning::The bundle is signed but Gatekeeper rejected it; notarization has not been confirmed."
+            fi
+          else
+            echo "::warning::Signed but not notarized: no Apple ID credentials were provided."
+          fi
+
+      - name: Verify the Windows signature
+        if: runner.os == 'Windows' && steps.signing_config.outputs.signed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $artifacts = Get-ChildItem -Recurse -Path src-tauri/target/release/bundle -Include *.exe, *.msi
+          if (-not $artifacts) { throw "No installer was produced." }
+          foreach ($artifact in $artifacts) {
+            $signature = Get-AuthenticodeSignature $artifact.FullName
+            Write-Host "$($artifact.Name): $($signature.Status)"
+            if ($signature.Status -ne "Valid") {
+              throw "$($artifact.Name) is not validly signed: $($signature.Status)"
+            }
+          }
+
+      - name: Report the signing state of these artifacts
+        shell: bash
+        run: |
+          if [ "${{ steps.signing_config.outputs.signed }}" = "true" ]; then
+            echo "### ${{ matrix.name }}: SIGNED (verified)" >> "$GITHUB_STEP_SUMMARY"
+            echo "Signature verification passed. Gatekeeper, SmartScreen, and clean-machine installation still require the manual checks in docs/installer-smoke-tests.md." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ${{ matrix.name }}: UNSIGNED" >> "$GITHUB_STEP_SUMMARY"
+            echo "Internal testing only. Not production-ready. See docs/installer-smoke-tests.md." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Remove the temporary keychain
+        if: always() && runner.os == 'macOS' && env.KEYCHAIN_PATH != ''
+        run: security delete-keychain "$KEYCHAIN_PATH" || true
 
       - name: Upload installers
         uses: actions/upload-artifact@v4

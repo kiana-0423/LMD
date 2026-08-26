@@ -42,6 +42,24 @@ export interface Molecule {
   updatedAt: string;
 }
 
+export interface MoleculeListFilter {
+  search?: string;
+  category?: string;
+  source?: string;
+  importMode?: string;
+  duplicateStatus?: "original" | "duplicate";
+  element?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface MoleculePage {
+  items: Molecule[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface MoleculeDescriptor {
   id: string;
   moleculeId: string;
@@ -109,12 +127,16 @@ export interface Formulation {
   bestAverageFrictionCoefficient?: number;
   bestWearScarDiameter?: number;
   highestOxidationTemperature?: number;
+  bestExtremePressureValue?: number;
   notes: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface FormulationComponent {
+  moleculeName?: string;
+  baseOilName?: string;
+  additiveName?: string;
   id: string;
   formulationId: string;
   componentRole: "base_oil" | "additive" | "solvent" | "other";
@@ -386,4 +408,279 @@ export interface ImportPreviewResult {
   created_molecule_count?: number;
   import_kind?: "base_oils" | "additives" | "preview_only";
   warnings?: string[];
+}
+
+/** Either a file Rust already wrote, or CSV text for the browser to download. */
+export interface ExportResult {
+  savedPath?: string;
+  rowCount?: number;
+  columnCount?: number;
+  content?: string;
+  fileName?: string;
+}
+
+/** A formulation that uses a molecule, with the measured summary of its experiments. */
+export interface FormulationUsage {
+  formulationId: string;
+  formulationName: string;
+  role: "component" | "additive" | "base_oil";
+  /** Every recorded concentration, one per component. */
+  concentrations: { componentId: string; value: number | null; unit: string }[];
+  /** Set only when every entry shares a unit, so a total is meaningful. */
+  totalConcentration: number | null;
+  concentrationUnit: string;
+  componentCount: number;
+  experimentCount: number;
+  bestAverageFrictionCoefficient: number | null;
+  bestWearScarDiameter: number | null;
+  highestOxidationTemperature: number | null;
+  bestExtremePressureValue: number | null;
+}
+
+export interface WorkspaceFile {
+  kind: string;
+  relativePath: string;
+  exists: boolean;
+  bytes: number;
+}
+
+export interface AttachmentRecord {
+  id: string;
+  fileName: string;
+  fileType: string;
+  relativePath: string;
+  description: string;
+  uploadedAt: string;
+  exists: boolean;
+  bytes: number;
+}
+
+export interface MoleculeFiles {
+  structureFiles: WorkspaceFile[];
+  attachments: AttachmentRecord[];
+}
+
+/**
+ * What deleting a record reports back, for every entity that owns files.
+ *
+ * `cleanupFailures` is not an error: the row is gone regardless. It names files the backend could
+ * not remove from disk — refused by the filesystem, already missing, or stored under a path that
+ * cannot be resolved safely — so the interface can say "deleted, but…" instead of an unqualified
+ * success.
+ */
+/** One bounded page of records, as every paginated command returns it. */
+export interface EntityPage<T> {
+  items: T[];
+  /** How many records match the filter in total, not how many are on this page. */
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+/** One row of a selector: the id a payload needs and the words a person reads. */
+export interface EntityOption {
+  id: string;
+  label: string;
+  /** A short qualifier — a base oil's type, an additive's function — or an empty string. */
+  detail: string;
+}
+
+/** A formulation that references a record somebody is trying to delete. */
+export interface AffectedFormulation {
+  formulationId: string;
+  formulationName: string;
+  /** How many of its components point at the record. */
+  componentCount: number;
+  componentRoles: string[];
+}
+
+/**
+ * What deleting a catalogued base oil or additive did — or refused to do.
+ *
+ * `blocked` is the case that matters: the record is still there, nothing was changed, and
+ * `blockedBy` says what is in the way. The previous behaviour deleted the referencing components
+ * silently, which left blends describing mixtures that cannot exist.
+ */
+export interface DeletionOutcome {
+  id: string;
+  deleted: boolean;
+  success: boolean;
+  blocked: boolean;
+  blockedBy: AffectedFormulation[];
+  /** How many formulation components an explicit cascade removed. Zero otherwise. */
+  removedComponents: number;
+  cleanupFailures: string[];
+}
+
+export interface EntityDeletion {
+  success: boolean;
+  deleted: boolean;
+  cleanupFailures: string[];
+}
+
+/**
+ * What deleting one attachment reports back.
+ *
+ * `cleanupFailures` is not an error: the row is gone regardless. It names files the backend could
+ * not remove from disk, so the interface can say "deleted, but…" instead of an unqualified
+ * success.
+ */
+export interface AttachmentDeletion extends EntityDeletion {
+  id: string;
+  fileName: string;
+  linkedEntityType: string;
+  linkedEntityId: string;
+  relativePath: string;
+  removedFiles: number;
+}
+
+/** What `generate_molecule_3d` returns once the structure has been stored. */
+export interface Generated3dResult {
+  molecule: Molecule;
+  molFilePath: string;
+  sdfFilePath: string;
+  pdbFilePath: string;
+  atomCount: number;
+  /** Superseded structure files that were removed once the new ones were recorded. */
+  replacedVersions: number;
+  /** Superseded files that could not be removed. The stored structure is still correct. */
+  cleanupFailures: string[];
+  mode: string;
+}
+
+/** A recorded descriptor batch or recalculation run. */
+export interface DescriptorJob {
+  id: string;
+  jobType: string;
+  /** `partial` means some items succeeded and some failed; `interrupted` means the application
+   *  closed while the job was running. */
+  status: "running" | "succeeded" | "partial" | "failed" | "interrupted";
+  progress: number;
+  totalCount: number;
+  successCount: number;
+  failedCount: number;
+  errorMessage: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+// --- Workspace, backups and diagnostics --------------------------------------------------------
+
+/** Where a workspace lives and what state it is in. */
+export interface WorkspaceDetails {
+  workspacePath: string;
+  databasePath: string;
+  databaseExists: boolean;
+  databaseSizeBytes: number;
+  schemaVersion: number;
+  /** The version this build writes; a workspace behind it is migrated when opened. */
+  supportedSchemaVersion: number;
+  backupCount: number;
+  automaticBackupLimit: number;
+  latestBackup?: BackupRecord;
+  /** Legacy rows a current rule would reject, preserved rather than corrected. */
+  rowsNeedingAttention: number;
+}
+
+/** One file in the workspace's backups folder. */
+export interface BackupRecord {
+  fileName: string;
+  path: string;
+  sizeBytes: number;
+  createdAt: string;
+  /** True when the application took it — before a migration, for instance. */
+  automatic: boolean;
+}
+
+/** What SQLite's own checks said about a database file. */
+export interface IntegrityReport {
+  ok: boolean;
+  /** SQLite's answer verbatim: `ok`, or a description of what is wrong. */
+  integrity: string;
+  foreignKeyViolations: number;
+  schemaVersion: number;
+  dataQualityIssues: number;
+}
+
+/** What a restore did, and what it preserved on the way. */
+export interface RestoreOutcome {
+  restoredFrom: string;
+  /** The backup taken of the database that was replaced, so the restore is itself reversible. */
+  previousDatabaseBackup: string;
+  report: IntegrityReport;
+}
+
+/** One legacy row a current rule would reject. */
+export interface DataQualityRow {
+  tableName: string;
+  rowId: string;
+  rule: string;
+  detail: string;
+}
+
+/** Where a diagnostics report was written. */
+export interface DiagnosticsExport {
+  path: string;
+  /** The same path with the home directory replaced by `~`, for showing on screen. */
+  displayPath: string;
+  bytes: number;
+}
+
+// --- Two-stage table import --------------------------------------------------------------------
+
+/** What the preview stage found. Nothing has been written when this is returned. */
+export interface ImportPreview {
+  filePath: string;
+  fileName: string;
+  /** `base_oils`, `additives`, or `preview_only` when nothing recognisable was found. */
+  detectedKind: string;
+  columns: string[];
+  previewRows: Record<string, unknown>[];
+  sheetNames: string[];
+  /** False when confirming would import nothing. */
+  importable: boolean;
+  warnings: string[];
+  /** Identifies the exact bytes that were previewed, so a changed file is refused. */
+  fingerprint: string;
+}
+
+/** One row that was read but not stored, and why. */
+export interface RejectedRow {
+  row: number;
+  reason: string;
+}
+
+/** What the confirmed import actually did. */
+export interface ImportOutcome {
+  importKind: string;
+  importedCount: number;
+  skippedCount: number;
+  createdMoleculeCount: number;
+  rejected: RejectedRow[];
+  warnings: string[];
+}
+
+/** What the diagnostics report contains. Versions, paths, counts — never scientific data. */
+export interface DiagnosticsReport {
+  generatedAt: string;
+  applicationVersion: string;
+  platform: string;
+  architecture: string;
+  /** Absolute paths with the home directory replaced by `~`. */
+  workspacePath: string;
+  workspaceExists: boolean;
+  databasePath: string;
+  databaseExists: boolean;
+  databaseSizeBytes: number;
+  schemaVersion: number;
+  supportedSchemaVersion: number;
+  rowsNeedingAttention: number;
+  /** Row counts per table. Counts, never contents. */
+  recordCounts: Record<string, number>;
+  /** The sidecar's own health answer, including every dependency version. */
+  sidecar: Record<string, unknown>;
+  recentLog: string[];
+  collectionErrors: string[];
 }

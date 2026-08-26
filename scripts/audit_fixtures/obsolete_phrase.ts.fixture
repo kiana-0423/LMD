@@ -1,0 +1,3 @@
+// Fixture: an obsolete promise about behaviour the application does not have.
+export const message = "Molecule design task created";
+export const heading = "Performance Comparison Placeholder";

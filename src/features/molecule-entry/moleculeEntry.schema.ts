@@ -1,13 +1,26 @@
-import { additiveFunctionLabels, moleculeCategories, moleculeCategoryLabels } from "../../lib/constants";
+import type { MessageKey } from "../../i18n/LanguageContext";
+import { additiveFunctionLabelKeys, moleculeCategories, moleculeCategoryLabelKeys } from "../../lib/constants";
 
-export const moleculeEntryCategoryOptions = moleculeCategories.map((value) => ({ value, label: moleculeCategoryLabels[value] }));
-export const moleculeEntryFunctionOptions = Object.entries(additiveFunctionLabels).map(([value, label]) => ({ value, label }));
+/**
+ * The entry form's option lists, as `(value, key)` pairs.
+ *
+ * The label is resolved when the form renders, so switching language relabels the options; a
+ * pre-built list of English labels could not.
+ */
+export const moleculeEntryCategoryOptions: { value: string; key: MessageKey }[] = moleculeCategories.map(
+  (value) => ({ value, key: moleculeCategoryLabelKeys[value] })
+);
 
-export const saveSteps = [
-  "Validate SMILES",
-  "Generate 2D structure",
-  "Generate 3D structure",
-  "Calculate RDKit descriptors",
-  "Calculate Mordred descriptors",
-  "Save to SQLite"
+export const moleculeEntryFunctionOptions: { value: string; key: MessageKey }[] = Object.entries(
+  additiveFunctionLabelKeys
+).map(([value, key]) => ({ value, key }));
+
+/** The steps a save runs through, in order, as translation keys. */
+export const saveStepKeys: MessageKey[] = [
+  "ui.validateSmiles",
+  "ui.generate2dStructure",
+  "ui.generate3dStructure",
+  "ui.calculateRdkitDescriptors",
+  "ui.calculateMordredDescriptors",
+  "ui.saveToSqlite"
 ];

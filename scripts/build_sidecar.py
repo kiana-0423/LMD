@@ -14,6 +14,10 @@ import sys
 from pathlib import Path
 
 
+# The sibling scripts are imported rather than re-implemented, so there is one definition of
+# the lock and one of the verification matrix.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SIDECAR_ROOT = REPOSITORY_ROOT / "python-sidecar"
 TAURI_BINARIES = REPOSITORY_ROOT / "src-tauri" / "binaries"
@@ -47,50 +51,59 @@ def ensure_build_environment() -> None:
             f"current interpreter is {platform.python_version()}."
         )
 
+    # Every module the packaged sidecar must contain. PyInstaller can only bundle what is
+    # importable at build time, so a dependency missing here becomes a feature missing from the
+    # shipped application — which is how scikit-learn once left the bundle unnoticed.
     required_modules = {
         "PyInstaller": "pyinstaller",
         "rdkit": "rdkit",
         "mordred": "mordred",
+        "networkx": "networkx",
         "numpy": "numpy",
         "pandas": "pandas",
         "openpyxl": "openpyxl",
+        "scipy": "scipy",
+        "sklearn": "scikit-learn",
+        "joblib": "joblib",
     }
     missing = [label for module, label in required_modules.items() if importlib.util.find_spec(module) is None]
     if missing:
         joined = ", ".join(missing)
         raise RuntimeError(
             f"Missing sidecar build dependencies: {joined}. Run "
-            "python -m pip install -e './python-sidecar[build]' first."
+            "python -m pip install -r python-sidecar/requirements.lock first."
+        )
+
+    # Present is not the same as correct. A sidecar built against a different scikit-learn than the
+    # one it was tested with produces models that load with a version warning at best, and the
+    # failure only appears when a user asks for a prediction.
+    from check_python_lock import compare as compare_lock
+
+    failures, warnings = compare_lock()
+    for warning in warnings:
+        print(f"  warning: {warning}")
+    if failures:
+        listed = "\n  - ".join(failures)
+        raise RuntimeError(
+            "The build environment does not match python-sidecar/requirements.lock:\n  - "
+            f"{listed}\n\nInstall the locked set first:\n"
+            f"  {sys.executable} -m pip install -r python-sidecar/requirements.lock"
         )
 
 
 def verify_sidecar(executable: Path) -> None:
-    example = SIDECAR_ROOT / "examples" / "required_descriptors_strict.json"
-    result = subprocess.run(
-        [str(executable), "calculate-required-descriptors", "--input", str(example)],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            "Sidecar smoke test failed.\n"
-            f"stdout: {result.stdout.strip()}\n"
-            f"stderr: {result.stderr.strip()}"
-        )
+    """Runs the built executable through every production command.
+
+    The single descriptor smoke test this replaced could not distinguish a complete sidecar from
+    one that had lost scikit-learn: descriptors worked either way. The full matrix lives in
+    verify_release_sidecar so the build and the release gate check exactly the same things.
+    """
+    from verify_release_sidecar import VerificationError, run_matrix
+
     try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Sidecar returned invalid JSON: {result.stdout!r}") from exc
-    data = payload.get("data", {})
-    if (
-        payload.get("ok") is not True
-        or data.get("mode") != "real"
-        or data.get("rdkit", {}).get("mode") != "real"
-        or data.get("mordred", {}).get("mode") != "real"
-    ):
-        raise RuntimeError(f"Sidecar smoke test did not use bundled RDKit and Mordred: {payload}")
+        run_matrix(executable)
+    except VerificationError as exc:
+        raise RuntimeError(str(exc)) from exc
 
 
 def build(skip_verify: bool) -> Path:
@@ -102,12 +115,9 @@ def build(skip_verify: bool) -> Path:
     spec_path = SIDECAR_ROOT / "lmd-sidecar.spec"
     cache_path = SIDECAR_ROOT / "build" / "cache" / triple
     pyinstaller_cache = cache_path / "pyinstaller"
-    matplotlib_cache = cache_path / "matplotlib"
     pyinstaller_cache.mkdir(parents=True, exist_ok=True)
-    matplotlib_cache.mkdir(parents=True, exist_ok=True)
     build_environment = os.environ.copy()
     build_environment["PYINSTALLER_CONFIG_DIR"] = str(pyinstaller_cache)
-    build_environment["MPLCONFIGDIR"] = str(matplotlib_cache)
 
     command = [
         sys.executable,
@@ -123,14 +133,22 @@ def build(skip_verify: bool) -> Path:
         str(work_path),
         str(spec_path),
     ]
+    # Written *before* PyInstaller runs so the spec can collect it into the bundle. A manifest that
+    # only exists beside the build output is a manifest the shipped executable cannot report, and
+    # `health` is exactly where a support request needs to read it.
+    write_build_metadata(SIDECAR_ROOT / "build" / "metadata", triple)
+
     print(f"Building LMD sidecar for {triple} with Python {platform.python_version()}...")
     subprocess.run(command, cwd=SIDECAR_ROOT, env=build_environment, check=True)
+
+    # A second copy beside the executable, for anyone inspecting the build output directly.
+    write_build_metadata(dist_path, triple)
 
     built_executable = dist_path / f"lmd-sidecar{executable_suffix}"
     if not built_executable.is_file():
         raise RuntimeError(f"PyInstaller did not create {built_executable}")
     if not skip_verify:
-        print("Running bundled sidecar smoke test...")
+        print("Verifying every packaged sidecar command...")
         verify_sidecar(built_executable)
 
     TAURI_BINARIES.mkdir(parents=True, exist_ok=True)
@@ -139,6 +157,30 @@ def build(skip_verify: bool) -> Path:
     if platform.system() != "Windows":
         destination.chmod(destination.stat().st_mode | 0o111)
     print(f"Installed Tauri sidecar: {destination}")
+    return destination
+
+
+def write_build_metadata(dist_path: Path, triple: str) -> Path:
+    """Records exactly what this build was made from, beside the executable.
+
+    Version numbers reconstructed after the fact are guesswork. This is written at the moment the
+    bundle is produced, from the environment that produced it, so a report about a shipped build
+    can be checked against what actually went into it.
+    """
+    from check_python_lock import installed_versions, locked_versions
+
+    installed = installed_versions()
+    metadata = {
+        "target_triple": triple,
+        "python_version": platform.python_version(),
+        "python_implementation": platform.python_implementation(),
+        "built_on": f"{platform.system()} {platform.machine()}",
+        "dependencies": {package: installed.get(package) for package in sorted(locked_versions())},
+    }
+    dist_path.mkdir(parents=True, exist_ok=True)
+    destination = dist_path / "build-metadata.json"
+    destination.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    print(f"Recorded build metadata: {destination}")
     return destination
 
 

@@ -71,6 +71,12 @@
   margin-bottom: 0;
 }
 
+.mockModeTag {
+  margin-left: auto;
+  white-space: normal;
+  text-align: center;
+}
+
 .appContent {
   flex: 1 1 auto;
   padding: 16px 20px;

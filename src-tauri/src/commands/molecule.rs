@@ -1,6 +1,7 @@
 use crate::app_paths::{default_database_path, default_workspace_dir};
-use crate::commands::ok;
-use crate::commands::sidecar::run_sidecar_command;
+use crate::commands::attachments;
+use crate::commands::sidecar::prepare_molecule_with_sidecar;
+use crate::db::open_database;
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -8,6 +9,8 @@ use serde_json::{json, Value};
 use std::fs;
 use tauri::AppHandle;
 use uuid::Uuid;
+
+const MOLECULE_LIST_ORDER: &str = "ORDER BY datetime(created_at) DESC, created_at DESC, id DESC";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,7 +22,6 @@ pub struct SaveMoleculePayload {
     pub data_source: Option<String>,
     pub notes: Option<String>,
     pub additive_function_tags: Option<Vec<String>>,
-    pub allow_mock: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -59,22 +61,33 @@ pub struct MoleculeDto {
     pub updated_at: String,
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct MoleculeListFilter {
+    pub search: String,
+    pub category: String,
+    pub source: String,
+    pub import_mode: String,
+    pub duplicate_status: String,
+    pub element: String,
+    pub page: i64,
+    pub page_size: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MoleculePageDto {
+    pub items: Vec<MoleculeDto>,
+    pub total: i64,
+    pub page: i64,
+    pub page_size: i64,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckMoleculeDuplicatePayload {
     pub canonical_smiles: String,
     pub inchikey: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateMoleculePayload {
-    pub name: Option<String>,
-    pub aliases: Option<String>,
-    pub category: Option<String>,
-    pub tags: Option<Vec<String>>,
-    pub notes: Option<String>,
-    pub data_source: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,108 +109,111 @@ pub struct ImportNewMoleculePayload {
 }
 
 #[tauri::command]
-pub async fn create_molecule(
+pub async fn list_molecules(
     app: AppHandle,
-    payload: SaveMoleculePayload,
-) -> Result<MoleculeDto, String> {
-    if payload.smiles.trim().is_empty() {
-        return Err("SMILES is required.".to_string());
-    }
-
-    let standardized = run_sidecar_command(
-        &app,
-        "standardize",
-        json!({ "smiles": payload.smiles.trim() }),
-    )
-    .await?;
-    let std_data = data(&standardized)?;
-    let molecule_id = Uuid::new_v4().to_string();
-    let now = Utc::now().to_rfc3339();
-    let tags = payload.additive_function_tags.unwrap_or_default();
-    let tags_json = serde_json::to_string(&tags)
-        .map_err(|err| format!("Failed to serialize molecule tags: {err}"))?;
-    let name = if payload.name.trim().is_empty() {
-        std_data
-            .get("smiles_canonical")
-            .and_then(Value::as_str)
-            .unwrap_or(payload.smiles.trim())
-            .to_string()
-    } else {
-        payload.name.trim().to_string()
-    };
-    let data_source = payload.data_source.unwrap_or_default();
-
-    let conn = open_connection(&app)?;
-    conn.execute(
-        "INSERT INTO molecules (
-            id, name, aliases, smiles_raw, smiles_canonical, inchi, inchi_key, formula, molecular_weight,
-            category, tags, molfile, descriptor_json, duplicate_of, import_mode, source,
-            structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
-            rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, source_id, notes,
-            created_at, updated_at
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, '', '{}', '', 'manual_save', ?12,
-                   '', '', '', '', 'pending', 'pending', 0, ?12, ?13, ?14, ?14)",
-        params![
-            &molecule_id,
-            &name,
-            payload.aliases.unwrap_or_default(),
-            payload.smiles.trim(),
-            std_data
-                .get("smiles_canonical")
-                .and_then(Value::as_str)
-                .unwrap_or(payload.smiles.trim()),
-            std_data.get("inchi").and_then(Value::as_str).unwrap_or_default(),
-            std_data
-                .get("inchi_key")
-                .and_then(Value::as_str)
-                .unwrap_or_default(),
-            std_data
-                .get("formula")
-                .and_then(Value::as_str)
-                .unwrap_or_default(),
-            std_data
-                .get("molecular_weight")
-                .and_then(Value::as_f64)
-                .unwrap_or_default(),
-            payload.category.unwrap_or_else(|| "candidate".to_string()),
-            tags_json,
-            data_source,
-            payload.notes.unwrap_or_default(),
-            &now
-        ],
-    )
-    .map_err(|err| format!("Failed to create molecule: {err}"))?;
-
-    get_molecule(app, molecule_id)?
-        .ok_or_else(|| "Created molecule could not be loaded.".to_string())
+    filter: Option<Value>,
+) -> Result<MoleculePageDto, String> {
+    tauri::async_runtime::spawn_blocking(move || list_molecules_blocking(&app, filter))
+        .await
+        .map_err(|err| format!("Molecule list task failed: {err}"))?
 }
 
-#[tauri::command]
-pub fn list_molecules(app: AppHandle, filter: Option<Value>) -> Result<Vec<MoleculeDto>, String> {
-    let conn = open_connection(&app)?;
+fn list_molecules_blocking(
+    app: &AppHandle,
+    filter: Option<Value>,
+) -> Result<MoleculePageDto, String> {
+    let mut filter = filter
+        .map(serde_json::from_value::<MoleculeListFilter>)
+        .transpose()
+        .map_err(|err| format!("Invalid molecule list filter: {err}"))?
+        .unwrap_or_default();
+    filter.page = filter.page.max(1);
+    filter.page_size = if filter.page_size <= 0 {
+        50
+    } else {
+        filter.page_size.min(200)
+    };
+    let search = if filter.search.trim().is_empty() {
+        String::new()
+    } else {
+        format!("%{}%", filter.search.trim().to_ascii_lowercase())
+    };
+    let offset = (filter.page - 1) * filter.page_size;
+    let conn = open_connection(app)?;
+    // `datetime()` truncates to whole seconds, so a bulk import writes hundreds of rows that
+    // share a sort key. The raw timestamp and then the id give LIMIT/OFFSET a total order,
+    // without which pages can repeat or drop rows.
+    //
+    // The element filter must not match a longer symbol that merely starts with the same letter:
+    // a plain substring test reports boron for C20H42BrNO2 and sulfur for C10H22SiO. An element
+    // occurrence ends at a digit, at the next capital, or at the end of the formula.
+    let where_sql =
+        "WHERE (?1 = '' OR lower(name) LIKE ?1 OR lower(smiles_canonical) LIKE ?1 OR lower(inchi_key) LIKE ?1)
+           AND (?2 = '' OR category = ?2)
+           AND (?3 = '' OR source = ?3 OR source_id = ?3)
+           AND (?4 = '' OR import_mode = ?4)
+           AND (
+             ?5 = ''
+             OR (?5 = 'duplicate' AND COALESCE(duplicate_of, '') <> '')
+             OR (?5 = 'original' AND COALESCE(duplicate_of, '') = '')
+           )
+           AND (
+             ?6 = ''
+             OR formula GLOB ('*' || ?6 || '[0-9A-Z]*')
+             OR substr(formula, -length(?6)) = ?6
+           )";
+    let total: i64 = conn
+        .query_row(
+            &format!("SELECT COUNT(*) FROM molecules {where_sql}"),
+            params![
+                &search,
+                &filter.category,
+                &filter.source,
+                &filter.import_mode,
+                &filter.duplicate_status,
+                &filter.element
+            ],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("Failed to count filtered molecules: {err}"))?;
     let mut statement = conn
-        .prepare(
+        .prepare(&format!(
             "SELECT id, name, aliases, smiles_raw, smiles_canonical, inchi, inchi_key, formula,
                     molecular_weight, category, tags, molfile, duplicate_of, import_mode, source,
                     structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
                     rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, source_id, notes,
                     created_at, updated_at
              FROM molecules
-             ORDER BY datetime(created_at) DESC",
-        )
+             {where_sql}
+             {MOLECULE_LIST_ORDER}
+             LIMIT ?7 OFFSET ?8"
+        ))
         .map_err(|err| format!("Failed to prepare molecule list query: {err}"))?;
-    let workspace = default_workspace_dir(&app)?;
     let rows = statement
-        .query_map([], |row| row_to_molecule(row, &workspace))
+        .query_map(
+            params![
+                &search,
+                &filter.category,
+                &filter.source,
+                &filter.import_mode,
+                &filter.duplicate_status,
+                &filter.element,
+                filter.page_size,
+                offset
+            ],
+            |row| row_to_molecule(row, None),
+        )
         .map_err(|err| format!("Failed to query molecules: {err}"))?;
     let mut molecules = Vec::new();
     for row in rows {
         molecules.push(row.map_err(|err| format!("Failed to read molecule row: {err}"))?);
     }
-    if molecules.is_empty() && filter.is_none() {
-        return Ok(Vec::new());
-    }
-    Ok(molecules)
+    Ok(MoleculePageDto {
+        items: molecules,
+        total,
+        page: filter.page,
+        page_size: filter.page_size,
+    })
 }
 
 #[tauri::command]
@@ -213,54 +229,10 @@ pub fn get_molecule(app: AppHandle, id: String) -> Result<Option<MoleculeDto>, S
          FROM molecules
          WHERE id = ?1",
         params![id],
-        |row| row_to_molecule(row, &workspace),
+        |row| row_to_molecule(row, Some(&workspace)),
     )
     .optional()
     .map_err(|err| format!("Failed to get molecule: {err}"))
-}
-
-#[tauri::command]
-pub fn update_molecule(
-    app: AppHandle,
-    id: String,
-    payload: UpdateMoleculePayload,
-) -> Result<MoleculeDto, String> {
-    let existing = get_molecule(app.clone(), id.clone())?
-        .ok_or_else(|| format!("Molecule not found: {id}"))?;
-    let now = Utc::now().to_rfc3339();
-    let tags = payload.tags.unwrap_or(existing.tags);
-    let tags_json = serde_json::to_string(&tags)
-        .map_err(|err| format!("Failed to serialize molecule tags: {err}"))?;
-    let data_source = payload.data_source.unwrap_or(existing.data_source);
-    let conn = open_connection(&app)?;
-    let updated = conn
-        .execute(
-            "UPDATE molecules
-             SET name = ?1,
-                 aliases = ?2,
-                 category = ?3,
-                 tags = ?4,
-                 source = ?5,
-                 source_id = ?5,
-                 notes = ?6,
-                 updated_at = ?7
-             WHERE id = ?8",
-            params![
-                payload.name.unwrap_or(existing.name),
-                payload.aliases.unwrap_or(existing.aliases),
-                payload.category.unwrap_or(existing.category),
-                tags_json,
-                data_source,
-                payload.notes.unwrap_or(existing.notes),
-                &now,
-                &id
-            ],
-        )
-        .map_err(|err| format!("Failed to update molecule: {err}"))?;
-    if updated == 0 {
-        return Err(format!("Molecule not found: {id}"));
-    }
-    get_molecule(app, id)?.ok_or_else(|| "Updated molecule could not be loaded.".to_string())
 }
 
 #[tauri::command]
@@ -285,80 +257,69 @@ pub fn delete_molecule(app: AppHandle, id: String) -> Result<Value, String> {
         .optional()
         .map_err(|err| format!("Failed to read molecule files before delete: {err}"))?;
 
-    let tx = conn
-        .transaction()
-        .map_err(|err| format!("Failed to start molecule delete transaction: {err}"))?;
-    let deleted_descriptors = tx
-        .execute(
-            "DELETE FROM molecule_descriptors WHERE molecule_id = ?1",
+    // Foreign keys are enforced, so deleting a referenced molecule would otherwise fail deep in
+    // SQLite with "FOREIGN KEY constraint failed". Name what is holding it instead — silently
+    // destroying the dependent additive or formulation would be worse than refusing.
+    let references = molecule_references(&conn, &id)?;
+    if !references.is_empty() {
+        return Err(format!(
+            "This molecule is still referenced by {}. Remove those records first.",
+            references.join(", ")
+        ));
+    }
+
+    // Files are moved aside before the transaction and only deleted once it commits, so a failed
+    // delete leaves both the rows and the files intact. A file that cannot be moved aside stops
+    // the delete outright rather than leaving an untracked orphan on disk.
+    let attachment_paths = attachments::attachment_paths(&conn, attachments::ENTITY_MOLECULE, &id)?;
+    let owned_files: Vec<String> = file_paths
+        .iter()
+        .flatten()
+        .chain(attachment_paths.iter())
+        .filter(|relative| !relative.trim().is_empty())
+        .cloned()
+        .collect();
+
+    let (
+        (deleted_descriptors, deleted_attachments, deleted_molecules),
+        removed_files,
+        cleanup_failures,
+    ) = attachments::delete_with_files(&workspace, &owned_files, || {
+        let tx = conn
+            .transaction()
+            .map_err(|err| format!("Failed to start molecule delete transaction: {err}"))?;
+        let deleted_descriptors = tx
+            .execute(
+                "DELETE FROM molecule_descriptors WHERE molecule_id = ?1",
+                params![&id],
+            )
+            .map_err(|err| format!("Failed to delete molecule descriptors: {err}"))?;
+        let deleted_attachments =
+            attachments::delete_attachment_rows(&tx, attachments::ENTITY_MOLECULE, &id)?;
+        // `duplicate_of` carries no foreign key, so dangling pointers have to be cleared by hand.
+        tx.execute(
+            "UPDATE molecules SET duplicate_of = NULL WHERE duplicate_of = ?1",
             params![&id],
         )
-        .map_err(|err| format!("Failed to delete molecule descriptors: {err}"))?;
-    let deleted_molecules = tx
-        .execute("DELETE FROM molecules WHERE id = ?1", params![&id])
-        .map_err(|err| format!("Failed to delete molecule: {err}"))?;
-    tx.commit()
-        .map_err(|err| format!("Failed to commit molecule delete transaction: {err}"))?;
-
-    if deleted_molecules > 0 {
-        if let Some(paths) = file_paths {
-            for relative in paths {
-                if !relative.trim().is_empty() {
-                    let _ = fs::remove_file(workspace.join(relative));
-                }
-            }
-        }
-    }
+        .map_err(|err| format!("Failed to clear duplicate references: {err}"))?;
+        let deleted_molecules = tx
+            .execute("DELETE FROM molecules WHERE id = ?1", params![&id])
+            .map_err(|err| format!("Failed to delete molecule: {err}"))?;
+        tx.commit()
+            .map_err(|err| format!("Failed to commit molecule delete transaction: {err}"))?;
+        Ok((deleted_descriptors, deleted_attachments, deleted_molecules))
+    })?;
 
     Ok(json!({
         "success": deleted_molecules > 0,
         "deleted": deleted_molecules > 0,
         "id": id,
-        "deleted_descriptors": deleted_descriptors
+        "deletedDescriptors": deleted_descriptors,
+        "deletedAttachments": deleted_attachments,
+        "removedFiles": removed_files,
+        // Reported rather than swallowed: the rows are gone but the disk may not be clean.
+        "cleanupFailures": cleanup_failures
     }))
-}
-
-#[tauri::command]
-pub fn check_duplicate_molecule(
-    app: AppHandle,
-    payload: CheckMoleculeDuplicatePayload,
-) -> Result<Value, String> {
-    let conn = open_connection(&app)?;
-    let canonical = payload.canonical_smiles.trim().to_string();
-    let inchikey = payload.inchikey.unwrap_or_default();
-    let existing = conn
-        .query_row(
-            "SELECT id, smiles_canonical, inchi_key FROM molecules
-             WHERE (?1 <> '' AND smiles_canonical = ?1) OR (?2 <> '' AND inchi_key = ?2)
-             ORDER BY datetime(created_at) ASC
-             LIMIT 1",
-            params![canonical, inchikey],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                ))
-            },
-        )
-        .optional()
-        .map_err(|err| format!("Failed to check duplicate molecule: {err}"))?;
-    let Some((id, matched_smiles, matched_inchikey)) = existing else {
-        return ok("check_duplicate_molecule", json!({ "duplicate": false }));
-    };
-    let matched_by = match (
-        matched_smiles == payload.canonical_smiles,
-        !inchikey.is_empty() && matched_inchikey == inchikey,
-    ) {
-        (true, true) => "both",
-        (true, false) => "canonical_smiles",
-        (false, true) => "inchikey",
-        _ => "canonical_smiles",
-    };
-    ok(
-        "check_duplicate_molecule",
-        json!({ "duplicate": true, "molecule_id": id, "existing_molecule_id": id, "matched_by": matched_by }),
-    )
 }
 
 #[tauri::command]
@@ -373,7 +334,7 @@ pub fn check_molecule_duplicate(
         .prepare(
             "SELECT id, smiles_canonical, inchi_key FROM molecules
              WHERE (?1 <> '' AND smiles_canonical = ?1) OR (?2 <> '' AND inchi_key = ?2)
-             ORDER BY datetime(created_at) ASC
+             ORDER BY datetime(created_at) ASC, created_at ASC, id ASC
              LIMIT 1",
         )
         .map_err(|err| format!("Failed to prepare duplicate check: {err}"))?;
@@ -392,13 +353,13 @@ pub fn check_molecule_duplicate(
         return Ok(json!({ "duplicate": false }));
     };
     let matched_by = match (
-        matched_smiles == payload.canonical_smiles,
+        !canonical.is_empty() && matched_smiles == canonical,
         !inchikey.is_empty() && matched_inchikey == inchikey,
     ) {
         (true, true) => "both",
         (true, false) => "canonical_smiles",
         (false, true) => "inchikey",
-        _ => "canonical_smiles",
+        (false, false) => "unknown",
     };
     Ok(json!({
         "duplicate": true,
@@ -418,26 +379,14 @@ pub async fn import_new_molecule(
             json!({ "success": false, "error": "SMILES is required. Please generate a valid canonical SMILES first." }),
         );
     }
-    let standardized =
-        run_sidecar_command(&app, "standardize", json!({ "smiles": &input_smiles })).await?;
-    let visualized =
-        run_sidecar_command(&app, "visualize", json!({ "smiles": &input_smiles })).await?;
-    let molfile_result = run_sidecar_command(
-        &app,
-        "smiles-to-molfile",
-        json!({ "smiles": &input_smiles }),
-    )
-    .await?;
-    let generated_3d = run_sidecar_command(
-        &app,
-        "generate-3d",
-        json!({ "smiles": &input_smiles, "add_hydrogens": true, "optimize": true, "force_field": "MMFF" }),
-    )
-    .await?;
-    let std_data = data(&standardized)?;
-    let vis_data = data(&visualized)?;
-    let molfile_data = data(&molfile_result)?;
-    let generated_3d_data = data(&generated_3d)?;
+    // One sidecar process for the whole sequence. This used to be four — standardize, visualize,
+    // smiles-to-molfile, generate-3d — each paying the full cost of starting a one-file PyInstaller
+    // bundle and importing RDKit before doing any chemistry.
+    let prepared = prepare_molecule_with_sidecar(&app, &input_smiles, true).await?;
+    let std_data = &prepared.identifiers;
+    let vis_data = &prepared.visualization;
+    let molfile_data = &prepared.molfile;
+    let generated_3d_data = &prepared.three_d;
     let canonical_smiles = std_data
         .get("smiles_canonical")
         .or_else(|| std_data.get("canonical_smiles"))
@@ -530,8 +479,9 @@ pub async fn import_new_molecule(
         .and_then(Value::as_str)
         .unwrap_or(&rdkit_status)
         .to_string();
-    let descriptor_ready = matches!(rdkit_status.as_str(), "calculated" | "mock")
-        && matches!(mordred_status.as_str(), "calculated" | "mock");
+    // Only real calculations count as ready. Treating "mock" as ready made the dashboard's
+    // "Molecules Ready" tally and the library's green Ready tag include placeholder values.
+    let descriptor_ready = rdkit_status == "calculated" && mordred_status == "calculated";
     let duplicate_of = payload.duplicate_of.unwrap_or_default();
     let import_mode = payload.import_mode.unwrap_or_else(|| {
         if duplicate_of.is_empty() {
@@ -629,44 +579,32 @@ pub async fn save_molecule_with_required_descriptors(
     if payload.smiles.trim().is_empty() {
         return Err("SMILES is required.".to_string());
     }
-    let allow_mock = payload.allow_mock.unwrap_or(false);
     let smiles = payload.smiles.trim().to_string();
 
-    let standardized =
-        run_sidecar_command(&app, "standardize", json!({ "smiles": &smiles })).await?;
-    let visualized = run_sidecar_command(&app, "visualize", json!({ "smiles": &smiles })).await?;
-    let molfile_result =
-        run_sidecar_command(&app, "smiles-to-molfile", json!({ "smiles": &smiles })).await?;
-    let generated_3d = run_sidecar_command(
-        &app,
-        "generate-3d",
-        json!({ "smiles": &smiles, "add_hydrogens": true, "optimize": true, "force_field": "MMFF" }),
-    )
-    .await?;
-    let required = run_sidecar_command(
-        &app,
-        "calculate-required-descriptors",
-        json!({
-            "smiles": &smiles,
-            "require_rdkit": true,
-            "require_mordred": true,
-            "allow_mock": allow_mock
-        }),
-    )
-    .await
-    .map_err(|err| {
-        if err.contains("Mordred descriptors are required") || err.contains("Mordred is not installed") {
-            "Mordred descriptors are required. Please install Mordred or check the Python sidecar environment.".to_string()
-        } else {
-            err
-        }
-    })?;
+    // One sidecar process for the whole sequence. This used to be five — standardize, visualize,
+    // smiles-to-molfile, generate-3d, calculate-required-descriptors — and the process start
+    // dominated the wait every time, because a one-file bundle unpacks and imports RDKit, Mordred,
+    // NumPy and pandas before the first line of chemistry runs.
+    //
+    // The descriptor policy is unchanged: a required set that cannot be calculated still fails the
+    // whole save rather than storing a molecule with a gap where its descriptors should be.
+    let prepared = prepare_molecule_with_sidecar(&app, &smiles, true)
+        .await
+        .map_err(|err| {
+            if err.contains("Mordred descriptors are required")
+                || err.contains("Mordred is not installed")
+            {
+                "Mordred descriptors are required. Please install Mordred or check the Python sidecar environment.".to_string()
+            } else {
+                err
+            }
+        })?;
 
-    let std_data = data(&standardized)?;
-    let vis_data = data(&visualized)?;
-    let molfile_data = data(&molfile_result)?;
-    let generated_3d_data = data(&generated_3d)?;
-    let req_data = data(&required)?;
+    let std_data = &prepared.identifiers;
+    let vis_data = &prepared.visualization;
+    let molfile_data = &prepared.molfile;
+    let generated_3d_data = &prepared.three_d;
+    let req_data = &prepared.descriptors;
     let rdkit = req_data
         .get("rdkit")
         .ok_or_else(|| "Python sidecar did not return RDKit descriptors.".to_string())?;
@@ -727,8 +665,10 @@ pub async fn save_molecule_with_required_descriptors(
     let mordred_mode = descriptor_mode(mordred);
     let rdkit_status = descriptor_status(rdkit);
     let mordred_status = descriptor_status(mordred);
-    let descriptor_ready = matches!(rdkit_status.as_str(), "calculated" | "mock")
-        && matches!(mordred_status.as_str(), "calculated" | "mock");
+    // Only real calculations count as ready. Treating "mock" as ready made the dashboard's
+    // "Molecules Ready" tally and the library's green Ready tag include placeholder values.
+    let descriptor_ready = rdkit_status == "calculated" && mordred_status == "calculated";
+    let save_tags = payload.additive_function_tags.clone().unwrap_or_default();
 
     let molecule = MoleculeDto {
         id: molecule_id.clone(),
@@ -773,8 +713,8 @@ pub async fn save_molecule_with_required_descriptors(
             .and_then(Value::as_f64)
             .unwrap_or_default(),
         category: payload.category.unwrap_or_else(|| "candidate".to_string()),
-        additive_function_tags: payload.additive_function_tags.unwrap_or_default(),
-        tags: Vec::new(),
+        additive_function_tags: save_tags.clone(),
+        tags: save_tags,
         molfile: mol_block.clone(),
         duplicate_of: String::new(),
         import_mode: "manual_save".to_string(),
@@ -804,13 +744,18 @@ pub async fn save_molecule_with_required_descriptors(
     let tx = conn
         .transaction()
         .map_err(|err| format!("Failed to start SQLite transaction: {err}"))?;
+    // `tags`, `import_mode` and `source` have to be written here: the DTO returned to the UI
+    // reports them, so leaving them out of the INSERT silently discarded the function tags the
+    // entry form had just collected.
+    let tags_json = serde_json::to_string(&molecule.additive_function_tags)
+        .map_err(|err| format!("Failed to serialize molecule tags: {err}"))?;
     tx.execute(
         "INSERT INTO molecules (
             id, name, aliases, smiles_raw, smiles_canonical, inchi, inchi_key, formula, molecular_weight,
-            category, molfile, structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
-            rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, source_id, notes,
-            created_at, updated_at
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
+            category, tags, molfile, structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
+            rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, import_mode, source,
+            source_id, notes, created_at, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
         params![
             &molecule.id,
             &molecule.name,
@@ -822,6 +767,7 @@ pub async fn save_molecule_with_required_descriptors(
             &molecule.formula,
             molecule.molecular_weight,
             &molecule.category,
+            &tags_json,
             &molecule.molfile,
             &molecule.structure_svg_path,
             &molecule.mol_file_path,
@@ -830,6 +776,8 @@ pub async fn save_molecule_with_required_descriptors(
             &molecule.rdkit_descriptor_status,
             &molecule.mordred_descriptor_status,
             if molecule.descriptor_ready { 1 } else { 0 },
+            &molecule.import_mode,
+            &molecule.source,
             &molecule.source_id,
             &molecule.notes,
             &molecule.created_at,
@@ -863,7 +811,7 @@ pub async fn save_molecule_with_required_descriptors(
 }
 
 fn open_connection(app: &AppHandle) -> Result<Connection, String> {
-    Connection::open(default_database_path(app)?)
+    open_database(default_database_path(app)?)
         .map_err(|err| format!("Failed to open SQLite database: {err}"))
 }
 
@@ -876,7 +824,9 @@ fn write_structure_file(
     if content.trim().is_empty() {
         return Ok(String::new());
     }
-    let absolute = workspace.join(relative);
+    // Resolved rather than joined, so a caller-supplied name can never write outside the
+    // workspace or follow a symlink out of it.
+    let absolute = crate::commands::attachments::resolve_in_workspace(workspace, relative)?;
     if let Some(parent) = absolute.parent() {
         fs::create_dir_all(parent)
             .map_err(|err| format!("Failed to create structure directory: {err}"))?;
@@ -886,16 +836,46 @@ fn write_structure_file(
     Ok(relative.to_string())
 }
 
+/// Describes what still points at a molecule, so a refused delete can say why.
+fn molecule_references(connection: &Connection, id: &str) -> Result<Vec<String>, String> {
+    let mut references = Vec::new();
+    for (label, sql) in [
+        (
+            "additive records",
+            "SELECT COUNT(*) FROM additives WHERE molecule_id = ?1",
+        ),
+        (
+            "base oil records",
+            "SELECT COUNT(*) FROM base_oils WHERE representative_molecule_id = ?1",
+        ),
+        (
+            "formulation components",
+            "SELECT COUNT(*) FROM formulation_components WHERE molecule_id = ?1",
+        ),
+    ] {
+        let count: i64 = connection
+            .query_row(sql, params![id], |row| row.get(0))
+            .map_err(|err| format!("Failed to check {label} for molecule {id}: {err}"))?;
+        if count > 0 {
+            references.push(format!("{count} {label}"));
+        }
+    }
+    Ok(references)
+}
+
 fn read_structure_file(workspace: &std::path::Path, relative: &str) -> String {
     if relative.trim().is_empty() {
         return String::new();
     }
-    fs::read_to_string(workspace.join(relative)).unwrap_or_default()
+    crate::commands::attachments::resolve_in_workspace(workspace, relative)
+        .ok()
+        .and_then(|absolute| fs::read_to_string(absolute).ok())
+        .unwrap_or_default()
 }
 
 fn row_to_molecule(
     row: &rusqlite::Row<'_>,
-    workspace: &std::path::Path,
+    workspace: Option<&std::path::Path>,
 ) -> rusqlite::Result<MoleculeDto> {
     let tags_text: String = row.get::<_, Option<String>>(10)?.unwrap_or_default();
     let tags: Vec<String> = serde_json::from_str(&tags_text).unwrap_or_default();
@@ -910,14 +890,24 @@ fn row_to_molecule(
     let sdf_file_path: String = row.get::<_, Option<String>>(17)?.unwrap_or_default();
     let pdb_file_path: String = row.get::<_, Option<String>>(18)?.unwrap_or_default();
     let source_id: String = row.get::<_, Option<String>>(22)?.unwrap_or_default();
-    let structure_svg = read_structure_file(workspace, &structure_svg_path);
-    let mol_block = if molfile.trim().is_empty() {
-        read_structure_file(workspace, &mol_file_path)
-    } else {
-        molfile.clone()
-    };
-    let sdf_block = read_structure_file(workspace, &sdf_file_path);
-    let pdb_block = read_structure_file(workspace, &pdb_file_path);
+    let structure_svg = workspace
+        .map(|path| read_structure_file(path, &structure_svg_path))
+        .unwrap_or_default();
+    let mol_block = workspace
+        .map(|path| {
+            if molfile.trim().is_empty() {
+                read_structure_file(path, &mol_file_path)
+            } else {
+                molfile.clone()
+            }
+        })
+        .unwrap_or_default();
+    let sdf_block = workspace
+        .map(|path| read_structure_file(path, &sdf_file_path))
+        .unwrap_or_default();
+    let pdb_block = workspace
+        .map(|path| read_structure_file(path, &pdb_file_path))
+        .unwrap_or_default();
     Ok(MoleculeDto {
         id: row.get(0)?,
         name: row.get(1)?,
@@ -962,12 +952,6 @@ fn row_to_molecule(
         created_at: row.get(24)?,
         updated_at: row.get(25)?,
     })
-}
-
-fn data(value: &Value) -> Result<&Value, String> {
-    value
-        .get("data")
-        .ok_or_else(|| "Python sidecar response did not include data.".to_string())
 }
 
 fn descriptor_mode(descriptor: &Value) -> String {
@@ -1040,4 +1024,172 @@ fn insert_descriptor(
     )
     .map_err(|err| format!("Failed to insert {descriptor_set} descriptor record: {err}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::schema::INIT_SCHEMA_SQL;
+    use std::collections::HashSet;
+
+    fn seed_molecules_in_one_second(connection: &Connection, count: usize) {
+        for index in 0..count {
+            // Distinct sub-second timestamps that all collapse to the same `datetime()` value,
+            // exactly what a bulk import produces.
+            let created_at = format!("2026-08-20T09:00:00.{:09}+00:00", index);
+            connection
+                .execute(
+                    "INSERT INTO molecules (id, name, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?3)",
+                    params![
+                        format!("molecule-{index:03}"),
+                        format!("Molecule {index}"),
+                        created_at
+                    ],
+                )
+                .expect("molecule should be inserted");
+        }
+    }
+
+    fn page_ids(connection: &Connection, page_size: i64, offset: i64) -> Vec<String> {
+        let mut statement = connection
+            .prepare(&format!(
+                "SELECT id FROM molecules {MOLECULE_LIST_ORDER} LIMIT ?1 OFFSET ?2"
+            ))
+            .expect("paged query should prepare");
+        statement
+            .query_map(params![page_size, offset], |row| row.get::<_, String>(0))
+            .expect("paged query should run")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("paged rows should read")
+    }
+
+    #[test]
+    fn pagination_never_repeats_or_drops_rows_created_in_the_same_second() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(INIT_SCHEMA_SQL)
+            .expect("schema should initialize");
+        seed_molecules_in_one_second(&connection, 25);
+
+        let mut seen = Vec::new();
+        for page in 0..5 {
+            seen.extend(page_ids(&connection, 5, page * 5));
+        }
+
+        assert_eq!(seen.len(), 25);
+        assert_eq!(seen.iter().collect::<HashSet<_>>().len(), 25);
+    }
+
+    #[test]
+    fn molecule_list_order_is_stable_across_identical_queries() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(INIT_SCHEMA_SQL)
+            .expect("schema should initialize");
+        seed_molecules_in_one_second(&connection, 10);
+
+        let first = page_ids(&connection, 10, 0);
+        let second = page_ids(&connection, 10, 0);
+
+        assert_eq!(first, second);
+        assert_eq!(first.first().map(String::as_str), Some("molecule-009"));
+        assert_eq!(first.last().map(String::as_str), Some("molecule-000"));
+    }
+
+    fn seed_formulas(connection: &Connection, formulas: &[(&str, &str)]) {
+        for (index, (id, formula)) in formulas.iter().enumerate() {
+            connection
+                .execute(
+                    "INSERT INTO molecules (id, name, formula, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?4)",
+                    params![
+                        id,
+                        id,
+                        formula,
+                        format!("2026-08-20T09:00:00.{index:09}+00:00")
+                    ],
+                )
+                .expect("molecule should be inserted");
+        }
+    }
+
+    fn element_matches(connection: &Connection, element: &str) -> Vec<String> {
+        let mut statement = connection
+            .prepare(
+                "SELECT id FROM molecules
+                 WHERE ?1 = ''
+                    OR formula GLOB ('*' || ?1 || '[0-9A-Z]*')
+                    OR substr(formula, -length(?1)) = ?1
+                 ORDER BY id",
+            )
+            .expect("element query should prepare");
+        statement
+            .query_map(params![element], |row| row.get::<_, String>(0))
+            .expect("element query should run")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("rows should read")
+    }
+
+    #[test]
+    fn element_filter_does_not_match_a_longer_symbol_with_the_same_first_letter() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(INIT_SCHEMA_SQL)
+            .expect("schema should initialize");
+        seed_formulas(
+            &connection,
+            &[
+                ("brominated", "C20H42BrNO2"),
+                ("silicone", "C10H22SiO"),
+                ("sodium", "C8H18NaO"),
+                ("borate", "BF3"),
+                ("ends-with-boron", "C6H5B"),
+                ("thiophosphate", "C6H15O3PS2"),
+            ],
+        );
+
+        // Boron must not pick up bromine, sulfur must not pick up silicon, nitrogen must not
+        // pick up sodium.
+        assert_eq!(
+            element_matches(&connection, "B"),
+            vec!["borate".to_string(), "ends-with-boron".to_string()]
+        );
+        assert_eq!(
+            element_matches(&connection, "S"),
+            vec!["thiophosphate".to_string()]
+        );
+        assert_eq!(
+            element_matches(&connection, "N"),
+            vec!["brominated".to_string()]
+        );
+        assert_eq!(
+            element_matches(&connection, "P"),
+            vec!["thiophosphate".to_string()]
+        );
+    }
+
+    #[test]
+    fn molecule_references_names_every_record_still_pointing_at_the_molecule() {
+        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
+        connection
+            .execute_batch(INIT_SCHEMA_SQL)
+            .expect("schema should initialize");
+        seed_formulas(&connection, &[("mol-1", "C2H6O"), ("mol-2", "CH4")]);
+        connection
+            .execute(
+                "INSERT INTO additives (id, molecule_id, created_at, updated_at)
+                 VALUES ('add-1', 'mol-1', '2026-01-01', '2026-01-01')",
+                [],
+            )
+            .expect("additive should be inserted");
+
+        assert_eq!(
+            molecule_references(&connection, "mol-1").expect("reference check should work"),
+            vec!["1 additive records".to_string()]
+        );
+        assert!(molecule_references(&connection, "mol-2")
+            .expect("reference check should work")
+            .is_empty());
+    }
 }

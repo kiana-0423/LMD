@@ -7,7 +7,7 @@ import type {
   Molecule,
   MoleculeDescriptor,
   PerformanceResult
-} from "../types";
+} from "../../types";
 
 const now = "2026-06-18T12:00:00.000Z";
 

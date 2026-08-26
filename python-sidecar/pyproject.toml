@@ -3,23 +3,28 @@ name = "lmd-sidecar"
 version = "0.1.0"
 description = "Python scientific sidecar for Lubricant Materials Database"
 requires-python = ">=3.10,<3.13"
+# Pinned to the same versions as python-sidecar/requirements.lock, which is the set the test
+# suite and the packaged build are verified against. Unpinned, an editable install re-resolves
+# these to whatever the index is serving — which is how joblib and networkx came to be whatever
+# happened to be newest on the build machine.
 dependencies = [
-  "matplotlib",
-  "mordred",
-  "numpy",
-  "openpyxl",
-  "pandas",
-  "rdkit",
-  "scipy",
-  "scikit-learn"
+  "joblib==1.5.3",
+  "mordred==1.2.0",
+  "networkx==2.8.8",
+  "numpy==1.26.4",
+  "openpyxl==3.1.5",
+  "pandas==3.0.5",
+  "rdkit==2026.3.5",
+  "scipy==1.17.1",
+  "scikit-learn==1.9.0"
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest"
+  "pytest==9.0.3"
 ]
 build = [
-  "pyinstaller>=6.20,<7"
+  "pyinstaller==6.22.2"
 ]
 
 [tool.setuptools.packages.find]

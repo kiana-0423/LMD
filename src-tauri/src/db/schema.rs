@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS base_oils (
   notes TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  CONSTRAINT base_oil_name_is_not_blank CHECK (length(trim(name)) > 0),
   FOREIGN KEY (representative_molecule_id) REFERENCES molecules(id)
 );
 
@@ -74,6 +75,13 @@ CREATE TABLE IF NOT EXISTS additives (
   application_notes TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  -- A dosing range that runs backwards names no usable dose.
+  CONSTRAINT additive_typical_range_is_ordered
+    CHECK (
+      typical_concentration_min IS NULL
+      OR typical_concentration_max IS NULL
+      OR typical_concentration_min <= typical_concentration_max
+    ),
   FOREIGN KEY (molecule_id) REFERENCES molecules(id)
 );
 
@@ -88,7 +96,11 @@ CREATE TABLE IF NOT EXISTS formulations (
   stability_observation TEXT,
   notes TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  CONSTRAINT formulation_name_is_not_blank CHECK (length(trim(name)) > 0),
+  -- A blend cannot have been prepared for a negative length of time.
+  CONSTRAINT formulation_preparation_time_is_not_negative
+    CHECK (preparation_time IS NULL OR preparation_time >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS formulation_components (
@@ -103,6 +115,21 @@ CREATE TABLE IF NOT EXISTS formulation_components (
   concentration_standard_value REAL,
   concentration_standard_unit TEXT,
   notes TEXT,
+  CONSTRAINT component_role_is_known
+    CHECK (component_role IN ('base_oil', 'additive', 'solvent', 'other')),
+  -- Exactly one entity, so a recorded concentration is never ambiguous. An empty string counts
+  -- as absent: older writers stored '' where they meant NULL.
+  CONSTRAINT component_references_exactly_one_entity
+    CHECK (
+      (CASE WHEN molecule_id IS NOT NULL AND molecule_id <> '' THEN 1 ELSE 0 END)
+      + (CASE WHEN base_oil_id IS NOT NULL AND base_oil_id <> '' THEN 1 ELSE 0 END)
+      + (CASE WHEN additive_id IS NOT NULL AND additive_id <> '' THEN 1 ELSE 0 END) = 1
+    ),
+  -- A component present at zero concentration is not a component.
+  CONSTRAINT component_concentration_is_positive
+    CHECK (concentration_value IS NULL OR concentration_value > 0),
+  CONSTRAINT component_standard_concentration_is_positive
+    CHECK (concentration_standard_value IS NULL OR concentration_standard_value > 0),
   FOREIGN KEY (formulation_id) REFERENCES formulations(id),
   FOREIGN KEY (molecule_id) REFERENCES molecules(id),
   FOREIGN KEY (base_oil_id) REFERENCES base_oils(id),
@@ -172,6 +199,9 @@ CREATE TABLE IF NOT EXISTS performance_results (
   notes TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  -- A result was measured over at least one run, or the count was never recorded.
+  CONSTRAINT result_repeat_count_is_at_least_one
+    CHECK (repeat_count IS NULL OR repeat_count >= 1),
   FOREIGN KEY (experiment_id) REFERENCES experiments(id)
 );
 
@@ -211,6 +241,32 @@ CREATE TABLE IF NOT EXISTS jobs (
   input_json TEXT,
   output_json TEXT,
   error_message TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS models (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  target TEXT NOT NULL,
+  task TEXT NOT NULL,
+  algorithm TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  relative_path TEXT NOT NULL,
+  feature_order TEXT NOT NULL,
+  metrics_json TEXT NOT NULL,
+  sample_count INTEGER NOT NULL,
+  feature_count INTEGER NOT NULL,
+  trained_at TEXT NOT NULL,
+  split_method TEXT NOT NULL DEFAULT 'unknown',
+  dataset_mode TEXT NOT NULL DEFAULT 'additive_component',
+  interpretation TEXT NOT NULL DEFAULT '',
+  group_count INTEGER NOT NULL DEFAULT 0,
+  validated INTEGER NOT NULL DEFAULT 0,
+  feature_schema_version TEXT NOT NULL DEFAULT '1',
+  concentration_basis TEXT NOT NULL DEFAULT 'unrecorded',
+  dataset_report_json TEXT NOT NULL DEFAULT '{}',
+  notes TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

@@ -1,11 +1,61 @@
--e .
-matplotlib==3.11.0
+# The exact dependency set the LMD sidecar is built and tested against.
+#
+# Measured from the environment the sidecar is actually built in — the Conda environment
+# `lmd-build`, running Python 3.11.14 — after confirming it passes the full sidecar test suite
+# (64 tests) and `python -m pip check`. It is not a wish list: `scripts/check_python_lock.py`
+# compares a live interpreter against this file and `scripts/build_sidecar.py` refuses to build
+# when they disagree, so a version here that nobody has installed would only ever block a build.
+#
+# This is a complete lock, not a list of direct dependencies. The previous file pinned nine
+# packages and began with `-e .`, which had two consequences worth spelling out:
+#
+#   * `-e .` is resolved relative to the *working directory*, so `pip install -r
+#     python-sidecar/requirements.lock` from the repository root tried to install the repository
+#     root as a Python project and failed.
+#   * An editable install re-resolves the project's own dependencies, so anything not pinned here —
+#     joblib, networkx, threadpoolctl, python-dateutil — was whatever the index happened to be
+#     serving that day. joblib and networkx are not optional extras: scikit-learn cannot save or
+#     load a model without joblib, and Mordred cannot build a molecular graph without networkx.
+#     Both were unpinned, and both are the kind of dependency whose next release quietly changes
+#     behaviour the shipped application depends on.
+#
+# To install:      <python> -m pip install -r python-sidecar/requirements.lock
+# To verify:       npm run sidecar:check-lock
+#
+# Hashes are deliberately not used. RDKit and SciPy publish per-platform wheels, and a hash set
+# recorded on Apple Silicon makes the file unusable on the Windows x64 build machine — which is a
+# supported target. The versions are exact, which is the property that matters for reproducibility
+# across the two platforms this ships on.
+
+# --- Scientific runtime: imported by the packaged sidecar's production commands ---
+joblib==1.5.3
 mordred==1.2.0
-numpy==1.23.5
+networkx==2.8.8
+numpy==1.26.4
 openpyxl==3.1.5
-pandas==2.3.3
+pandas==3.0.5
+rdkit==2026.3.5
+scikit-learn==1.9.0
+scipy==1.17.1
+
+# --- Transitive, but load-bearing: a mismatch here changes what the sidecar returns ---
+# pandas 3 no longer depends on pytz or tzdata, so neither is pinned; both were in the previous
+# lock and are absent from every environment this is built in.
+et_xmlfile==2.0.0
+pillow==12.3.0
+python-dateutil==2.9.0.post0
+six==1.17.0
+threadpoolctl==3.6.0
+
+# --- Build only: PyInstaller and its own dependencies. Not present at runtime. ---
+altgraph==0.17.5
+macholib==1.16.4; sys_platform == "darwin"
+packaging==26.2
 pyinstaller==6.22.2
+pyinstaller-hooks-contrib==2026.6
+
+# --- Development only: the test suite. ---
+iniconfig==2.3.0
+pluggy==1.6.0
 pytest==9.0.3
-rdkit==2026.3.3
-scikit-learn==1.7.2
-scipy==1.15.2
+Pygments==2.21.0
