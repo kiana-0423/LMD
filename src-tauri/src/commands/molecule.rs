@@ -106,6 +106,7 @@ pub struct ImportNewMoleculePayload {
     pub duplicate_of: Option<String>,
     pub import_mode: Option<String>,
     pub source: Option<String>,
+    pub notes: Option<String>,
 }
 
 #[tauri::command]
@@ -503,7 +504,7 @@ pub async fn import_new_molecule(
             structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
             rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, source_id, notes,
             created_at, updated_at
-         ) VALUES (?1, ?2, '', ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?15, '', ?23, ?23)",
+         ) VALUES (?1, ?2, '', ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?15, ?24, ?23, ?23)",
         params![
             &molecule_id,
             &payload.name,
@@ -527,7 +528,8 @@ pub async fn import_new_molecule(
             &rdkit_status,
             &mordred_status,
             if descriptor_ready { 1 } else { 0 },
-            &now
+            &now,
+            payload.notes.as_deref().unwrap_or_default()
         ],
     )
     .map_err(|err| format!("Failed to import molecule: {err}"))?;

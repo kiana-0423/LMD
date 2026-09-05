@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Descriptions, Dropdown, Form, Input, Modal, Select, Space, Tabs, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Descriptions, Dropdown, Form, Input, Modal, Select, Space, Tabs, Tag, Tooltip, Typography, message } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
@@ -8,6 +9,7 @@ import {
   calculateSketcherDescriptors,
   checkMoleculeDuplicate,
   importNewMolecule,
+  importSketcherStructure,
   molfileToSmiles,
   smilesToMolfile,
   validateSketcherSmiles
@@ -56,10 +58,54 @@ export default function MoleculeSketcherPage() {
   const [failure, setFailure] = useState<{ summary: string; detail: string }>();
   const [loadingAction, setLoadingAction] = useState<string>();
   const [infoTab, setInfoTab] = useState("information");
+  const [editorReady, setEditorReady] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const loadingDepth = useRef(0);
+  const canvasRevision = useRef(0);
+  const canvasActive = useRef(false);
+  const [canvasStructure, setCanvasStructure] = useState<{ smiles: string; molfile: string }>();
+  const [importReview, setImportReview] = useState<{ filename: string; format: "pdb" | "mol2"; bondIds: string[]; normalizedAtomTypes: string[] }>();
+
+  function canvasEdited() {
+    canvasActive.current = true;
+    canvasRevision.current += 1;
+    setCanonicalSmiles("");
+    setMetadata(undefined);
+    setDescriptorResult(undefined);
+    setFailure(undefined);
+    setStatusKey("sketcher.notSaved");
+  }
+
+  function canvasChanged(structure: { smiles: string; molfile: string }) {
+    setInputSmiles(structure.smiles);
+    setMolfile(structure.molfile);
+    setCanvasStructure(structure);
+  }
+
+  useEffect(() => {
+    if (!canvasStructure) return;
+    const version = canvasRevision.current;
+    let cancelled = false;
+    if (!canvasStructure.smiles && !canvasStructure.molfile) return;
+    const timer = setTimeout(() => {
+      const request = canvasStructure.smiles
+        ? validateSketcherSmiles(canvasStructure.smiles) : molfileToSmiles(canvasStructure.molfile);
+      void request.then((result) => {
+        if (cancelled || version !== canvasRevision.current) return;
+        if (result.valid) {
+          setMetadata(result);
+          setCanonicalSmiles(result.canonicalSmiles || result.smilesCanonical || "");
+        }
+      }).catch((error) => {
+        if (!cancelled && version === canvasRevision.current) setFailure(describeBackendError(error, t));
+      });
+    }, 450);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [canvasStructure, t]);
 
   useEffect(() => {
     const moleculeId = searchParams.get("moleculeId");
-    if (!moleculeId) return;
+    if (!moleculeId || !editorReady) return;
     getMolecule(moleculeId).then(async (molecule) => {
       if (!molecule) return;
       setName(molecule.name);
@@ -80,7 +126,7 @@ export default function MoleculeSketcherPage() {
       await editorRef.current?.setMolecule(molecule.molfile || molecule.molBlock || molecule.smilesCanonical, molecule.molfile || molecule.molBlock ? "molfile" : "smiles");
       setStatusKey("sketcher.loadedFromLibrary");
     });
-  }, [searchParams]);
+  }, [searchParams, editorReady]);
 
   const descriptorPreview = useMemo(
     () => Object.entries(descriptorResult?.preview ?? {}).filter(([, value]) => value !== undefined && value !== null && value !== ""),
@@ -96,7 +142,7 @@ export default function MoleculeSketcherPage() {
    * click is a real defect, not a test artifact.
    */
   async function withLoading<T>(action: string, task: () => Promise<T>) {
-    setLoadingAction(action);
+    if (loadingDepth.current++ === 0) setLoadingAction(action);
     setFailure(undefined);
     try {
       return await task();
@@ -107,7 +153,7 @@ export default function MoleculeSketcherPage() {
       setInfoTab("status");
       throw error;
     } finally {
-      setLoadingAction(undefined);
+      if (--loadingDepth.current === 0) setLoadingAction(undefined);
     }
   }
 
@@ -124,8 +170,9 @@ export default function MoleculeSketcherPage() {
 
   async function readStructureOrFail() {
     const editorSmiles = (await editorRef.current?.getSmiles()) || "";
-    const smiles = (editorSmiles || canonicalSmiles || inputSmiles).trim();
-    const currentMolfile = ((await editorRef.current?.getMolfile()) || molfile).trim();
+    const smiles = (canvasActive.current ? editorSmiles : editorSmiles || inputSmiles || canonicalSmiles).trim();
+    const editorMolfile = await editorRef.current?.getMolfile();
+    const currentMolfile = canvasActive.current ? editorMolfile || "" : editorMolfile || molfile;
     if (!smiles && !currentMolfile) {
       throw new Error(coded(SKETCHER_ERRORS.needsStructure, "No SMILES and no drawn structure."));
     }
@@ -134,6 +181,7 @@ export default function MoleculeSketcherPage() {
 
   async function generateSmiles() {
     return withLoading("generate", async () => {
+      const version = canvasRevision.current;
       const structure = await readStructureOrFail();
       let result: SketcherValidationResult;
       if (structure.smiles) {
@@ -143,11 +191,13 @@ export default function MoleculeSketcherPage() {
         result = await molfileToSmiles(structure.molfile);
         setMolfile(structure.molfile);
       }
+      if (version !== canvasRevision.current) throw new Error(coded("structure.processingFailed", "The canvas changed during validation. Generate SMILES again."));
       if (!result.valid) throw new Error(coded(SKETCHER_ERRORS.invalidSmiles, result.error ?? ""));
       setMetadata(result);
       const canonical = result.canonicalSmiles || result.smilesCanonical || "";
       if (!canonical.trim()) throw new Error(coded(SKETCHER_ERRORS.needsCanonical, ""));
       setCanonicalSmiles(canonical);
+      setMolfile(structure.molfile);
       setStatusKey("sketcher.canonicalGenerated");
       setInfoTab("status");
       return result;
@@ -180,7 +230,8 @@ export default function MoleculeSketcherPage() {
 
   async function calculateDescriptors(allowFailure = false) {
     return withLoading("descriptors", async () => {
-      const smiles = canonicalSmiles || (await generateSmiles())?.canonicalSmiles || "";
+      const validation = await generateSmiles();
+      const smiles = validation.canonicalSmiles || validation.smilesCanonical || "";
       if (!smiles) throw new Error(coded(SKETCHER_ERRORS.invalidSmiles, ""));
       const descriptors = await calculateSketcherDescriptors(smiles);
       setDescriptorResult(descriptors);
@@ -243,7 +294,7 @@ export default function MoleculeSketcherPage() {
         tags,
         originalSmiles: originalSmiles || canonical,
         canonicalSmiles: canonical,
-        molfile: molfile || (await editorRef.current?.getMolfile()) || "",
+        molfile: (await editorRef.current?.getMolfile()) || molfile || "",
         formula,
         molecularWeight: validation.molecularWeight || metadata?.molecularWeight || 0,
         inchikey,
@@ -258,7 +309,8 @@ export default function MoleculeSketcherPage() {
         },
         duplicateOf,
         importMode: mode,
-        source: molfile ? "molfile_input" : originalSmiles || inputSmiles ? "smiles_input" : "ketcher"
+        source: molfile ? "molfile_input" : originalSmiles || inputSmiles ? "smiles_input" : "ketcher",
+        notes: importReview ? JSON.stringify({ structureImport: importReview }) : undefined
       };
       const result = await importNewMolecule(payload);
       if (!result.success) throw new Error(coded(SKETCHER_ERRORS.saveFailed, result.error ?? ""));
@@ -296,6 +348,7 @@ export default function MoleculeSketcherPage() {
   }
 
   async function clearCanvas() {
+    canvasEdited();
     await editorRef.current?.clear();
     setInputSmiles("");
     setCanonicalSmiles("");
@@ -306,6 +359,30 @@ export default function MoleculeSketcherPage() {
     setStatusKey("sketcher.notSaved");
     setFailure(undefined);
     setInfoTab("information");
+    setImportReview(undefined);
+  }
+
+  async function importStructureFile(file: File) {
+    if (loadingDepth.current) return;
+    await withLoading("file", async () => {
+      const format = file.name.split(".").pop()?.toLowerCase();
+      if (format !== "pdb" && format !== "mol2") throw new Error(t("sketcher.structureFileOnly"));
+      if (!file.size) throw new Error(t("sketcher.structureFileEmpty"));
+      if (file.size > 5 * 1024 * 1024) throw new Error(t("sketcher.structureFileTooLarge"));
+      const result = await importSketcherStructure(await file.text(), format);
+      if (!editorRef.current) throw new Error(t("ui.loadingKetcher"));
+      await editorRef.current.setMolecule(result.molfile, "molfile");
+      const canonical = result.validation.canonicalSmiles || result.validation.smilesCanonical || "";
+      setName((previous) => previous.trim() ? previous : file.name.replace(/\.(pdb|mol2)$/i, ""));
+      setInputSmiles(canonical);
+      setCanonicalSmiles(canonical);
+      setOriginalSmiles(canonical);
+      setMolfile(result.molfile);
+      setMetadata(result.validation);
+      setDescriptorResult(undefined);
+      setImportReview({ filename: file.name, format, bondIds: result.inferredBondIds, normalizedAtomTypes: result.normalizedAtomTypes ?? [] });
+      setStatusKey("sketcher.structureLoaded");
+    });
   }
 
   function exportData(kind: "smiles" | "molfile" | "csv") {
@@ -343,14 +420,32 @@ export default function MoleculeSketcherPage() {
         description={t("ui.drawMoleculesGenerateCanonicalSmilesCalculat")}
       />
       <div className="sketcher-layout">
-        <KetcherEditor ref={editorRef} loading={Boolean(loadingAction)} onChange={({ smiles, molfile }) => {
-          setInputSmiles(smiles);
-          setMolfile(molfile);
-        }} />
+        <KetcherEditor ref={editorRef} loading={Boolean(loadingAction)} onReady={setEditorReady}
+          onEdit={canvasEdited} onChange={canvasChanged} toolbar={
+            <div className="sketcher-import-toolbar">
+              <input ref={fileInput} type="file" accept=".pdb,.mol2" hidden aria-label={t("sketcher.importStructure")}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void importStructureFile(file).catch(() => undefined);
+                }} />
+              <Typography.Text className="sketcher-canvas-formula" title={metadata?.formula}>
+                {t("ui.molecularFormula")}: <span translate="no" data-testid="canvas-formula">{metadata?.formula || "—"}</span>
+              </Typography.Text>
+              {importReview && (importReview.format === "pdb" || importReview.bondIds.length > 0 || importReview.normalizedAtomTypes.length > 0) && (
+                <Tooltip title={importReview.format === "pdb" ? t("sketcher.pdbReview") : t("sketcher.mol2Review", { count: importReview.bondIds.length, atomCount: importReview.normalizedAtomTypes.length })}>
+                  <Tag tabIndex={0} color="orange">{t("sketcher.reviewBonds")}</Tag>
+                </Tooltip>
+              )}
+              <Button className="sketcher-import-button" size="small" icon={<UploadOutlined />}
+                disabled={!editorReady || Boolean(loadingAction)} loading={loadingAction === "file"}
+                onClick={() => fileInput.current?.click()}>{t("sketcher.importStructure")}</Button>
+            </div>
+          } />
         <Card className="sketcher-info-panel">
           <Tabs activeKey={infoTab} onChange={setInfoTab} className="sketcher-info-tabs" items={[
             { key: "information", label: t("ui.moleculeInformation"), forceRender: true, children: (
-          <Form layout="vertical" size="small" className="sketcher-compact-form">
+          <Form layout="vertical" size="small" className="sketcher-compact-form" disabled={Boolean(loadingAction)}>
             <Form.Item label={t("ui.smilesInput")} className="sketcher-form-full">
               <Input.TextArea
                 className="mono"
@@ -414,13 +509,13 @@ export default function MoleculeSketcherPage() {
             </>) }
           ]} />
           <Space className="sketcher-actions" wrap>
-            <Button loading={loadingAction === "generate"} onClick={handle(generateSmiles)}>{t("ui.generateSmiles")}</Button>
-            <Button loading={loadingAction === "load"} onClick={handle(loadFromSmiles)}>{t("ui.loadFromSmiles")}</Button>
-            <Button loading={loadingAction === "validate"} onClick={handle(validateMolecule)}>{t("ui.validate")}</Button>
-            <Button loading={loadingAction === "descriptors"} onClick={handle(() => calculateDescriptors())}>{t("ui.calculateDescriptors")}</Button>
+            <Button disabled={Boolean(loadingAction)} loading={loadingAction === "generate"} onClick={handle(generateSmiles)}>{t("ui.generateSmiles")}</Button>
+            <Button disabled={Boolean(loadingAction)} loading={loadingAction === "load"} onClick={handle(loadFromSmiles)}>{t("ui.loadFromSmiles")}</Button>
+            <Button disabled={Boolean(loadingAction)} loading={loadingAction === "validate"} onClick={handle(validateMolecule)}>{t("ui.validate")}</Button>
+            <Button disabled={Boolean(loadingAction)} loading={loadingAction === "descriptors"} onClick={handle(() => calculateDescriptors())}>{t("ui.calculateDescriptors")}</Button>
           </Space>
           <Space className="sketcher-save-actions" wrap>
-            <Button type="primary" loading={loadingAction === "save"} onClick={handle(() => saveToLibrary(false))}>{t("ui.saveToMoleculeLibrary")}</Button>
+            <Button type="primary" disabled={Boolean(loadingAction)} loading={loadingAction === "save"} onClick={handle(() => saveToLibrary(false))}>{t("ui.saveToMoleculeLibrary")}</Button>
             <Dropdown trigger={["click"]} menu={{ items: [
               { key: "import", label: t("ui.importAsNewMolecule"), onClick: handle(importAsNewMolecule) },
               { key: "save-view", label: t("ui.saveAndView"), onClick: handle(() => saveToLibrary(true)) },

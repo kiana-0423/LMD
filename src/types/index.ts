@@ -379,6 +379,7 @@ export interface ImportNewMoleculePayload {
   duplicateOf?: string;
   importMode: "manual_save" | "new_import" | "new_copy" | "library_update";
   source: "ketcher" | "smiles_input" | "molfile_input" | "library_edit";
+  notes?: string;
 }
 
 export interface ImportNewMoleculeResult {

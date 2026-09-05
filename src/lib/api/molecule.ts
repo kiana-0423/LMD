@@ -11,6 +11,19 @@ import type {
 import type { SaveMoleculeWithRequiredDescriptorsPayload } from "./payloads";
 import { toEntityDeletion } from "./deletion";
 import { invokeCommand } from "../tauri";
+import { coded } from "../backendErrors";
+
+/** Parse the atom/bond records locally; importing does not save a molecule. */
+export async function mol2ToSmiles(inputText: string): Promise<{ smiles: string; inferredBondIds: string[]; normalizedAtomTypes: string[] }> {
+  const value = await invokeCommand<{ data: { content: string; inferred_bond_ids?: string[]; normalized_atom_types?: string[] } }>("convert_molecule_format", {
+    inputText,
+    inputFormat: "mol2",
+    outputFormat: "smiles"
+  });
+  const smiles = value?.data?.content?.trim();
+  if (!smiles) throw new Error(coded("structure.processingFailed", "MOL2 conversion returned no SMILES."));
+  return { smiles, inferredBondIds: value.data.inferred_bond_ids ?? [], normalizedAtomTypes: value.data.normalized_atom_types ?? [] };
+}
 
 export async function listMoleculePage(filter: MoleculeListFilter = {}) {
   return invokeCommand<MoleculePage>("list_molecules", { filter });

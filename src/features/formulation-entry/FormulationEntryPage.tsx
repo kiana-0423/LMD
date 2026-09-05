@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, message } from "antd";
+import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Tooltip, message } from "antd";
 import { useState } from "react";
 
 import PageHeader from "../../components/PageHeader";
@@ -127,11 +127,16 @@ export default function FormulationEntryPage() {
       <PageHeader title={t("ui.formulationEntry")} description={t("ui.selectABaseOilAndAdditivesDefineComponent")}
         extra={<Button type="primary" disabled={options.loading || Boolean(options.error)} loading={save.running} onClick={() => void save.run()}>{t("ui.saveFormulation")}</Button>}
       />
-      <Card>
-        <Alert type="info" showIcon message={t("entry.noAssumedValues")} className="formulation-entry-notice" />
+      <Card className="formulation-entry-card">
+        <Tooltip title={t("entry.noAssumedValues")} trigger={["hover", "focus"]}>
+          <div tabIndex={0} className="formulation-entry-notice-wrap">
+            <Alert type="info" showIcon message={t("entry.noAssumedValues")} className="formulation-entry-notice" />
+          </div>
+        </Tooltip>
         <AsyncBoundary loading={options.loading} error={options.error} onRetry={options.reload} rows={3}>
         <Form
           form={form}
+          className="formulation-entry-form"
           layout="vertical"
           size="small"
           // Only units, never values. `99 wt%` base oil, `1 wt%` additive and `stirring` used to
@@ -145,6 +150,7 @@ export default function FormulationEntryPage() {
         >
           <div className="formulation-entry-columns">
             <div className="form-section">
+              <h3 className="formulation-section-title"><span aria-hidden="true">01</span>{t("formulation.entryBaseOil")}</h3>
               <Form.Item label={t("ui.formulationName")} name="name" rules={[{ required: true, message: t("ui.enterAFormulationName") }]}>
                 <Input placeholder={t("ui.examplePao6Zddp10")} />
               </Form.Item>
@@ -171,29 +177,7 @@ export default function FormulationEntryPage() {
               </Form.Item>
             </div>
             <div className="form-section">
-              <Form.Item label={t("ui.preparationMethod")} name="preparationMethod">
-                <Select
-                  allowClear
-                  placeholder={t("entry.selectPreparationMethod")}
-                  options={["stirring", "ultrasonication", "heating", "other"].map((value) => ({
-                    value,
-                    label: commonOptionLabelKeys[value] ? t(commonOptionLabelKeys[value]) : value
-                  }))}
-                />
-              </Form.Item>
-              <div className="formulation-entry-pair">
-                <Form.Item label={t("ui.preparationTemperature")} name="preparationTemperature">
-                  <InputNumber addonAfter="C" />
-                </Form.Item>
-                <Form.Item label={t("ui.preparationTime")} name="preparationTime">
-                  <InputNumber addonAfter="min" />
-                </Form.Item>
-              </div>
-              <Form.Item label={t("ui.stabilityObservation")} name="stabilityObservation">
-                <Input.TextArea rows={2} />
-              </Form.Item>
-            </div>
-            <div className="form-section">
+              <h3 className="formulation-section-title"><span aria-hidden="true">02</span>{t("formulation.entryAdditives")}</h3>
               <Form.List name="additives">
                 {(fields, { add, remove }) => (
                   <>
@@ -243,6 +227,30 @@ export default function FormulationEntryPage() {
                   </>
                 )}
               </Form.List>
+            </div>
+            <div className="form-section">
+              <h3 className="formulation-section-title"><span aria-hidden="true">03</span>{t("formulation.entryPreparation")}</h3>
+              <Form.Item label={t("ui.preparationMethod")} name="preparationMethod">
+                <Select
+                  allowClear
+                  placeholder={t("entry.selectPreparationMethod")}
+                  options={["stirring", "ultrasonication", "heating", "other"].map((value) => ({
+                    value,
+                    label: commonOptionLabelKeys[value] ? t(commonOptionLabelKeys[value]) : value
+                  }))}
+                />
+              </Form.Item>
+              <div className="formulation-entry-pair">
+                <Form.Item label={t("ui.preparationTemperature")} name="preparationTemperature">
+                  <InputNumber addonAfter="C" />
+                </Form.Item>
+                <Form.Item label={t("ui.preparationTime")} name="preparationTime">
+                  <InputNumber addonAfter="min" />
+                </Form.Item>
+              </div>
+              <Form.Item label={t("ui.stabilityObservation")} name="stabilityObservation">
+                <Input.TextArea rows={2} />
+              </Form.Item>
             </div>
           </div>
         </Form>

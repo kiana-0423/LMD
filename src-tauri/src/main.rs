@@ -78,6 +78,7 @@ pub fn run() {
             molecule::import_new_molecule,
             molecule::save_molecule_with_required_descriptors,
             molecule_visualization::generate_molecule_3d,
+            molecule_visualization::convert_molecule_format,
             molecule_visualization::export_molecule_file,
             descriptor::batch_calculate_descriptors,
             descriptor::recalculate_failed_descriptors,

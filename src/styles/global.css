@@ -1189,6 +1189,255 @@ body {
 }
 
 /* Formulation entry occupies one workspace; component count never increases its height. */
+.molecule-entry-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+}
+
+.molecule-entry-page > [data-page-header] {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.molecule-entry-form {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.molecule-entry-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+.molecule-entry-columns > .ant-card,
+.molecule-entry-result > .ant-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.molecule-entry-page .ant-card-head {
+  flex: 0 0 auto;
+  min-height: 34px;
+}
+
+.molecule-entry-page .ant-card-body {
+  padding: 8px;
+  min-height: 0;
+}
+
+.molecule-entry-fields,
+.molecule-entry-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.molecule-entry-wide {
+  grid-column: 1 / -1;
+}
+
+.molecule-entry-fields .ant-form-item {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.molecule-entry-fields .ant-form-item-label {
+  padding-bottom: 2px;
+}
+
+.molecule-entry-page textarea {
+  resize: none;
+}
+
+.molecule-entry-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.molecule-entry-import > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.molecule-entry-import-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.molecule-entry-import-line > .ant-typography {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.molecule-entry-import-line > .ant-btn {
+  flex: 0 0 auto;
+}
+
+.molecule-entry-import .ant-alert {
+  padding: 4px 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.molecule-entry-import .ant-alert-content {
+  min-width: 0;
+}
+
+.molecule-entry-import .ant-alert-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.molecule-entry-output > .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  gap: 6px;
+}
+
+.molecule-entry-steps,
+.molecule-entry-result {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.molecule-entry-steps.ant-steps-vertical .ant-steps-item-content {
+  min-height: 36px;
+}
+
+@media (max-height: 700px) {
+  .molecule-entry-fields {
+    gap: 4px 8px;
+  }
+
+  .molecule-entry-fields .ant-form-item-label {
+    padding-bottom: 0;
+  }
+}
+
+.molecule-entry-result {
+  display: grid;
+  grid-template-rows: minmax(60px, 1fr) auto;
+  gap: 8px;
+}
+
+.molecule-entry-result .structure-preview-card > .ant-card-body {
+  display: flex;
+  flex: 1 1 0;
+}
+
+.molecule-entry-result .structure-preview {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.molecule-entry-result .structure-preview img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.molecule-entry-save {
+  flex: 0 0 auto;
+}
+
+.molecule-entry-save .entry-progress {
+  margin: 4px 0;
+}
+
+.molecule-entry-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.molecule-entry-save-actions > .ant-btn {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 24px;
+  white-space: normal;
+}
+
+/* Catalogue editors fit one dialog; tag selections never add form rows. */
+.catalogue-editor-modal .ant-modal-content {
+  padding: 16px 20px;
+}
+
+.catalogue-editor-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.catalogue-editor-form .ant-form-item {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.catalogue-editor-form .ant-form-item-label {
+  padding-bottom: 3px;
+}
+
+.catalogue-editor-wide,
+.catalogue-property-grid {
+  grid-column: 1 / -1;
+}
+
+.catalogue-property-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.catalogue-editor-form .ant-input-number {
+  width: 100%;
+}
+
+.catalogue-editor-form textarea {
+  resize: none;
+}
+
+@media (max-height: 700px) {
+  .catalogue-editor-modal .ant-modal-content {
+    padding: 12px 16px;
+  }
+
+  .catalogue-editor-form,
+  .catalogue-property-grid {
+    row-gap: 4px;
+  }
+
+  .catalogue-property-grid {
+    padding: 6px 8px;
+  }
+}
+
 .formulation-entry-page {
   height: 100%;
   min-height: 0;
@@ -1199,16 +1448,65 @@ body {
   margin-bottom: 0;
 }
 
+.formulation-entry-card > .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.formulation-entry-form {
+  flex: 1;
+  min-height: 0;
+}
+
+.formulation-entry-notice-wrap {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
 .formulation-entry-page .formulation-entry-notice {
   margin-bottom: 8px;
   padding: 4px 10px;
 }
 
+.formulation-entry-notice .ant-alert-content {
+  min-width: 0;
+}
+
+.formulation-entry-notice .ant-alert-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .formulation-entry-columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: stretch;
+  height: 100%;
+  gap: 12px;
+}
+
+.formulation-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.formulation-section-title > span {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #e6f4f1;
+  color: #0f766e;
+  font-size: 12px;
 }
 
 .formulation-entry-pair {
@@ -1242,7 +1540,11 @@ body {
 }
 
 .formulation-additive-toolbar > .ant-select {
-  flex: 1;
+  flex: 1 1 0;
+}
+
+.formulation-additive-toolbar > .ant-btn {
+  flex: 0 0 auto;
 }
 
 @container workspace (max-width: 800px) {
@@ -1303,6 +1605,40 @@ body {
   min-height: 0;
 }
 
+.molecule-sketcher-page .ketcher-card .ant-card-head {
+  padding-inline: 12px;
+}
+
+.sketcher-import-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sketcher-import-toolbar > .ant-tag {
+  flex: 0 0 auto;
+  margin-inline-end: 0;
+}
+
+.sketcher-import-toolbar > .sketcher-import-button {
+  flex: 0 0 auto;
+  height: 28px;
+  padding-inline: 10px;
+}
+
+.sketcher-canvas-formula {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sketcher-info-tabs > .ant-tabs-nav {
   margin-bottom: 8px;
 }
@@ -1344,6 +1680,10 @@ body {
   }
 
   .molecule-sketcher-page .ketcher-card .ant-card-head {
+    padding-inline: 8px;
+  }
+
+  .sketcher-import-toolbar {
     padding-inline: 8px;
   }
 }

@@ -12,6 +12,24 @@ import type {
   SidecarValidationRaw
 } from "../types";
 import { invokeCommand } from "./tauri";
+import { coded } from "./backendErrors";
+
+export async function importSketcherStructure(inputText: string, inputFormat: "pdb" | "mol2") {
+  const value = await invokeCommand<{ data: {
+    content: string; canonical_smiles: string; formula: string; molecular_weight: number;
+    inchi_key: string; inferred_bond_ids?: string[]; normalized_atom_types?: string[];
+  } }>("convert_molecule_format", { inputText, inputFormat, outputFormat: "mol", generate2d: true });
+  const data = value?.data;
+  if (!data?.content?.trim() || !data.canonical_smiles?.trim() || !data.formula) {
+    throw new Error(coded("structure.processingFailed", "Structure import returned no editable molecule or formula."));
+  }
+  return {
+    molfile: data.content,
+    validation: camelValidation({ valid: true, ...data }),
+    inferredBondIds: data.inferred_bond_ids ?? [],
+    normalizedAtomTypes: data.normalized_atom_types ?? []
+  };
+}
 
 function unwrapData<T>(value: SidecarResponse<T>): T {
   return (value.data ?? value) as T;

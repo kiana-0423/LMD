@@ -1,4 +1,5 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
+import type { Ketcher } from "ketcher-core";
 import { Alert, Button, Card, Space, Spin, Tag, Typography } from "antd";
 import { Editor } from "ketcher-react";
 /**
@@ -20,12 +21,9 @@ import { StandaloneStructServiceProvider } from "ketcher-standalone/dist/binaryW
 import "ketcher-react/dist/index.css";
 import { useLanguage } from "../../i18n/LanguageContext";
 import KetcherTranslationBridge from "./KetcherTranslationBridge";
+import { coded } from "../../lib/backendErrors";
 
-type KetcherApi = {
-  getSmiles: () => Promise<string>;
-  getMolfile: () => Promise<string>;
-  setMolecule: (structure: string) => Promise<void | undefined>;
-};
+type KetcherApi = Pick<Ketcher, "getSmiles" | "getMolfile" | "setMolecule" | "editor">;
 
 export type KetcherEditorHandle = {
   getSmiles: () => Promise<string>;
@@ -36,15 +34,47 @@ export type KetcherEditorHandle = {
 
 type Props = {
   loading?: boolean;
+  toolbar?: ReactNode;
+  onReady?: (ready: boolean) => void;
+  onEdit?: () => void;
   onChange?: (state: { smiles: string; molfile: string }) => void;
 };
 
-const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, onChange }, ref) => {
+const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, toolbar, onReady, onEdit, onChange }, ref) => {
   const { t } = useLanguage();
   const ketcherRef = useRef<KetcherApi>();
   const [ready, setReady] = useState(false);
   const [errorText, setErrorText] = useState("");
   const structServiceProvider = useMemo(() => new StandaloneStructServiceProvider(), []);
+  const callbacks = useRef({ onReady, onEdit, onChange });
+  callbacks.current = { onReady, onEdit, onChange };
+  const changeVersion = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const shell = useRef<HTMLDivElement>(null);
+  const notifyRef = useRef(notifyChange);
+  notifyRef.current = notifyChange;
+
+  useEffect(() => {
+    shell.current?.toggleAttribute("inert", Boolean(loading));
+  }, [loading]);
+
+  useEffect(() => {
+    const ketcher = ketcherRef.current;
+    if (!ready || !ketcher) return;
+    callbacks.current.onReady?.(true);
+    const subscriber = ketcher.editor.subscribe("change", () => {
+      changeVersion.current += 1;
+      callbacks.current.onEdit?.();
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => { void notifyRef.current(); }, 250);
+    });
+    return () => {
+      changeVersion.current += 1;
+      clearTimeout(timer.current);
+      ketcher.editor.unsubscribe("change", subscriber);
+      callbacks.current.onReady?.(false);
+    };
+  }, [ready]);
 
   async function readStructure() {
     const ketcher = ketcherRef.current;
@@ -53,12 +83,13 @@ const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, onChang
       ketcher.getSmiles().catch(() => ""),
       ketcher.getMolfile().catch(() => "")
     ]);
-    return { smiles: smiles.trim(), molfile: molfile.trim() };
+    return { smiles: smiles.trim(), molfile };
   }
 
   async function notifyChange() {
+    const version = changeVersion.current;
     const structure = await readStructure();
-    onChange?.(structure);
+    if (version === changeVersion.current) callbacks.current.onChange?.(structure);
     return structure;
   }
 
@@ -70,15 +101,17 @@ const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, onChang
       return (await readStructure()).molfile;
     },
     async setMolecule(content) {
-      if (!ketcherRef.current || !content.trim()) return;
+      if (!ketcherRef.current) throw new Error(coded("structure.processingFailed", "Ketcher is not ready yet."));
+      if (!content.trim()) throw new Error(coded("structure.processingFailed", "No structure to load into Ketcher."));
       await ketcherRef.current.setMolecule(content);
+      clearTimeout(timer.current);
       await notifyChange();
     },
     async clear() {
       if (ketcherRef.current) {
         await ketcherRef.current.setMolecule("");
       }
-      onChange?.({ smiles: "", molfile: "" });
+      callbacks.current.onChange?.({ smiles: "", molfile: "" });
     }
   }));
 
@@ -109,7 +142,8 @@ const KetcherEditor = forwardRef<KetcherEditorHandle, Props>(({ loading, onChang
           application that LMD does not render itself, so it is the only DOM the bridge has ever
           had anything to do. */}
       <KetcherTranslationBridge />
-      <div className="ketcher-shell" data-i18n-ketcher>
+      {toolbar}
+      <div ref={shell} className="ketcher-shell" data-i18n-ketcher aria-busy={loading}>
         {!ready && (
           <div className="ketcher-loading">
             <Spin />

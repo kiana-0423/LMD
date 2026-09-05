@@ -93,7 +93,8 @@ def command_handlers() -> dict[str, Callable[[dict[str, Any]], tuple[dict[str, A
             force_field=payload.get("force_field", "MMFF"),
         ),
         "convert-format": lambda payload: convert_molecule_format(
-            payload["input_text"], payload["input_format"], payload["output_format"]
+            payload["input_text"], payload["input_format"], payload["output_format"],
+            generate_2d=payload.get("generate_2d", False),
         ),
         "import-excel": lambda payload: preview_table_file(payload["file_path"], payload.get("preview_rows", 20)),
         "export-table-rows": lambda payload: export_table_rows(

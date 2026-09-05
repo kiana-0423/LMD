@@ -333,6 +333,7 @@ pub async fn convert_molecule_format(
     input_text: String,
     input_format: String,
     output_format: String,
+    generate_2d: Option<bool>,
 ) -> Result<Value, String> {
     if input_text.trim().is_empty() {
         return Err("There is no structure to convert.".to_string());
@@ -343,7 +344,8 @@ pub async fn convert_molecule_format(
         json!({
             "input_text": input_text,
             "input_format": input_format,
-            "output_format": output_format
+            "output_format": output_format,
+            "generate_2d": generate_2d.unwrap_or(false)
         }),
     )
     .await
@@ -375,9 +377,14 @@ pub async fn export_molecule_file(
             format!("Unsupported export format '{output_format}'. Supported formats: {supported}.")
         })?;
 
-    let converted =
-        convert_molecule_format(app.clone(), input_text, input_format, output_format.clone())
-            .await?;
+    let converted = convert_molecule_format(
+        app.clone(),
+        input_text,
+        input_format,
+        output_format.clone(),
+        None,
+    )
+    .await?;
     let content = converted
         .pointer("/data/content")
         .and_then(Value::as_str)

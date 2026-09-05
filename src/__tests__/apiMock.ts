@@ -55,6 +55,7 @@ export const API_MOCK_DEFAULTS: Record<string, () => unknown> = {
   getMolecule: () => Promise.resolve(undefined),
   deleteMolecule: () => Promise.resolve(emptyDeletion),
   saveMoleculeWithRequiredDescriptors: () => Promise.resolve(undefined),
+  mol2ToSmiles: () => Promise.resolve({ smiles: "CCO", inferredBondIds: [], normalizedAtomTypes: [] }),
   generateMolecule3d: () =>
     Promise.resolve({
       molecule: undefined,

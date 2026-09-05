@@ -13,6 +13,48 @@ The project is currently an MVP. It provides a working Tauri desktop foundation,
 - Python provides SMILES standardization, RDKit and Mordred descriptors, 2D/3D structure generation and format conversion, Excel/CSV preprocessing, and scikit-learn model training and prediction.
 - SQLite stores local application data in the workspace database `lmd.sqlite`.
 
+## Import a molecule from MOL2
+
+Open **Data Entry → Molecule Entry → Import MOL2** and select a `.mol2` file
+containing one molecule (up to 5 MB). The local RDKit sidecar parses its atom and
+bond records and fills canonical SMILES; no embedded SMILES property is required
+or trusted. An empty name is filled from the filename. Existing names, categories,
+notes and custom data sources are preserved. Review the fields, then use the usual
+save-and-calculate-descriptors action; importing alone does not write a record.
+
+Empty, unreadable and multi-molecule files fail without changing the form. Split
+multi-molecule files before importing. MOL2 support follows
+[RDKit's atom-typing limitations](https://www.rdkit.org/docs/source/rdkit.Chem.rdmolfiles.html#rdkit.Chem.rdmolfiles.MolFromMol2Block);
+unsupported atom types are not guessed. Conversion preserves the structure RDKit
+can read, but this entry action does not retain the original MOL2 coordinates or
+file as an attachment. It requires the desktop sidecar, not the browser demo.
+
+Both import screens use one MOL2 normalization and validation pipeline. It checks
+record counts, atom references, duplicate bonds, coordinates and bond types before
+RDKit parsing. Comments, blank record lines, sparse/reordered atom IDs, different
+line endings and missing final newlines are normalized without changing connectivity.
+For Materials Studio exports, `un` bonds are interpreted only in isolated six-member
+sp2 carbon/pyridine-like nitrogen rings: carbon needs one explicit external single
+bond; nitrogen must have only its two ring neighbours. O.co2 labels are reconciled
+with explicit neutral oxygen valence (two single bonds or one double bond); actual
+terminal carboxylate pairs retain their original typing and charge interpretation.
+Known bond orders are preserved. RDKit must still parse and sanitize the result.
+Both screens disclose these interpretations and save original bond IDs and oxygen
+type changes in Notes. Unknown bonds outside these supported patterns, incomplete
+files and unsupported types require re-export with explicit bonds (MOL/SDF can be
+used in Ketcher). This is compatibility handling, not a guarantee for every MOL2
+dialect or a reconstruction of missing chemical information.
+
+In **Molecule Sketcher**, use **Import PDB / MOL2** above the Ketcher canvas to
+load either format as an editable 2D structure. The formula appears beside the
+import button; edits and undo/redo refresh SMILES and formula after a short
+pause, and invalidate descriptors computed for the previous structure. Atom,
+bond, charge and hydrogen corrections use Ketcher's normal tools. Saving uses
+the current canvas and retains import provenance in the molecule's notes.
+The canvas remains on one page. Files are limited to 5 MB and 2000 input atoms;
+multi-model PDB files must be split before import. PDB connectivity and bond
+orders may be incomplete, so the canvas includes a review reminder.
+
 ## Requirements
 
 These requirements are for developers and release builders only. People who install a finished LMD package do not need Node.js, Rust, Python, Conda, RDKit, or SQLite.

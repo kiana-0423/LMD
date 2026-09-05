@@ -129,7 +129,8 @@ export default function BaseAdditiveLibraryPage() {
       if (activeTab === "base-oils") {
         const values = await baseOilForm.validateFields();
         if (editingId) {
-          await updateBaseOil(editingId, values);
+          // Undefined is omitted by JSON; send an explicit clear when the picker is cleared.
+          await updateBaseOil(editingId, { ...values, representativeMoleculeId: values.representativeMoleculeId ?? "" });
           message.success(t("ui.baseOilUpdated"));
         } else {
           await createBaseOil(values);
@@ -392,8 +393,10 @@ export default function BaseAdditiveLibraryPage() {
         onClose={() => setBlocked(undefined)}
         onCascade={() => void cascade.run()}
       />
-      <PagedModal
-        width={760}
+      <Modal
+        centered
+        className="catalogue-editor-modal"
+        width={880}
         title={
           editingId
             ? activeTab === "base-oils"
@@ -410,17 +413,17 @@ export default function BaseAdditiveLibraryPage() {
         cancelText={t("ui.cancel")}
       >
         {activeTab === "base-oils" ? (
-          <Form form={baseOilForm} layout="vertical">
+          <Form form={baseOilForm} layout="vertical" size="small" className="catalogue-editor-form">
+            <Form.Item className="catalogue-editor-wide" label={t("ui.representativeMolecule")} name="representativeMoleculeId">
+              <MoleculePicker allowClear placeholder={t("ui.selectABaseOilMoleculeFromTheLibrary")} />
+            </Form.Item>
             <Form.Item label={t("ui.name")} name="name" rules={[{ required: true, message: t("ui.enterABaseOilName") }]}>
               <Input placeholder={t("ui.examplePao6")} />
             </Form.Item>
             <Form.Item label={t("ui.baseOilType")} name="baseOilType">
               <Input placeholder={t("ui.exampleGroupIiiPaoEster")} />
             </Form.Item>
-            <Form.Item label={t("ui.representativeMolecule")} name="representativeMoleculeId">
-              <MoleculePicker allowClear placeholder={t("ui.optionalMoleculeLibraryRecord")} />
-            </Form.Item>
-            <Space size={12} wrap>
+            <div className="catalogue-property-grid">
               <Form.Item label={t("ui.viscosityAt40C")} name="viscosity40c">
                 <InputNumber min={0} precision={3} />
               </Form.Item>
@@ -439,29 +442,29 @@ export default function BaseAdditiveLibraryPage() {
               <Form.Item label={t("ui.flashPoint")} name="flashPoint">
                 <InputNumber precision={1} />
               </Form.Item>
-            </Space>
+            </div>
             <Form.Item label={t("ui.supplier")} name="supplier">
               <Input />
             </Form.Item>
             <Form.Item label={t("ui.batch")} name="batchNumber">
               <Input />
             </Form.Item>
-            <Form.Item label={t("ui.notes")} name="notes">
-              <Input.TextArea rows={3} />
+            <Form.Item className="catalogue-editor-wide" label={t("ui.notes")} name="notes">
+              <Input.TextArea rows={2} />
             </Form.Item>
           </Form>
         ) : (
-          <Form form={additiveForm} layout="vertical">
-            <Form.Item label={t("ui.representativeMolecule")} name="moleculeId" rules={[{ required: true, message: t("ui.selectARepresentativeMolecule") }]}>
+          <Form form={additiveForm} layout="vertical" size="small" className="catalogue-editor-form">
+            <Form.Item className="catalogue-editor-wide" label={t("ui.representativeMolecule")} name="moleculeId" rules={[{ required: true, message: t("ui.selectARepresentativeMolecule") }]}>
               <MoleculePicker placeholder={t("ui.selectAnAdditiveMoleculeFromTheLibrary")} />
             </Form.Item>
             <Form.Item label={t("ui.functionTypes")} name="functionTypes">
-              <Select mode="multiple" options={additiveFunctionOptions} />
+              <Select maxTagCount="responsive" mode="multiple" options={additiveFunctionOptions} />
             </Form.Item>
             <Form.Item label={t("ui.activeElements")} name="activeElements">
-              <Select mode="tags" options={["C", "H", "O", "N", "S", "P", "Zn", "Mo", "B", "Cl"].map((value) => ({ value, label: value }))} />
+              <Select maxTagCount="responsive" mode="tags" options={["C", "H", "O", "N", "S", "P", "Zn", "Mo", "B", "Cl"].map((value) => ({ value, label: value }))} />
             </Form.Item>
-            <Space size={12} wrap>
+            <div className="catalogue-property-grid">
               <Form.Item label={t("ui.minimumTypicalConcentration")} name="typicalConcentrationMin">
                 <InputNumber min={0} precision={3} />
               </Form.Item>
@@ -471,16 +474,16 @@ export default function BaseAdditiveLibraryPage() {
               <Form.Item label={t("ui.concentrationUnit")} name="concentrationUnit">
                 <Input placeholder="wt%" />
               </Form.Item>
-            </Space>
-            <Form.Item label={t("ui.compatibleBaseOils")} name="compatibleBaseOils">
-              <Select mode="tags" options={baseOilOptions} placeholder={t("ui.enterOrSelectExistingBaseOilNames")} />
+            </div>
+            <Form.Item className="catalogue-editor-wide" label={t("ui.compatibleBaseOils")} name="compatibleBaseOils">
+              <Select maxTagCount="responsive" mode="tags" options={baseOilOptions} placeholder={t("ui.enterOrSelectExistingBaseOilNames")} />
             </Form.Item>
-            <Form.Item label={t("ui.applicationNotes")} name="applicationNotes">
-              <Input.TextArea rows={3} />
+            <Form.Item className="catalogue-editor-wide" label={t("ui.applicationNotes")} name="applicationNotes">
+              <Input.TextArea rows={2} />
             </Form.Item>
           </Form>
         )}
-      </PagedModal>
+      </Modal>
       <PagedModal
         width={760}
         title={t("ui.completeBaseOilData")}

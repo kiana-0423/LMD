@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from .rdkit_service import safe_import_rdkit, standardize_molecule
+from .mol2_service import prepare_mol2
 
 
 def visualize_from_smiles(smiles: str) -> tuple[dict[str, Any], list[str]]:
@@ -45,20 +47,31 @@ def generate_3d_from_smiles(
     return molecule_to_blocks(mol), []
 
 
-SUPPORTED_INPUT_FORMATS = ("smiles", "mol", "sdf", "pdb")
+SUPPORTED_INPUT_FORMATS = ("smiles", "mol", "mol2", "sdf", "pdb")
 SUPPORTED_OUTPUT_FORMATS = ("smiles", "mol", "sdf", "pdb", "inchi", "inchikey", "svg")
 
 
 def _parse_structure(rdkit: dict[str, Any], text: str, input_format: str):
     """Reads a structure in any supported input format, or explains why it could not."""
     Chem = rdkit["Chem"]
-    text = text.strip()
-    if not text:
+    # MOL/SDF use positional header lines; stripping an empty title corrupts them.
+    if not text.strip():
         raise ValueError("The input structure is empty.")
     if input_format == "smiles":
         mol = Chem.MolFromSmiles(text)
     elif input_format == "mol":
         mol = Chem.MolFromMolBlock(text, sanitize=True, removeHs=False)
+    elif input_format == "mol2":
+        text, inferred, normalized_types = prepare_mol2(text)
+        mol = Chem.MolFromMol2Block(text, sanitize=True, removeHs=True)
+        if mol is None:
+            raise ValueError("MOL2 could not be parsed after format and atom-type normalization. Check atom types, valence and explicit hydrogen/charge information; re-export as MOL/SDF with explicit bond orders if needed.")
+        if mol is not None:
+            mol.SetProp("_lmd_normalized_mol2_atom_types", json.dumps(normalized_types))
+            if any(b.GetBondType() in {Chem.BondType.UNSPECIFIED, Chem.BondType.ZERO} for b in mol.GetBonds()):
+                raise ValueError("MOL2 contains unresolved bond orders. Re-export with explicit bond types before importing.")
+            if inferred:
+                mol.SetProp("_lmd_inferred_mol2_bond_ids", ",".join(inferred))
     elif input_format == "sdf":
         # Take the first record; an SDF may hold many.
         block = text.split("$$$$")[0]
@@ -70,13 +83,13 @@ def _parse_structure(rdkit: dict[str, Any], text: str, input_format: str):
             f"Unsupported input format {input_format!r}. Use one of: "
             + ", ".join(SUPPORTED_INPUT_FORMATS)
         )
-    if mol is None:
+    if mol is None or mol.GetNumAtoms() == 0:
         raise ValueError(f"RDKit could not parse the input as {input_format.upper()}.")
     return mol
 
 
 def convert_molecule_format(
-    input_text: str, input_format: str, output_format: str
+    input_text: str, input_format: str, output_format: str, generate_2d: bool = False
 ) -> tuple[dict[str, Any], list[str]]:
     rdkit = _require_rdkit()
     Chem = rdkit["Chem"]
@@ -89,8 +102,38 @@ def convert_molecule_format(
             + ", ".join(SUPPORTED_OUTPUT_FORMATS)
         )
 
+    if generate_2d and input_format == "pdb":
+        if sum(line.startswith("MODEL ") for line in input_text.splitlines()) > 1:
+            raise ValueError("Import one PDB model at a time. Split multi-model PDB files before editing.")
     mol = _parse_structure(rdkit, input_text, input_format)
     warnings: list[str] = []
+    inferred = mol.GetProp("_lmd_inferred_mol2_bond_ids").split(",") if mol.HasProp("_lmd_inferred_mol2_bond_ids") else []
+    if inferred:
+        warnings.append(
+            f"MOL2: inferred aromatic bond orders for {len(inferred)} unknown bonds "
+            f"in six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: {', '.join(inferred)}). "
+            "Review the structure before saving."
+        )
+
+    normalized_types = json.loads(mol.GetProp("_lmd_normalized_mol2_atom_types")) if mol.HasProp("_lmd_normalized_mol2_atom_types") else []
+    if normalized_types:
+        warnings.append("MOL2: normalized oxygen atom types from explicit bond orders (atom IDs and changes: "
+                        + ", ".join(normalized_types) + "). Review the structure before saving.")
+
+    editor_metadata = {}
+    if generate_2d:
+        if mol.GetNumAtoms() > 2000:
+            raise ValueError("The drawing editor supports up to 2000 atoms per import. Extract the small molecule before importing.")
+        mol = Chem.RemoveHs(mol)
+        # Perceive stereochemistry from the input before replacing 3D coordinates.
+        standardized, _ = standardize_molecule(Chem.MolToSmiles(mol, canonical=True))
+        AllChem.Compute2DCoords(mol, clearConfs=True)
+        editor_metadata = {
+            "canonical_smiles": standardized["smiles_canonical"],
+            "formula": standardized["formula"],
+            "molecular_weight": standardized["molecular_weight"],
+            "inchi_key": standardized["inchi_key"],
+        }
 
     # MOL, SDF and PDB all need coordinates. SMILES carries none, so generate them.
     needs_coordinates = output_format in {"mol", "sdf", "pdb"}
@@ -132,6 +175,9 @@ def convert_molecule_format(
         "output_format": output_format,
         "content": content,
         "mode": "real",
+        "inferred_bond_ids": inferred,
+        "normalized_atom_types": normalized_types,
+        **editor_metadata,
     }, warnings
 
 

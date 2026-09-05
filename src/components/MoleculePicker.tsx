@@ -13,11 +13,13 @@ type Option = { value: string; label: ReactNode };
  * does not survive a real dataset, so only a page of matches is fetched per keystroke burst.
  */
 export default function MoleculePicker({
+  id,
   value,
   onChange,
   placeholder,
   allowClear = false
 }: {
+  id?: string;
   value?: string;
   onChange?: (value: string) => void;
   placeholder?: string;
@@ -66,6 +68,8 @@ export default function MoleculePicker({
 
   return (
     <Select
+      id={id}
+      style={{ width: "100%" }}
       showSearch
       allowClear={allowClear}
       value={value}
