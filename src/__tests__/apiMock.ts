@@ -135,6 +135,45 @@ export const API_MOCK_DEFAULTS: Record<string, () => unknown> = {
   predictMoleculePerformance: () => Promise.resolve(emptyPrediction),
   predictFormulationPerformance: () => Promise.resolve(emptyPrediction),
   exportMlDataset: () => Promise.resolve(emptyExport),
+  describeTrainingScope: () =>
+    Promise.resolve({
+      target: "",
+      label: "",
+      unit: "",
+      resultCount: 0,
+      singleAdditiveResultCount: 0,
+      multiAdditiveResultCount: 0,
+      resultsWithConditions: 0,
+      moleculeCount: 0,
+      testTypes: []
+    }),
+
+  // --- molecular design ----------------------------------------------------------------------
+  listDesignTemplates: () =>
+    Promise.resolve({
+      templates: [],
+      curatedSubstituents: [],
+      substituentSources: [],
+      limits: { maxCandidates: 500, maxSeeds: 25, maxSubstituents: 200 },
+      generatorVersion: ""
+    }),
+  getDesignReadiness: () =>
+    Promise.resolve({
+      target: "",
+      workspace: { moleculeCount: 0, moleculesWithRealDescriptors: 0, performanceResultCount: 0, candidateCount: 0 },
+      models: [],
+      dataset: null,
+      status: "generationOnly",
+      reasons: []
+    }),
+  runDesignGeneration: () => Promise.resolve({ jobId: "", candidateCount: 0, candidates: [], warnings: [] }),
+  listDesignCandidates: () => Promise.resolve(emptyPage),
+  listDesignJobs: () => Promise.resolve([]),
+  assessDesignCandidates: () =>
+    Promise.resolve({ jobId: "", modelId: "", items: [], counts: { supported: 0, exploratory: 0, unavailable: 0 }, warnings: [] }),
+  promoteDesignCandidate: () => Promise.resolve({ candidate: undefined, moleculeId: "", moleculeName: "" }),
+  updateDesignCandidateVerification: () => Promise.resolve({ candidate: undefined }),
+  exportDesignCandidates: () => Promise.resolve(emptyExport),
 
   // --- workspace -----------------------------------------------------------------------------
   getWorkspaceDetails: () => Promise.resolve({}),

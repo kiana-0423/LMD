@@ -1,7 +1,9 @@
+import WorkspaceTabs from "../../components/WorkspaceTabs";
 import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Descriptions,
   Empty,
   Input,
@@ -22,6 +24,7 @@ import PageHeader from "../../components/PageHeader";
 import {
   deliverExport,
   describeExport,
+  describeTrainingScope,
   exportMlDataset,
   listBaseOils,
   listFormulations,
@@ -33,11 +36,20 @@ import {
   trainModel,
   type CandidateFormulation,
   type DatasetMode,
+  type DatasetScope,
   type PredictionResult,
   type SkippedPrediction,
   type TrainedModel,
+  type TrainingScopeOptions,
   type TrainingSummary
 } from "../../lib/api";
+import {
+  DEFAULT_DATASET_SCOPE,
+  LOAD_UNITS,
+  TEMPERATURE_UNITS,
+  modelUsesConditions,
+  splitGroupingLabelKeys
+} from "../../lib/designPolicy";
 import {
   CONCENTRATION_UNITS,
   basisLabelKey,
@@ -102,6 +114,15 @@ export default function ModelWorkbench({
   );
   const [target, setTarget] = useState(targets[0]);
   const [algorithm, setAlgorithm] = useState("auto");
+  // Which measured results the model is fitted on. Off by default, as before scopes existed;
+  // the counts beside each control say what the workspace holds so the choice is informed.
+  const [scope, setScope] = useState<DatasetScope>(DEFAULT_DATASET_SCOPE);
+  const [scopeOptions, setScopeOptions] = useState<TrainingScopeOptions>();
+  // Test conditions for a prediction, needed only by a model fitted with condition features.
+  const [temperatureValue, setTemperatureValue] = useState<number | null>(null);
+  const [temperatureUnit, setTemperatureUnit] = useState<string>(TEMPERATURE_UNITS[0]);
+  const [loadValue, setLoadValue] = useState<number | null>(null);
+  const [loadUnit, setLoadUnit] = useState<string>(LOAD_UNITS[0]);
   const [models, setModels] = useState<TrainedModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>();
   const [molecules, setMolecules] = useState<Molecule[]>([]);
@@ -198,6 +219,21 @@ export default function ModelWorkbench({
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (aggregate) return;
+    let cancelled = false;
+    describeTrainingScope(target)
+      .then((options) => {
+        if (!cancelled) setScopeOptions(options);
+      })
+      .catch(() => {
+        if (!cancelled) setScopeOptions(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [aggregate, target]);
+
   // A training summary describes one target and carries no signature of its own, so switching
   // target has to clear it outright — otherwise figures measured for friction sit under a
   // wear-scar heading. A prediction is handled differently: its signature includes the target, so
@@ -228,6 +264,7 @@ export default function ModelWorkbench({
 
   const selectedModel = models.find((model) => model.id === selectedModelId);
   const policy = concentrationPolicy(selectedModel?.concentrationBasis);
+  const needsConditions = !aggregate && modelUsesConditions(selectedModel);
 
   const currentSignature = useMemo(
     () =>
@@ -239,6 +276,7 @@ export default function ModelWorkbench({
         molecules: aggregate ? [] : selectedMolecules,
         concentration: aggregate || !policy?.needsValue ? null : concentration,
         concentrationUnit: aggregate || !policy?.needsUnit ? "" : concentrationUnit,
+        conditions: needsConditions ? [temperatureValue, temperatureUnit, loadValue, loadUnit] : [],
         formulations: aggregate ? selectedFormulations : [],
         candidateName: aggregate ? candidateName : "",
         candidateAdditives: aggregate ? candidateAdditives : [],
@@ -252,11 +290,16 @@ export default function ModelWorkbench({
       concentration,
       concentrationUnit,
       datasetMode,
+      loadUnit,
+      loadValue,
+      needsConditions,
       policy,
       selectedFormulations,
       selectedModelId,
       selectedMolecules,
-      target
+      target,
+      temperatureUnit,
+      temperatureValue
     ]
   );
 
@@ -282,7 +325,7 @@ export default function ModelWorkbench({
     setTraining(true);
     setTrainingError(undefined);
     try {
-      const result = await trainModel({ target, algorithm, datasetMode });
+      const result = await trainModel({ target, algorithm, datasetMode, scope: aggregate ? undefined : scope });
       if (operation !== trainingVersion.current) return;
       setSummary(result);
       message.success(`${t("model.train")}: ${result.sampleCount}`);
@@ -366,9 +409,19 @@ export default function ModelWorkbench({
         message.warning(t(checked.messageKey));
         return;
       }
+      // A model fitted with condition features is only asked with both conditions supplied;
+      // any other model is sent none, so nothing it would ignore is ever entered.
+      let conditions: { temperatureValue: number; temperatureUnit: string; loadValue: number; loadUnit: string } | undefined;
+      if (needsConditions) {
+        if (temperatureValue === null || loadValue === null) {
+          message.warning(t("model.conditionsRequired"));
+          return;
+        }
+        conditions = { temperatureValue, temperatureUnit, loadValue, loadUnit };
+      }
       request = predictMoleculePerformance({
         modelId: selectedModel.id,
-        items: selectedMolecules.map((moleculeId) => ({ moleculeId, ...checked.payload }))
+        items: selectedMolecules.map((moleculeId) => ({ moleculeId, ...checked.payload, ...(conditions ?? {}) }))
       });
     }
 
@@ -482,7 +535,7 @@ export default function ModelWorkbench({
     return rows.map((row, index) => (
       <Space key={row.key} size={8} wrap style={{ display: "flex", marginBottom: 8 }}>
         <Select
-          style={{ minWidth: 260 }}
+          style={{ width: 260, maxWidth: "100%" }}
           value={row.id}
           showSearch
           optionFilterProp="label"
@@ -528,18 +581,11 @@ export default function ModelWorkbench({
   }
 
   return (
-    <div className="page-grid">
-      <PageHeader title={t(titleKey)} description={t(descriptionKey)} />
-      <Alert type="info" showIcon message={t("model.workspaceOnlyTitle")} description={t("model.workspaceOnlyBody")} />
-      <Alert
-        type="info"
-        showIcon
-        message={aggregate ? t("model.modeLockedFormulation") : t("model.modeLockedAdditive")}
-        description={aggregate ? t("model.datasetInterpretationFormulation") : t("model.datasetInterpretationAdditive")}
-      />
-
-      <Card title={t("model.trainTitle")}>
-        <Space size={12} wrap style={{ marginBottom: 12 }}>
+    <div className="page-grid workspace-page">
+      <PageHeader
+        title={t(titleKey)}
+        description={t(descriptionKey)}
+        extra={
           <Select
             style={{ width: 280 }}
             value={target}
@@ -547,355 +593,461 @@ export default function ModelWorkbench({
             onChange={selectTarget}
             aria-label={t("ui.performanceMetric")}
           />
-          <Select
-            style={{ width: 260 }}
-            value={algorithm}
-            options={ALGORITHM_KEYS.map((item) => ({ value: item.value, label: t(item.key) }))}
-            onChange={setAlgorithm}
-            aria-label={t("model.algorithm")}
-          />
-          <Button type="primary" loading={training} onClick={handleTrain}>
-            {t("model.train")}
-          </Button>
-          <Button onClick={handleExportDataset}>{t("model.exportDataset")}</Button>
-        </Space>
-        {describedTrainingError ? (
-          <Alert
-            type="error"
-            showIcon
-            message={t("model.trainFailed")}
-            description={
-              <Space direction="vertical" size={4}>
-                <span>{describedTrainingError.summary}</span>
-                <span translate="no">{describedTrainingError.detail}</span>
-              </Space>
-            }
-          />
-        ) : null}
-        {summary ? (
-          <Space direction="vertical" style={{ width: "100%" }} size={12}>
-            {translateMessages(summary.warnings, t).map((warning) => (
-              <Alert key={warning} type="warning" showIcon message={warning} />
-            ))}
-            {summary.excludedForUnits > 0 ? (
-              <Alert
-                type="warning"
-                showIcon
-                message={`${t("model.unitExclusionsTitle")}: ${summary.excludedForUnits}`}
-                description={
-                  <ul style={{ margin: 0, paddingInlineStart: 20 }}>
-                    {translateMessages(summary.datasetReport?.warnings, t).map((warning) => (
-                      <li key={warning}>{warning}</li>
-                    ))}
-                  </ul>
-                }
-              />
-            ) : null}
-            <Descriptions size="small" bordered column={3}>
-              <Descriptions.Item label={t("model.algorithm")}>{summary.algorithm}</Descriptions.Item>
-              <Descriptions.Item label={t("model.modelVersion")}>{summary.modelVersion}</Descriptions.Item>
-              <Descriptions.Item label={t("model.trainedAt")}>{summary.trainedAt}</Descriptions.Item>
-              <Descriptions.Item label={t("model.samples")}>{summary.sampleCount}</Descriptions.Item>
-              <Descriptions.Item label={t("model.features")}>{summary.featureCount}</Descriptions.Item>
-              <Descriptions.Item label={t("model.excluded")}>{summary.excludedCount ?? 0}</Descriptions.Item>
-              <Descriptions.Item label={t("model.basis")} span={3}>
-                {t(basisLabelKey(summary.concentrationBasis))}
-              </Descriptions.Item>
-              <Descriptions.Item label={t("model.datasetInterpretation")} span={3}>
-                {summary.interpretationCode
-                  ? translateMessage({ code: summary.interpretationCode }, t)
-                  : summary.interpretation}
-              </Descriptions.Item>
-            </Descriptions>
-            {(() => {
-              const { scored, heldOut } = metricsOf(summary);
-              if (!scored) return null;
-              return (
-                <Space direction="vertical" size={8} style={{ width: "100%" }}>
-                  <Space size={24} wrap>
-                    <Statistic
-                      title={heldOut ? t("model.r2HeldOut") : t("model.r2InSample")}
-                      value={scored.r2.toFixed(4)}
-                    />
-                    <Statistic title={t("model.meanAbsoluteError")} value={scored.mae.toFixed(5)} />
-                    <Statistic title={t("model.rootMeanSquaredError")} value={scored.rmse.toFixed(5)} />
-                    <Statistic title={t("model.scoredOn")} value={scored.sampleCount ?? scored.sample_count ?? 0} />
-                  </Space>
-                  <Typography.Text type="secondary">
-                    {t("model.splitPrefix")} {translateMessage(summary.splitMethodMessage, t) || summary.splitMethod}
-                    {summary.groupCount > 0 ? ` — ${summary.groupCount} ${t("model.groupSuffix")}` : ""}
-                    {summary.multiAdditiveResultCount > 0
-                      ? ` — ${summary.multiAdditiveResultCount} ${t("model.multiAdditiveNote")}`
-                      : ""}
-                  </Typography.Text>
-                  {!heldOut ? (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message={t("model.inSampleWarningTitle")}
-                      description={t("model.inSampleWarningBody")}
-                    />
-                  ) : null}
-                  {summary.sampleCount < 30 ? (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message={`${t("model.smallSampleTitle")} (${summary.sampleCount})`}
-                      description={t("model.smallSampleBody")}
-                    />
-                  ) : null}
-                </Space>
-              );
-            })()}
-          </Space>
-        ) : null}
-      </Card>
-
-      <Card title={t("model.modelsTitle")}>
-        {loading ? (
-          <LoadingBlock />
-        ) : describedLoadError ? (
-          <Alert
-            type="error"
-            showIcon
-            message={t("ui.pageFailedToLoad")}
-            description={
-              <Space direction="vertical" size={4}>
-                <span>{describedLoadError.summary}</span>
-                <span translate="no">{describedLoadError.detail}</span>
-              </Space>
-            }
-            action={<Button onClick={() => void refresh()}>{t("ui.retry")}</Button>}
-          />
-        ) : models.length === 0 ? (
-          <Empty description={t("model.noModels")} />
-        ) : (
-          <Table
-            size="small"
-            rowKey="id"
-            columns={modelColumns}
-            dataSource={models}
-            pagination={false}
-            // The prediction below names the model it came from, so the model is chosen here
-            // rather than assumed to be the most recent one.
-            rowSelection={{
-              type: "radio",
-              selectedRowKeys: selectedModelId ? [selectedModelId] : [],
-              onChange: (keys) => setSelectedModelId(keys[0] as string),
-              getCheckboxProps: (row) => ({ disabled: !row.usable })
-            }}
-          />
-        )}
-      </Card>
-
-      <Card title={t("model.predictTitle")}>
-        {loading ? (
-          <Alert type="info" showIcon message={t("model.modelsLoading")} />
-        ) : describedLoadError ? (
-          <Alert type="error" showIcon message={t("ui.pageFailedToLoad")} />
-        ) : !selectedModel ? (
+        }
+      />
+      <WorkspaceTabs labels={[t("model.trainTitle"), t("model.modelsTitle"), t("model.predictTitle")]}>
+        <Space direction="vertical" size={10} style={{ width: "100%" }}>
+          <Alert type="info" showIcon message={t("model.workspaceOnlyTitle")} description={t("model.workspaceOnlyBody")} />
           <Alert
             type="info"
             showIcon
-            message={models.length === 0 ? t("model.noModelTitle") : t("model.selectModel")}
-            description={models.length === 0 ? t("model.noModelBody") : t("model.selectModelFirst")}
+            message={aggregate ? t("model.modeLockedFormulation") : t("model.modeLockedAdditive")}
+            description={aggregate ? t("model.datasetInterpretationFormulation") : t("model.datasetInterpretationAdditive")}
           />
-        ) : (
-          <Space direction="vertical" size={12} style={{ width: "100%" }}>
-            <Typography.Text type="secondary">
-              {t("model.selected")}: <span translate="no">{selectedModel.name}</span> — {t("model.basis")}:{" "}
-              {t(basisLabelKey(selectedModel.concentrationBasis))}
-            </Typography.Text>
-            {selectedModel.usable ? null : (
-              <Alert
-                type="error"
-                showIcon
-                message={t("model.outdatedSchema")}
-                description={t("model.outdatedSchemaBody")}
+          <Card title={t("model.trainTitle")}>
+            <Space size={12} wrap style={{ marginBottom: 12 }}>
+              <Select
+                style={{ width: 260 }}
+                value={algorithm}
+                options={ALGORITHM_KEYS.map((item) => ({ value: item.value, label: t(item.key) }))}
+                onChange={setAlgorithm}
+                aria-label={t("model.algorithm")}
               />
-            )}
-            {policy ? (
-              <Alert
-                type="info"
-                showIcon
-                message={policy.needsValue ? t(policy.labelKey) : t("concentration.noneTitle")}
-                description={t(policy.helpKey)}
-              />
-            ) : (
-              <Alert
-                type="error"
-                showIcon
-                message={t("model.outdatedSchema")}
-                description={t("backend.datasetUnknownBasis")}
-              />
-            )}
-
-            {aggregate && policy ? (
-              <>
-                <Space size={12} wrap>
-                  <Select
-                    mode="multiple"
-                    style={{ minWidth: 420 }}
-                    placeholder={t("model.selectFormulations")}
-                    aria-label={t("model.selectFormulations")}
-                    value={selectedFormulations}
-                    onChange={setSelectedFormulations}
-                    optionFilterProp="title"
-                    notFoundContent={t("model.noFormulations")}
-                    options={formulations.map((item) => ({
-                      value: item.id,
-                      title: item.name,
-                      label: <span translate="no">{item.name}</span>
-                    }))}
-                  />
-                </Space>
-                <Card size="small" title={t("model.candidateTitle")}>
-                  <Typography.Paragraph type="secondary">{t("model.candidateExplanation")}</Typography.Paragraph>
-                  <Input
-                    style={{ maxWidth: 360, marginBottom: 12 }}
-                    placeholder={t("model.candidateName")}
-                    aria-label={t("model.candidateName")}
-                    value={candidateName}
-                    onChange={(event) => setCandidateName(event.target.value)}
-                  />
-                  <Typography.Text strong>{t("formulation.additives")}</Typography.Text>
-                  <div style={{ marginTop: 8 }}>
-                    {renderCandidateRows(
-                      candidateAdditives,
-                      setCandidateAdditives,
-                      molecules.map((item) => ({ value: item.id, label: item.name })),
-                      policy
-                    )}
-                  </div>
-                  <Button onClick={() => setCandidateAdditives([...candidateAdditives, newRow()])}>
-                    {t("model.candidateAddAdditive")}
-                  </Button>
-                  <Typography.Text strong style={{ display: "block", marginTop: 16 }}>
-                    {t("formulation.baseOil")}
-                  </Typography.Text>
-                  <div style={{ marginTop: 8 }}>
-                    {renderCandidateRows(
-                      candidateBaseOils,
-                      setCandidateBaseOils,
-                      baseOils.map((item) => ({ value: item.id, label: item.name })),
-                      policy
-                    )}
-                  </div>
-                  <Button onClick={() => setCandidateBaseOils([...candidateBaseOils, newRow()])}>
-                    {t("model.candidateAddBaseOil")}
-                  </Button>
-                </Card>
-              </>
-            ) : null}
-
-            {!aggregate && policy ? (
-              <Space size={12} wrap>
-                <Select
-                  mode="multiple"
-                  style={{ minWidth: 360 }}
-                  placeholder={t("model.selectMoleculesToPredict")}
-                  aria-label={t("model.selectMoleculesToPredict")}
-                  value={selectedMolecules}
-                  onChange={setSelectedMolecules}
-                  optionFilterProp="title"
-                  notFoundContent={t("model.noMolecules")}
-                  options={molecules.map((molecule) => ({
-                    value: molecule.id,
-                    title: molecule.name,
-                    label: <span translate="no">{molecule.name}</span>
-                  }))}
-                />
-                {policy.needsValue ? (
-                  <InputNumber
-                    min={0}
-                    step={0.1}
-                    value={concentration}
-                    onChange={setConcentration}
-                    placeholder={t(policy.labelKey)}
-                    addonBefore={t(policy.labelKey)}
-                    aria-label={t(policy.labelKey)}
-                  />
-                ) : null}
-                {policy.needsUnit ? (
-                  <Select
-                    style={{ width: 170 }}
-                    value={concentrationUnit}
-                    onChange={setConcentrationUnit}
-                    aria-label={t("model.concentrationUnit")}
-                    options={CONCENTRATION_UNITS.map((unit) => ({ value: unit, label: unit }))}
-                  />
-                ) : null}
-                {policy.needsValue && !policy.needsUnit ? (
-                  <Typography.Text type="secondary">{t("concentration.unitNotSent")}</Typography.Text>
-                ) : null}
-              </Space>
-            ) : null}
-
-            <Space>
-              <Button
-                type="primary"
-                loading={predicting}
-                // Disabled while a model list is loading, and for a model this build cannot use.
-                disabled={loading || !selectedModel.usable || !policy}
-                onClick={handlePredict}
-              >
-                {t("model.predict")}
+              <Button type="primary" loading={training} onClick={handleTrain}>
+                {t("model.train")}
               </Button>
+              <Button onClick={handleExportDataset}>{t("model.exportDataset")}</Button>
             </Space>
-          </Space>
-        )}
-
-        {describedPredictionError ? (
-          <Alert
-            style={{ marginTop: 12 }}
-            type="error"
-            showIcon
-            message={t("model.predictFailed")}
-            description={
-              <Space direction="vertical" size={4}>
-                <span>{describedPredictionError.summary}</span>
-                <span translate="no">{describedPredictionError.detail}</span>
-              </Space>
-            }
-          />
-        ) : null}
-        {predictionIsStale ? (
-          <Alert
-            style={{ marginTop: 12 }}
-            type="warning"
-            showIcon
-            message={t("model.staleTitle")}
-            description={t("model.staleBody")}
-          />
-        ) : null}
-        {prediction && !predictionIsStale ? (
-          <Space direction="vertical" style={{ width: "100%", marginTop: 12 }} size={12}>
-            <Typography.Text type="secondary">
-              {t("model.predictedWith")} <span translate="no">{prediction.modelName}</span> (
-              <span translate="no">{prediction.algorithm}</span>) — {prediction.trainedAt} — {prediction.sampleCount}
-            </Typography.Text>
-            {prediction.skipped.length > 0 ? (
+            {!aggregate ? (
+              <Card size="small" title={t("model.scopeTitle")} style={{ marginBottom: 12 }}>
+                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                  <Checkbox
+                    checked={scope.singleAdditiveOnly}
+                    onChange={(event) => setScope({ ...scope, singleAdditiveOnly: event.target.checked })}
+                  >
+                    {t("model.scopeSingleAdditiveOnly")}
+                  </Checkbox>
+                  <Typography.Text type="secondary">
+                    {t("model.scopeSingleAdditiveHelp", {
+                      single: scopeOptions?.singleAdditiveResultCount ?? 0,
+                      multi: scopeOptions?.multiAdditiveResultCount ?? 0
+                    })}
+                  </Typography.Text>
+                  <Space size={8} wrap>
+                    <span>{t("model.scopeTestType")}</span>
+                    <Select
+                      style={{ width: 260, maxWidth: "100%" }}
+                      value={scope.testType || ""}
+                      aria-label={t("model.scopeTestType")}
+                      onChange={(value) => setScope({ ...scope, testType: value })}
+                      options={[
+                        { value: "", label: t("model.scopeAllTestTypes") },
+                        ...(scopeOptions?.testTypes ?? [])
+                          .filter((item) => item.value)
+                          .map((item) => ({
+                            value: item.value,
+                            label: <span translate="no">{`${item.value} (${item.resultCount})`}</span>
+                          }))
+                      ]}
+                    />
+                  </Space>
+                  <Checkbox
+                    checked={scope.includeConditionFeatures}
+                    onChange={(event) => setScope({ ...scope, includeConditionFeatures: event.target.checked })}
+                  >
+                    {t("model.scopeConditionFeatures")}
+                  </Checkbox>
+                  <Typography.Text type="secondary">
+                    {t("model.scopeConditionFeaturesHelp", { available: scopeOptions?.resultsWithConditions ?? 0 })}
+                  </Typography.Text>
+                </Space>
+              </Card>
+            ) : null}
+            {describedTrainingError ? (
               <Alert
-                type="warning"
+                type="error"
                 showIcon
-                message={`${prediction.skipped.length} ${t("model.skipped")}`}
+                message={t("model.trainFailed")}
                 description={
-                  <ul style={{ margin: 0, paddingInlineStart: 20 }}>
-                    {prediction.skipped.map((item) => renderSkipped(item))}
-                  </ul>
+                  <Space direction="vertical" size={4}>
+                    <span>{describedTrainingError.summary}</span>
+                    <span translate="no">{describedTrainingError.detail}</span>
+                  </Space>
                 }
               />
             ) : null}
+            {summary ? (
+              <Space direction="vertical" style={{ width: "100%" }} size={12}>
+                {translateMessages(summary.warnings, t).map((warning) => (
+                  <Alert key={warning} type="warning" showIcon message={warning} />
+                ))}
+                {summary.excludedForUnits > 0 ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message={`${t("model.unitExclusionsTitle")}: ${summary.excludedForUnits}`}
+                    description={
+                      <ul style={{ margin: 0, paddingInlineStart: 20 }}>
+                        {translateMessages(summary.datasetReport?.warnings, t).map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    }
+                  />
+                ) : null}
+                <Descriptions size="small" bordered column={3}>
+                  <Descriptions.Item label={t("model.algorithm")}>{summary.algorithm}</Descriptions.Item>
+                  <Descriptions.Item label={t("model.modelVersion")}>{summary.modelVersion}</Descriptions.Item>
+                  <Descriptions.Item label={t("model.trainedAt")}>{summary.trainedAt}</Descriptions.Item>
+                  <Descriptions.Item label={t("model.samples")}>{summary.sampleCount}</Descriptions.Item>
+                  <Descriptions.Item label={t("model.features")}>{summary.featureCount}</Descriptions.Item>
+                  <Descriptions.Item label={t("model.excluded")}>{summary.excludedCount ?? 0}</Descriptions.Item>
+                  <Descriptions.Item label={t("model.independentMolecules")}>
+                    {summary.moleculeCount ?? 0}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t("model.splitGrouping")} span={2}>
+                    {summary.splitGrouping
+                      ? t(splitGroupingLabelKeys[summary.splitGrouping] ?? "design.groupingNone")
+                      : "-"}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t("model.basis")} span={3}>
+                    {t(basisLabelKey(summary.concentrationBasis))}
+                  </Descriptions.Item>
+                  <Descriptions.Item label={t("model.datasetInterpretation")} span={3}>
+                    {summary.interpretationCode
+                      ? translateMessage({ code: summary.interpretationCode }, t)
+                      : summary.interpretation}
+                  </Descriptions.Item>
+                </Descriptions>
+                {(() => {
+                  const { scored, heldOut } = metricsOf(summary);
+                  if (!scored) return null;
+                  return (
+                    <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                      <Space size={24} wrap>
+                        <Statistic
+                          title={heldOut ? t("model.r2HeldOut") : t("model.r2InSample")}
+                          value={scored.r2.toFixed(4)}
+                        />
+                        <Statistic title={t("model.meanAbsoluteError")} value={scored.mae.toFixed(5)} />
+                        <Statistic title={t("model.rootMeanSquaredError")} value={scored.rmse.toFixed(5)} />
+                        <Statistic title={t("model.scoredOn")} value={scored.sampleCount ?? scored.sample_count ?? 0} />
+                      </Space>
+                      <Typography.Text type="secondary">
+                        {t("model.splitPrefix")} {translateMessage(summary.splitMethodMessage, t) || summary.splitMethod}
+                        {summary.groupCount > 0 ? ` — ${summary.groupCount} ${t("model.groupSuffix")}` : ""}
+                        {summary.multiAdditiveResultCount > 0
+                          ? ` — ${summary.multiAdditiveResultCount} ${t("model.multiAdditiveNote")}`
+                          : ""}
+                      </Typography.Text>
+                      {!heldOut ? (
+                        <Alert
+                          type="warning"
+                          showIcon
+                          message={t("model.inSampleWarningTitle")}
+                          description={t("model.inSampleWarningBody")}
+                        />
+                      ) : null}
+                      {summary.sampleCount < 30 ? (
+                        <Alert
+                          type="warning"
+                          showIcon
+                          message={`${t("model.smallSampleTitle")} (${summary.sampleCount})`}
+                          description={t("model.smallSampleBody")}
+                        />
+                      ) : null}
+                    </Space>
+                  );
+                })()}
+              </Space>
+            ) : null}
+          </Card>
+        </Space>
+        <Card title={t("model.modelsTitle")}>
+          {loading ? (
+            <LoadingBlock />
+          ) : describedLoadError ? (
+            <Alert
+              type="error"
+              showIcon
+              message={t("ui.pageFailedToLoad")}
+              description={
+                <Space direction="vertical" size={4}>
+                  <span>{describedLoadError.summary}</span>
+                  <span translate="no">{describedLoadError.detail}</span>
+                </Space>
+              }
+              action={<Button onClick={() => void refresh()}>{t("ui.retry")}</Button>}
+            />
+          ) : models.length === 0 ? (
+            <Empty description={t("model.noModels")} />
+          ) : (
             <Table
+              scroll={{ x: "max-content" }}
               size="small"
               rowKey="id"
-              columns={predictionColumns}
-              dataSource={prediction.predictions}
+              columns={modelColumns}
+              dataSource={models}
               pagination={false}
+              // The prediction below names the model it came from, so the model is chosen here
+              // rather than assumed to be the most recent one.
+              rowSelection={{
+                type: "radio",
+                selectedRowKeys: selectedModelId ? [selectedModelId] : [],
+                onChange: (keys) => setSelectedModelId(keys[0] as string),
+                getCheckboxProps: (row) => ({ disabled: !row.usable })
+              }}
             />
-          </Space>
-        ) : null}
-      </Card>
+          )}
+        </Card>
+        <Card title={t("model.predictTitle")}>
+          {loading ? (
+            <Alert type="info" showIcon message={t("model.modelsLoading")} />
+          ) : describedLoadError ? (
+            <Alert type="error" showIcon message={t("ui.pageFailedToLoad")} />
+          ) : !selectedModel ? (
+            <Alert
+              type="info"
+              showIcon
+              message={models.length === 0 ? t("model.noModelTitle") : t("model.selectModel")}
+              description={models.length === 0 ? t("model.noModelBody") : t("model.selectModelFirst")}
+            />
+          ) : (
+            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+              <Typography.Text type="secondary">
+                {t("model.selected")}: <span translate="no">{selectedModel.name}</span> — {t("model.basis")}:{" "}
+                {t(basisLabelKey(selectedModel.concentrationBasis))}
+              </Typography.Text>
+              {selectedModel.usable ? null : (
+                <Alert
+                  type="error"
+                  showIcon
+                  message={t("model.outdatedSchema")}
+                  description={t("model.outdatedSchemaBody")}
+                />
+              )}
+              {policy ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  message={policy.needsValue ? t(policy.labelKey) : t("concentration.noneTitle")}
+                  description={t(policy.helpKey)}
+                />
+              ) : (
+                <Alert
+                  type="error"
+                  showIcon
+                  message={t("model.outdatedSchema")}
+                  description={t("backend.datasetUnknownBasis")}
+                />
+              )}
+
+              {aggregate && policy ? (
+                <>
+                  <Space size={12} wrap>
+                    <Select
+                      mode="multiple"
+                      style={{ width: 420, maxWidth: "100%" }}
+                      placeholder={t("model.selectFormulations")}
+                      aria-label={t("model.selectFormulations")}
+                      value={selectedFormulations}
+                      onChange={setSelectedFormulations}
+                      optionFilterProp="title"
+                      notFoundContent={t("model.noFormulations")}
+                      options={formulations.map((item) => ({
+                        value: item.id,
+                        title: item.name,
+                        label: <span translate="no">{item.name}</span>
+                      }))}
+                    />
+                  </Space>
+                  <Card size="small" title={t("model.candidateTitle")}>
+                    <Typography.Paragraph type="secondary">{t("model.candidateExplanation")}</Typography.Paragraph>
+                    <Input
+                      style={{ maxWidth: 360, marginBottom: 12 }}
+                      placeholder={t("model.candidateName")}
+                      aria-label={t("model.candidateName")}
+                      value={candidateName}
+                      onChange={(event) => setCandidateName(event.target.value)}
+                    />
+                    <Typography.Text strong>{t("formulation.additives")}</Typography.Text>
+                    <div style={{ marginTop: 8 }}>
+                      {renderCandidateRows(
+                        candidateAdditives,
+                        setCandidateAdditives,
+                        molecules.map((item) => ({ value: item.id, label: item.name })),
+                        policy
+                      )}
+                    </div>
+                    <Button onClick={() => setCandidateAdditives([...candidateAdditives, newRow()])}>
+                      {t("model.candidateAddAdditive")}
+                    </Button>
+                    <Typography.Text strong style={{ display: "block", marginTop: 16 }}>
+                      {t("formulation.baseOil")}
+                    </Typography.Text>
+                    <div style={{ marginTop: 8 }}>
+                      {renderCandidateRows(
+                        candidateBaseOils,
+                        setCandidateBaseOils,
+                        baseOils.map((item) => ({ value: item.id, label: item.name })),
+                        policy
+                      )}
+                    </div>
+                    <Button onClick={() => setCandidateBaseOils([...candidateBaseOils, newRow()])}>
+                      {t("model.candidateAddBaseOil")}
+                    </Button>
+                  </Card>
+                </>
+              ) : null}
+
+              {!aggregate && policy ? (
+                <Space size={12} wrap>
+                  <Select
+                    mode="multiple"
+                    style={{ width: 360, maxWidth: "100%" }}
+                    placeholder={t("model.selectMoleculesToPredict")}
+                    aria-label={t("model.selectMoleculesToPredict")}
+                    value={selectedMolecules}
+                    onChange={setSelectedMolecules}
+                    optionFilterProp="title"
+                    notFoundContent={t("model.noMolecules")}
+                    options={molecules.map((molecule) => ({
+                      value: molecule.id,
+                      title: molecule.name,
+                      label: <span translate="no">{molecule.name}</span>
+                    }))}
+                  />
+                  {policy.needsValue ? (
+                    <InputNumber
+                      min={0}
+                      step={0.1}
+                      value={concentration}
+                      onChange={setConcentration}
+                      placeholder={t(policy.labelKey)}
+                      addonBefore={t(policy.labelKey)}
+                      aria-label={t(policy.labelKey)}
+                    />
+                  ) : null}
+                  {policy.needsUnit ? (
+                    <Select
+                      style={{ width: 170 }}
+                      value={concentrationUnit}
+                      onChange={setConcentrationUnit}
+                      aria-label={t("model.concentrationUnit")}
+                      options={CONCENTRATION_UNITS.map((unit) => ({ value: unit, label: unit }))}
+                    />
+                  ) : null}
+                  {policy.needsValue && !policy.needsUnit ? (
+                    <Typography.Text type="secondary">{t("concentration.unitNotSent")}</Typography.Text>
+                  ) : null}
+                </Space>
+              ) : null}
+              {/* Shown only for a model that actually uses them: a temperature typed for a model
+                    fitted without condition features would be a control the model ignores. */}
+              {needsConditions ? (
+                <Card size="small" title={t("model.conditionInputsTitle")}>
+                  <Space direction="vertical" size={8}>
+                    <Typography.Text type="secondary">{t("model.conditionInputsHelp")}</Typography.Text>
+                    <Space size={8} wrap>
+                      <InputNumber
+                        value={temperatureValue}
+                        onChange={setTemperatureValue}
+                        addonBefore={t("design.conditionTemperature")}
+                        aria-label={t("design.conditionTemperature")}
+                      />
+                      <Select
+                        style={{ width: 90 }}
+                        value={temperatureUnit}
+                        onChange={setTemperatureUnit}
+                        aria-label={t("design.temperatureUnit")}
+                        options={TEMPERATURE_UNITS.map((unit) => ({ value: unit, label: unit }))}
+                      />
+                      <InputNumber
+                        min={0}
+                        value={loadValue}
+                        onChange={setLoadValue}
+                        addonBefore={t("design.conditionLoad")}
+                        aria-label={t("design.conditionLoad")}
+                      />
+                      <Select
+                        style={{ width: 90 }}
+                        value={loadUnit}
+                        onChange={setLoadUnit}
+                        aria-label={t("design.loadUnit")}
+                        options={LOAD_UNITS.map((unit) => ({ value: unit, label: unit }))}
+                      />
+                    </Space>
+                  </Space>
+                </Card>
+              ) : null}
+
+              <Space>
+                <Button
+                  type="primary"
+                  loading={predicting}
+                  // Disabled while a model list is loading, and for a model this build cannot use.
+                  disabled={loading || !selectedModel.usable || !policy}
+                  onClick={handlePredict}
+                >
+                  {t("model.predict")}
+                </Button>
+              </Space>
+            </Space>
+          )}
+
+          {describedPredictionError ? (
+            <Alert
+              style={{ marginTop: 12 }}
+              type="error"
+              showIcon
+              message={t("model.predictFailed")}
+              description={
+                <Space direction="vertical" size={4}>
+                  <span>{describedPredictionError.summary}</span>
+                  <span translate="no">{describedPredictionError.detail}</span>
+                </Space>
+              }
+            />
+          ) : null}
+          {predictionIsStale ? (
+            <Alert
+              style={{ marginTop: 12 }}
+              type="warning"
+              showIcon
+              message={t("model.staleTitle")}
+              description={t("model.staleBody")}
+            />
+          ) : null}
+          {prediction && !predictionIsStale ? (
+            <Space direction="vertical" style={{ width: "100%", marginTop: 12 }} size={12}>
+              <Typography.Text type="secondary">
+                {t("model.predictedWith")} <span translate="no">{prediction.modelName}</span> (
+                <span translate="no">{prediction.algorithm}</span>) — {prediction.trainedAt} — {prediction.sampleCount}
+              </Typography.Text>
+              {prediction.skipped.length > 0 ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={`${prediction.skipped.length} ${t("model.skipped")}`}
+                  description={
+                    <ul style={{ margin: 0, paddingInlineStart: 20 }}>
+                      {prediction.skipped.map((item) => renderSkipped(item))}
+                    </ul>
+                  }
+                />
+              ) : null}
+              <Table
+                scroll={{ x: "max-content" }}
+                size="small"
+                rowKey="id"
+                columns={predictionColumns}
+                dataSource={prediction.predictions}
+                pagination={false}
+              />
+            </Space>
+          ) : null}
+        </Card>
+      </WorkspaceTabs>
     </div>
   );
 }

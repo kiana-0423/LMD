@@ -6,11 +6,13 @@ import importlib.metadata
 import sys
 from typing import Any, Callable
 
+from .services.assessment_service import assess_candidates
 from .services.descriptor_service import (
     calculate_descriptors,
     calculate_required_descriptors,
     calculate_required_descriptors_batch,
 )
+from .services.design_service import generate_candidates, list_templates, validate_structure
 from .services.import_service import export_table_rows, preview_table_file
 from .services.ml_service import describe_model, predict_with_model, train_model
 from .services.preparation_service import prepare_molecule
@@ -100,6 +102,12 @@ def command_handlers() -> dict[str, Callable[[dict[str, Any]], tuple[dict[str, A
         "train-model": train_model,
         "predict-with-model": predict_with_model,
         "describe-model": describe_model,
+        # Molecular design: template-constrained generation, and prediction with the evidence
+        # needed to judge it. Neither writes anything; Rust owns the candidate collection.
+        "design-templates": list_templates,
+        "design-generate": generate_candidates,
+        "design-validate": validate_structure,
+        "assess-candidates": assess_candidates,
     }
 
 
@@ -110,17 +118,17 @@ def command_handlers() -> dict[str, Callable[[dict[str, Any]], tuple[dict[str, A
 # build to answer `health` with "real" while every model command failed on the first import: the
 # health check answered a narrower question than the one the caller was asking.
 REQUIRED_DEPENDENCIES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("rdkit", "rdkit", ("standardize", "validate-smiles", "rdkit-descriptors", "generate-3d", "convert-format")),
+    ("rdkit", "rdkit", ("standardize", "validate-smiles", "rdkit-descriptors", "generate-3d", "convert-format", "design-templates", "design-generate", "design-validate", "assess-candidates")),
     ("mordred", "mordred", ("mordred-descriptors", "calculate-required-descriptors", "calculate-descriptor-batch")),
     # Mordred builds molecular graphs with networkx, and the sidecar patches one function back
     # onto it; without networkx no Mordred descriptor can be calculated at all.
     ("networkx", "networkx", ("mordred-descriptors", "calculate-required-descriptors", "calculate-descriptor-batch")),
-    ("numpy", "numpy", ("train-model", "predict-with-model")),
+    ("numpy", "numpy", ("train-model", "predict-with-model", "assess-candidates")),
     ("pandas", "pandas", ("import-excel", "export-table-rows")),
     ("openpyxl", "openpyxl", ("import-excel",)),
-    ("scipy", "scipy", ("train-model", "predict-with-model")),
-    ("sklearn", "scikit-learn", ("train-model", "predict-with-model", "describe-model")),
-    ("joblib", "joblib", ("train-model", "predict-with-model", "describe-model")),
+    ("scipy", "scipy", ("train-model", "predict-with-model", "assess-candidates")),
+    ("sklearn", "scikit-learn", ("train-model", "predict-with-model", "describe-model", "assess-candidates")),
+    ("joblib", "joblib", ("train-model", "predict-with-model", "describe-model", "assess-candidates")),
 )
 
 

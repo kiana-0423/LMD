@@ -1,5 +1,6 @@
 import { Skeleton } from "antd";
 import { Suspense, lazy } from "react";
+import type { CSSProperties } from "react";
 import type { LmdChartOption } from "./EChartCanvas";
 
 /**
@@ -23,7 +24,7 @@ export default function EChart({
   ariaLabel
 }: {
   option: LmdChartOption;
-  height?: number;
+  height?: CSSProperties["height"];
   ariaLabel?: string;
 }) {
   return (

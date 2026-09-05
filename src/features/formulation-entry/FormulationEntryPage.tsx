@@ -1,4 +1,5 @@
 import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, message } from "antd";
+import { useState } from "react";
 
 import PageHeader from "../../components/PageHeader";
 import AsyncBoundary from "../../components/AsyncBoundary";
@@ -49,6 +50,7 @@ function positiveConcentration(message: string) {
 export default function FormulationEntryPage() {
   const { t } = useLanguage();
   const [form] = Form.useForm<FormulationFormValues>();
+  const [selectedAdditive, setSelectedAdditive] = useState(0);
 
   // Selector-sized reads: id, label, and a short qualifier. The whole base-oil and additive tables
   // used to be downloaded to fill two dropdowns.
@@ -91,11 +93,19 @@ export default function FormulationEntryPage() {
       });
       message.success(`${t("ui.formulationSaved")} ${formulation.name}`);
       form.resetFields();
+      setSelectedAdditive(0);
     }
   }, {
     onError: (error) => {
       // Field-level validation is already shown against the field it belongs to.
-      if (error && typeof error === "object" && "errorFields" in error) return;
+      if (error && typeof error === "object" && "errorFields" in error) {
+        const fields = (error as { errorFields: { name: (string | number)[] }[] }).errorFields;
+        const invalidAdditive = fields.find((field) => field.name[0] === "additives");
+        if (invalidAdditive && typeof invalidAdditive.name[1] === "number") {
+          setSelectedAdditive(invalidAdditive.name[1]);
+        }
+        return;
+      }
       message.error(`${t("ui.failedToSaveTheFormulation")} ${backendErrorText(error, t)}`.trim());
     }
   });
@@ -114,13 +124,16 @@ export default function FormulationEntryPage() {
 
   return (
     <div className="page-grid entry-page formulation-entry-page">
-      <PageHeader title={t("ui.formulationEntry")} description={t("ui.selectABaseOilAndAdditivesDefineComponent")} />
+      <PageHeader title={t("ui.formulationEntry")} description={t("ui.selectABaseOilAndAdditivesDefineComponent")}
+        extra={<Button type="primary" disabled={options.loading || Boolean(options.error)} loading={save.running} onClick={() => void save.run()}>{t("ui.saveFormulation")}</Button>}
+      />
       <Card>
-        <Alert type="info" showIcon message={t("entry.noAssumedValues")} style={{ marginBottom: 16 }} />
+        <Alert type="info" showIcon message={t("entry.noAssumedValues")} className="formulation-entry-notice" />
         <AsyncBoundary loading={options.loading} error={options.error} onRetry={options.reload} rows={3}>
         <Form
           form={form}
           layout="vertical"
+          size="small"
           // Only units, never values. `99 wt%` base oil, `1 wt%` additive and `stirring` used to
           // be filled in when the form opened: three claims about a blend nobody had made yet,
           // and three numbers that would have been stored verbatim if the user had not noticed
@@ -130,7 +143,7 @@ export default function FormulationEntryPage() {
             additives: [{ concentrationUnit: "wt%" }]
           }}
         >
-          <div className="two-column-grid">
+          <div className="formulation-entry-columns">
             <div className="form-section">
               <Form.Item label={t("ui.formulationName")} name="name" rules={[{ required: true, message: t("ui.enterAFormulationName") }]}>
                 <Input placeholder={t("ui.examplePao6Zddp10")} />
@@ -138,7 +151,7 @@ export default function FormulationEntryPage() {
               <Form.Item label={t("ui.baseOil")} name="baseOilId" rules={[{ required: true, message: t("ui.selectABaseOil2") }]}>
                 <Select showSearch options={baseOilOptions} optionFilterProp="label" placeholder={t("ui.selectABaseOil")} />
               </Form.Item>
-              <Space size={12} wrap>
+              <div className="formulation-entry-pair">
                 <Form.Item
                   label={t("ui.baseOilRatio")}
                   name="baseOilConcentration"
@@ -150,9 +163,14 @@ export default function FormulationEntryPage() {
                   <InputNumber precision={4} />
                 </Form.Item>
                 <Form.Item label={t("ui.unit")} name="baseOilConcentrationUnit">
-                  <Select options={unitOptions} style={{ width: 140 }} />
+                  <Select options={unitOptions} />
                 </Form.Item>
-              </Space>
+              </div>
+              <Form.Item label={t("ui.notes")} name="notes">
+                <Input.TextArea rows={2} />
+              </Form.Item>
+            </div>
+            <div className="form-section">
               <Form.Item label={t("ui.preparationMethod")} name="preparationMethod">
                 <Select
                   allowClear
@@ -163,30 +181,37 @@ export default function FormulationEntryPage() {
                   }))}
                 />
               </Form.Item>
-              <Space size={12} wrap>
+              <div className="formulation-entry-pair">
                 <Form.Item label={t("ui.preparationTemperature")} name="preparationTemperature">
-                  <InputNumber addonAfter="C" style={{ width: 160 }} />
+                  <InputNumber addonAfter="C" />
                 </Form.Item>
                 <Form.Item label={t("ui.preparationTime")} name="preparationTime">
-                  <InputNumber addonAfter="min" style={{ width: 160 }} />
+                  <InputNumber addonAfter="min" />
                 </Form.Item>
-              </Space>
+              </div>
               <Form.Item label={t("ui.stabilityObservation")} name="stabilityObservation">
-                <Input.TextArea rows={3} />
-              </Form.Item>
-              <Form.Item label={t("ui.notes")} name="notes">
-                <Input.TextArea rows={3} />
+                <Input.TextArea rows={2} />
               </Form.Item>
             </div>
             <div className="form-section">
               <Form.List name="additives">
                 {(fields, { add, remove }) => (
                   <>
+                    <div className="formulation-additive-toolbar">
+                      <Select
+                        aria-label={t("ui.additives")}
+                        placeholder={t("ui.additives")}
+                        value={fields.length ? Math.min(selectedAdditive, fields.length - 1) : undefined}
+                        onChange={setSelectedAdditive}
+                        options={fields.map((field, index) => ({ value: index, label: `${t("ui.additiveNumber")} ${index + 1}` }))}
+                      />
+                      <Button onClick={() => { setSelectedAdditive(fields.length); add({ concentrationUnit: "wt%" }); }}>{t("ui.addAdditive")}</Button>
+                    </div>
                     {fields.map((field, index) => (
-                      <div key={field.key} className="form-section">
+                      <div key={field.key} hidden={index !== Math.min(selectedAdditive, fields.length - 1)}>
                         <Space className="modal-action-row">
                           <strong>{`${t("ui.additiveNumber")} ${index + 1}`}</strong>
-                          <Button size="small" danger onClick={() => remove(field.name)}>{t("ui.delete")}</Button>
+                          <Button size="small" danger onClick={() => { setSelectedAdditive(Math.max(0, index - 1)); remove(field.name); }}>{t("ui.delete")}</Button>
                         </Space>
                         <Form.Item
                           label={t("ui.additive")}
@@ -195,7 +220,7 @@ export default function FormulationEntryPage() {
                         >
                           <Select showSearch options={additiveOptions} optionFilterProp="label" placeholder={t("ui.selectAnAdditive")} />
                         </Form.Item>
-                        <Space size={12} wrap>
+                        <div className="formulation-entry-pair">
                           <Form.Item
                             label={t("ui.ratio")}
                             name={[field.name, "concentrationValue"]}
@@ -207,18 +232,14 @@ export default function FormulationEntryPage() {
                             <InputNumber precision={4} />
                           </Form.Item>
                           <Form.Item label={t("ui.unit")} name={[field.name, "concentrationUnit"]}>
-                            <Select options={unitOptions} style={{ width: 140 }} />
+                            <Select options={unitOptions} />
                           </Form.Item>
-                        </Space>
+                        </div>
                         <Form.Item label={t("ui.description")} name={[field.name, "notes"]}>
                           <Input />
                         </Form.Item>
                       </div>
                     ))}
-                    <Space className="modal-action-row">
-                      <Button onClick={() => add({ concentrationUnit: "wt%" })}>{t("ui.addAdditive")}</Button>
-                      <Button type="primary" loading={save.running} onClick={() => void save.run()}>{t("ui.saveFormulation")}</Button>
-                    </Space>
                   </>
                 )}
               </Form.List>

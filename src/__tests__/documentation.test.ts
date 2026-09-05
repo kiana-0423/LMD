@@ -26,14 +26,25 @@ describe("README accuracy", () => {
     expect(limitations).toContain("Clean-machine installer validation is outstanding");
     expect(limitations).toContain("unsigned");
     expect(limitations).toContain("wasm-unsafe-eval");
-    // Ranking must not be described as structure generation.
+    // Ranking must not be described as structure generation, and generation must be described
+    // with its optional-template paths, and without a novelty or synthesis claim.
     expect(limitations).toContain("LMD does not generate new structures");
+    expect(limitations).toContain("Molecular Design accepts an optional chemical-class template");
+    expect(limitations).toContain("With no template, at least one selected library or user seed is required");
+    expect(limitations).toContain("not a claim of novelty");
+    expect(limitations).toContain("Synthesis feasibility is");
+    expect(limitations).toContain("never become training");
   });
 
-  it("does not describe Molecule Design as a feature", () => {
+  it("describes Molecular Design as the separate workflow it is", () => {
     const features = README.slice(README.indexOf("## Main Features"), README.indexOf("## Architecture Notes"));
-    expect(features).not.toContain("Molecule design");
+    expect(features).toContain("Molecular Design");
     expect(features).toContain("Molecule Screening");
+    // The assessment vocabulary the interface uses is the one the README explains.
+    expect(README).toContain("supported by validation");
+    expect(README).toContain("exploratory");
+    expect(README).toContain("unavailable");
+    expect(README).not.toContain("confidence percentage is");
   });
 
   it("documents the clean-machine procedure it refers to", () => {

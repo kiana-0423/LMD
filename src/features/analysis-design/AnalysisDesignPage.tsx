@@ -1,10 +1,11 @@
-import { Alert, Button, Card, Empty, Select, Space, Statistic, Table, Tabs, Tag, Typography } from "antd";
+import { Alert, Button, Card, Empty, Pagination, Select, Space, Statistic, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAsyncResource } from "../../lib/useAsyncResource";
 import EChart from "../../components/EChart";
 import LoadingBlock from "../../components/LoadingBlock";
 import PageHeader from "../../components/PageHeader";
+import PagedContent from "../../components/PagedContent";
 import { useLanguage, type MessageKey } from "../../i18n/LanguageContext";
 import { describeMessage, translateMessage, translateMessages } from "../../lib/backendMessages";
 import { describeBackendError } from "../../lib/backendErrors";
@@ -15,9 +16,7 @@ import {
   getPerformanceDistribution,
   listPerformanceMetrics,
   type AnalysisResult,
-  type ConcentrationPoint,
   type CorrelationRow,
-  type DistributionBin,
   type GroupSummary
 } from "../../lib/api";
 
@@ -51,7 +50,7 @@ function AnalysisPanel<T>({
   if (error) {
     const described = describeBackendError(error, t);
     return (
-      <Alert
+      <PagedContent><Alert
         type="error"
         showIcon
         message={t("ui.analysisFailed")}
@@ -62,16 +61,23 @@ function AnalysisPanel<T>({
           </Space>
         }
         action={<Button onClick={onRetry}>{t("ui.retry")}</Button>}
-      />
+      /></PagedContent>
     );
   }
   if (!result) return <Empty description={t("ui.noAnalysisHasBeenRunYet")} />;
+  const evidence = <aside className="analysis-evidence"><PagedContent>
+    {translateMessages(result.warnings, t).map((warning) => (
+      <Alert key={warning} type="warning" showIcon message={warning} />
+    ))}
+    <AnalysisMetadataCard result={result} />
+  </PagedContent></aside>;
   if (result.status === "insufficient_data") {
     // The backend says how much data it needed and how much it found. That sentence is assembled
     // here, from a code and its counts, rather than arriving pre-written in English.
     const explained = describeMessage(result.message, t);
     return (
-      <Space direction="vertical" style={{ width: "100%" }} size={12}>
+      <div className="analysis-result-layout">
+        <div className="analysis-visual"><PagedContent>
         <Alert
           type="info"
           showIcon
@@ -87,18 +93,16 @@ function AnalysisPanel<T>({
             </Space>
           }
         />
-        <AnalysisMetadataCard result={result} />
-      </Space>
+        </PagedContent></div>
+        {evidence}
+      </div>
     );
   }
   return (
-    <Space direction="vertical" style={{ width: "100%" }} size={12}>
-      {translateMessages(result.warnings, t).map((warning) => (
-        <Alert key={warning} type="warning" showIcon message={warning} />
-      ))}
-      {children(result)}
-      <AnalysisMetadataCard result={result} />
-    </Space>
+    <div className="analysis-result-layout">
+      <div className="analysis-visual">{children(result)}</div>
+      {evidence}
+    </div>
   );
 }
 
@@ -153,31 +157,19 @@ export default function AnalysisDesignPage() {
   // option list below rebuild continuously.
   const metrics = useMemo<Metric[]>(() => metricsResource.data ?? [], [metricsResource.data]);
 
-  const analyses = useAsyncResource(
-    () =>
-      Promise.all([
-        getPerformanceDistribution(metric),
-        comparePerformanceByGroup(group, metric),
-        getConcentrationPerformance(metric),
-        getDescriptorPropertyCorrelation(metric)
-      ]),
-    [group, metric]
-  );
-
-  // Destructured with explicit types: `Promise.all` widens a heterogeneous tuple to `unknown[]`
-  // once it passes through the resource's generic.
-  const [distribution, comparison, concentration, correlation] = (analyses.data ?? []) as [
-    AnalysisResult<DistributionBin> | undefined,
-    AnalysisResult<GroupSummary> | undefined,
-    AnalysisResult<ConcentrationPoint> | undefined,
-    AnalysisResult<CorrelationRow> | undefined
-  ];
-  const loading = analyses.loading;
-  const error = analyses.error;
+  // A group change only refreshes the comparison. One failed analysis does not hide the others.
+  const distributionResource = useAsyncResource(() => getPerformanceDistribution(metric), [metric]);
+  const comparisonResource = useAsyncResource(() => comparePerformanceByGroup(group, metric), [group, metric]);
+  const concentrationResource = useAsyncResource(() => getConcentrationPerformance(metric), [metric]);
+  const correlationResource = useAsyncResource(() => getDescriptorPropertyCorrelation(metric), [metric]);
+  const [activeTab, setActiveTab] = useState("distribution");
 
   function refresh() {
     metricsResource.reload();
-    analyses.reload();
+    distributionResource.reload();
+    comparisonResource.reload();
+    concentrationResource.reload();
+    correlationResource.reload();
   }
 
   const selectMetric = setMetric;
@@ -205,55 +197,60 @@ export default function AnalysisDesignPage() {
   );
 
   const correlationColumns: ColumnsType<CorrelationRow> = [
-    { title: t("ui.descriptor"), dataIndex: "descriptor", render: (value) => <span translate="no">{value}</span> },
-    { title: t("ui.samples"), dataIndex: "sampleCount", width: 100 },
+    { title: t("ui.descriptor"), dataIndex: "descriptor", ellipsis: true, render: (value) => <span translate="no">{value}</span> },
+    { title: t("ui.samples"), dataIndex: "sampleCount", width: 70 },
     {
       title: t("ui.pearson"),
       dataIndex: "pearson",
-      width: 140,
+      width: 86,
       render: (value: number) => <Tag color={Math.abs(value) >= 0.5 ? "green" : "default"}>{value.toFixed(4)}</Tag>
     },
     {
       title: t("ui.spearman"),
       dataIndex: "spearman",
-      width: 140,
+      width: 86,
       render: (value: number | null) => (value === null ? "-" : value.toFixed(4))
     }
   ];
 
   return (
-    <div className="page-grid">
+    <div className="page-grid analysis-page">
       <PageHeader title={t("ui.analysis")} description={t("ui.distributionsGroupComparisonsConcentrationTr")} />
-      <Card>
-        <Space size={12} wrap>
+      <Card className="analysis-toolbar-card">
+        <div className="analysis-toolbar">
           <Select
-            style={{ width: 280 }}
+            className="analysis-metric-select"
+            loading={metricsResource.loading}
             value={metric}
             options={metricOptions}
             onChange={selectMetric}
             aria-label={t("ui.performanceMetric")}
           />
-          <Select
-            style={{ width: 200 }}
+          {activeTab === "comparison" && <Select
+            className="analysis-group-select"
             value={group}
             options={COMPARISON_GROUPS.map((item) => ({ value: item.value, label: t(item.key) }))}
             onChange={selectGroup}
             aria-label={t("ui.comparisonGroup")}
-          />
-        </Space>
+          />}
+          <Button onClick={refresh}>{t("analysis.refresh")}</Button>
+          {metricsResource.error ? <Alert type="error" showIcon message={describeBackendError(metricsResource.error, t).summary} action={<Button size="small" onClick={metricsResource.reload}>{t("ui.retry")}</Button>} /> : null}
+        </div>
       </Card>
-      <Card className="table-card">
-        <Tabs
+      <Card className="analysis-results-card">
+        <Tabs activeKey={activeTab} onChange={setActiveTab}
           items={[
             {
               key: "distribution",
               label: t("ui.distribution"),
               children: (
-                <AnalysisPanel result={distribution} loading={loading} error={error} onRetry={refresh}>
+                <AnalysisPanel result={distributionResource.data} loading={distributionResource.loading} error={distributionResource.error} onRetry={distributionResource.reload}>
                   {(result) => (
                     <EChart
+                      height="100%"
                       ariaLabel={t("ui.distributionHistogram")}
                       option={{
+                        grid: { top: 30, right: 18, bottom: 36, left: 12, containLabel: true },
                         tooltip: { trigger: "axis" },
                         xAxis: { type: "category", data: result.series.map((bin) => bin.label) },
                         yAxis: { type: "value", name: t("ui.records") },
@@ -268,27 +265,9 @@ export default function AnalysisDesignPage() {
               key: "comparison",
               label: t("ui.comparison"),
               children: (
-                <AnalysisPanel result={comparison} loading={loading} error={error} onRetry={refresh}>
+                <AnalysisPanel result={comparisonResource.data} loading={comparisonResource.loading} error={comparisonResource.error} onRetry={comparisonResource.reload}>
                   {(result) => (
-                    <EChart
-                      ariaLabel={t("ui.groupComparisonChart")}
-                      option={{
-                        tooltip: { trigger: "axis" },
-                        xAxis: {
-                          type: "category",
-                          data: result.series.map((item) => item.label),
-                          axisLabel: { rotate: 30 }
-                        },
-                        yAxis: { type: "value", name: result.metadata.unit },
-                        series: [
-                          {
-                            type: "bar",
-                            name: t("ui.mean"),
-                            data: result.series.map((item) => Number(item.summary.mean.toFixed(6)))
-                          }
-                        ]
-                      }}
-                    />
+                    <GroupComparison key={`${metric}:${group}`} result={result} />
                   )}
                 </AnalysisPanel>
               )
@@ -297,10 +276,10 @@ export default function AnalysisDesignPage() {
               key: "concentration",
               label: t("ui.concentration"),
               children: (
-                <AnalysisPanel result={concentration} loading={loading} error={error} onRetry={refresh}>
+                <AnalysisPanel result={concentrationResource.data} loading={concentrationResource.loading} error={concentrationResource.error} onRetry={concentrationResource.reload}>
                   {(result) => (
-                    <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                      <Space size={16} wrap>
+                    <div className="analysis-concentration">
+                      <Space className="analysis-coefficients" size={16} wrap>
                         <Statistic
                           title={t("ui.pearson")}
                           value={typeof result.pearson === "number" ? result.pearson.toFixed(4) : "-"}
@@ -311,9 +290,10 @@ export default function AnalysisDesignPage() {
                         />
                       </Space>
                       <EChart
-                        height={320}
+                        height="100%"
                         ariaLabel={t("ui.concentrationScatter")}
                         option={{
+                          grid: { top: 30, right: 30, bottom: 30, left: 12, containLabel: true },
                           tooltip: { trigger: "item" },
                           xAxis: { type: "value", name: t("ui.concentration") },
                           yAxis: { type: "value", name: result.metadata.unit },
@@ -325,7 +305,7 @@ export default function AnalysisDesignPage() {
                           ]
                         }}
                       />
-                    </Space>
+                    </div>
                   )}
                 </AnalysisPanel>
               )
@@ -334,15 +314,9 @@ export default function AnalysisDesignPage() {
               key: "correlation",
               label: t("ui.descriptorCorrelation"),
               children: (
-                <AnalysisPanel result={correlation} loading={loading} error={error} onRetry={refresh}>
+                <AnalysisPanel result={correlationResource.data} loading={correlationResource.loading} error={correlationResource.error} onRetry={correlationResource.reload}>
                   {(result) => (
-                    <Table
-                      size="small"
-                      rowKey="descriptor"
-                      columns={correlationColumns}
-                      dataSource={result.series}
-                      pagination={{ pageSize: 10, showSizeChanger: false }}
-                    />
+                    <CorrelationTable key={metric} rows={result.series} columns={correlationColumns} />
                   )}
                 </AnalysisPanel>
               )
@@ -352,4 +326,45 @@ export default function AnalysisDesignPage() {
       </Card>
     </div>
   );
+}
+
+function GroupComparison({ result }: { result: AnalysisResult<GroupSummary> }) {
+  const { t } = useLanguage();
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
+  const current = Math.min(page, Math.max(1, Math.ceil(result.series.length / pageSize)));
+  const groups = result.series.slice((current - 1) * pageSize, current * pageSize);
+  return <div className="analysis-group-chart">
+    <EChart height="100%" ariaLabel={t("ui.groupComparisonChart")} option={{
+      grid: { top: 30, right: 18, bottom: 40, left: 12, containLabel: true },
+      tooltip: { trigger: "axis" },
+      xAxis: { type: "category", data: groups.map((item) => item.label), axisLabel: { rotate: 25, width: 90, overflow: "truncate" } },
+      yAxis: { type: "value", name: result.metadata.unit },
+      series: [{ type: "bar", name: t("ui.mean"), data: groups.map((item) => Number(item.summary.mean.toFixed(6))) }]
+    }} />
+    <Pagination simple hideOnSinglePage current={current} pageSize={pageSize} total={result.series.length} onChange={setPage} showSizeChanger={false} />
+  </div>;
+}
+
+function CorrelationTable({ rows, columns }: { rows: CorrelationRow[]; columns: ColumnsType<CorrelationRow> }) {
+  const container = useRef<HTMLDivElement>(null);
+  const [pageSize, setPageSize] = useState(5);
+  const [page, setPage] = useState(1);
+  useLayoutEffect(() => {
+    const node = container.current;
+    if (!node) return;
+    const measure = () => {
+      if (node.clientHeight > 0) setPageSize(Math.max(1, Math.min(25, Math.floor((node.clientHeight - 86) / 38))));
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    observer?.observe(node);
+    window.addEventListener("resize", measure);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", measure); };
+  }, []);
+  return <div ref={container} className="analysis-correlation-table">
+    <Table size="small" rowKey="descriptor" tableLayout="fixed" columns={columns} dataSource={rows}
+      pagination={{ current: Math.min(page, Math.max(1, Math.ceil(rows.length / pageSize))), pageSize, onChange: setPage, showSizeChanger: false, simple: true, hideOnSinglePage: true }}
+    />
+  </div>;
 }

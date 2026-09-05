@@ -1148,6 +1148,7 @@ fn a_candidate_blend_is_buildable_on_every_basis_from_the_payload_the_frontend_s
             properties: [Some(32.0), None, None, None, None, None],
             concentration,
             concentration_unit: unit.to_string(),
+            ..BaseOilInput::default()
         }
     }
 

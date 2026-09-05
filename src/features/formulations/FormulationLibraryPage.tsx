@@ -1,3 +1,4 @@
+import PagedModal from "../../components/PagedModal";
 import {
   Alert,
   Button,
@@ -305,7 +306,7 @@ export default function FormulationLibraryPage() {
           }}
         />
       </Card>
-      <Modal
+      <PagedModal
         width={760}
         title={t("ui.completeFormulationData")}
         open={Boolean(selected)}
@@ -317,8 +318,8 @@ export default function FormulationLibraryPage() {
         }
       >
         {selected && <FormulationDetails item={selected} />}
-      </Modal>
-      <Modal
+      </PagedModal>
+      <PagedModal
         width={620}
         title={`${experimentDataFor?.name ?? ""} · ${t("ui.experimentalData")}`}
         open={Boolean(experimentDataFor)}
@@ -354,8 +355,8 @@ export default function FormulationLibraryPage() {
           dataSource={formulationExperiments}
           pagination={{ pageSize: 5, showSizeChanger: false }}
         />
-      </Modal>
-      <Modal
+      </PagedModal>
+      <PagedModal
         width={780}
         title={t("ui.enteredExperimentalData")}
         open={Boolean(selectedExperiment)}
@@ -379,8 +380,8 @@ export default function FormulationLibraryPage() {
             onSave={saveExperimentCorrection}
           />
         )}
-      </Modal>
-      <Modal
+      </PagedModal>
+      <PagedModal
         width={640}
         title={t("ui.editFormulation")}
         open={Boolean(editing)}
@@ -415,9 +416,9 @@ export default function FormulationLibraryPage() {
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
-      </Modal>
+      </PagedModal>
 
-      <Modal
+      <PagedModal
         title={t("formulation.copyTitle")}
         open={Boolean(copySource)}
         confirmLoading={copying}
@@ -433,9 +434,9 @@ export default function FormulationLibraryPage() {
           onChange={(event) => setCopyName(event.target.value)}
           onPressEnter={confirmCopy}
         />
-      </Modal>
+      </PagedModal>
 
-      <Modal
+      <PagedModal
         width={960}
         title={t("formulation.compareTitle")}
         open={Boolean(comparison) || Boolean(compareError) || comparing}
@@ -472,7 +473,7 @@ export default function FormulationLibraryPage() {
           />
         ) : null}
         {comparison && comparison.length === 0 ? <Empty description={t("formulation.compareEmpty")} /> : null}
-      </Modal>
+      </PagedModal>
     </div>
   );
 }

@@ -40,6 +40,14 @@ pub const MODEL_NOTHING_TO_PREDICT: &str = "model.nothingToPredict";
 pub const MODEL_UNKNOWN_BASIS: &str = "model.unknownBasis";
 /// A concentration cannot be converted, is inconsistent, or is not physical.
 pub const CONCENTRATION_UNUSABLE: &str = "concentration.unusable";
+/// A design request is malformed: an unknown template, an over-large bound, a bad seed.
+pub const DESIGN_REQUEST_INVALID: &str = "design.requestInvalid";
+/// The generator could not run.
+pub const DESIGN_GENERATION_FAILED: &str = "design.generationFailed";
+/// A candidate named in a request is not in the candidate collection.
+pub const DESIGN_CANDIDATE_NOT_FOUND: &str = "design.candidateNotFound";
+/// A candidate was already promoted, or failed validation and cannot be promoted.
+pub const DESIGN_PROMOTION_REFUSED: &str = "design.promotionRefused";
 /// A path would address something outside the workspace.
 pub const WORKSPACE_PATH_REFUSED: &str = "workspace.pathRefused";
 /// A record named in a request is not in the database.
@@ -131,6 +139,10 @@ mod tests {
             MODEL_NOTHING_TO_PREDICT,
             MODEL_UNKNOWN_BASIS,
             CONCENTRATION_UNUSABLE,
+            DESIGN_REQUEST_INVALID,
+            DESIGN_GENERATION_FAILED,
+            DESIGN_CANDIDATE_NOT_FOUND,
+            DESIGN_PROMOTION_REFUSED,
             WORKSPACE_PATH_REFUSED,
             RECORD_NOT_FOUND,
             FILE_ALREADY_EXISTS,

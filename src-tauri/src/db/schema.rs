@@ -266,10 +266,98 @@ CREATE TABLE IF NOT EXISTS models (
   feature_schema_version TEXT NOT NULL DEFAULT '1',
   concentration_basis TEXT NOT NULL DEFAULT 'unrecorded',
   dataset_report_json TEXT NOT NULL DEFAULT '{}',
+  dataset_scope_json TEXT NOT NULL DEFAULT '{}',
+  molecule_count INTEGER NOT NULL DEFAULT 0,
+  domain_json TEXT NOT NULL DEFAULT '{}',
   notes TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- Generated structures live here, not in `molecules`, until a person promotes one. A candidate is
+-- a proposal with a provenance; a molecule is a record of the library. Keeping them apart is what
+-- lets the library stay a library.
+CREATE TABLE IF NOT EXISTS design_candidates (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  smiles_canonical TEXT NOT NULL,
+  inchi TEXT,
+  inchi_key TEXT,
+  formula TEXT,
+  molecular_weight REAL,
+  heavy_atom_count INTEGER,
+  template_id TEXT NOT NULL,
+  template_family TEXT NOT NULL,
+  chemical_classes TEXT NOT NULL DEFAULT '[]',
+  substituents_json TEXT NOT NULL DEFAULT '[]',
+  seed_ids TEXT NOT NULL DEFAULT '[]',
+  generator_version TEXT NOT NULL,
+  parameters_json TEXT NOT NULL DEFAULT '{}',
+  random_seed INTEGER,
+  request_json TEXT NOT NULL DEFAULT '{}',
+  validation_status TEXT NOT NULL,
+  validation_json TEXT NOT NULL DEFAULT '{}',
+  structure_svg TEXT,
+  existing_molecule_id TEXT,
+  promoted_molecule_id TEXT,
+  verification_status TEXT NOT NULL DEFAULT 'not_verified',
+  verification_notes TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  CONSTRAINT candidate_validation_status_is_known
+    CHECK (validation_status IN ('valid', 'rejected')),
+  CONSTRAINT candidate_verification_status_is_known
+    CHECK (verification_status IN ('not_verified', 'planned', 'verified', 'refuted')),
+  FOREIGN KEY (job_id) REFERENCES jobs(id)
+);
+
+CREATE TABLE IF NOT EXISTS design_candidate_descriptors (
+  id TEXT PRIMARY KEY,
+  candidate_id TEXT NOT NULL,
+  descriptor_set TEXT NOT NULL,
+  descriptor_version TEXT,
+  descriptors_json TEXT NOT NULL,
+  descriptor_count INTEGER,
+  status TEXT NOT NULL,
+  mode TEXT,
+  error_message TEXT,
+  calculated_at TEXT,
+  FOREIGN KEY (candidate_id) REFERENCES design_candidates(id)
+);
+
+-- One row per candidate per assessment run. A predicted value is never copied anywhere a
+-- measurement lives, and never becomes a training label.
+CREATE TABLE IF NOT EXISTS design_predictions (
+  id TEXT PRIMARY KEY,
+  candidate_id TEXT NOT NULL,
+  job_id TEXT NOT NULL,
+  model_id TEXT,
+  model_name TEXT,
+  model_version TEXT,
+  feature_schema_version TEXT,
+  target TEXT NOT NULL,
+  unit TEXT,
+  status TEXT NOT NULL,
+  predicted_value REAL,
+  context_json TEXT NOT NULL DEFAULT '{}',
+  assessment_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  CONSTRAINT prediction_status_is_known
+    CHECK (status IN ('supported', 'exploratory', 'unavailable')),
+  FOREIGN KEY (candidate_id) REFERENCES design_candidates(id),
+  FOREIGN KEY (job_id) REFERENCES jobs(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_design_candidates_job_id ON design_candidates(job_id);
+CREATE INDEX IF NOT EXISTS idx_design_candidates_inchi_key ON design_candidates(inchi_key);
+CREATE INDEX IF NOT EXISTS idx_design_candidates_created_at
+  ON design_candidates(created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_design_candidate_descriptors_candidate_id
+  ON design_candidate_descriptors(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_design_predictions_candidate_id
+  ON design_predictions(candidate_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,

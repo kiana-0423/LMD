@@ -30,6 +30,7 @@ const MoleculePerformancePredictionPage = lazy(
 );
 const FormulationPredictionPage = lazy(() => import("../features/data-mining/FormulationPredictionPage"));
 const MoleculeScreeningPage = lazy(() => import("../features/data-mining/MoleculeScreeningPage"));
+const MolecularDesignPage = lazy(() => import("../features/molecular-design/MolecularDesignPage"));
 const SettingsPage = lazy(() => import("../features/settings/SettingsPage"));
 
 /**
@@ -72,10 +73,7 @@ export default function AppRoutes() {
       <Route path="/data-mining/molecule-performance" element={page(MoleculePerformancePredictionPage)} />
       <Route path="/data-mining/formulation-prediction" element={page(FormulationPredictionPage)} />
       <Route path="/data-mining/molecule-screening" element={page(MoleculeScreeningPage)} />
-      <Route
-        path="/data-mining/molecule-design"
-        element={<Navigate to="/data-mining/molecule-screening" replace />}
-      />
+      <Route path="/data-mining/molecule-design" element={page(MolecularDesignPage)} />
       <Route path="/import-export" element={page(ImportExportPage)} />
       <Route path="/settings" element={page(SettingsPage)} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -107,7 +107,22 @@ describe("backend message codes", () => {
         required: 3,
         available: 1
       },
-      "analysis.mixedUnits": { units: "wt%, ppm", count: 2 }
+      "analysis.mixedUnits": { units: "wt%, ppm", count: 2 },
+      "training.tooFewGroups": { groups: 3, required: 5 },
+      "skipped.needsConditions": { subject: "ZDDP" },
+      "design.noModel": { target: "Wear scar diameter" },
+      "design.descriptorsUnavailable": { subject: "candidate 1" },
+      "design.concentrationIncompatible": { subject: "candidate 1", basis: "wt%" },
+      "design.conditionsRequired": { missing: "condition_temperature_c" },
+      "design.testTypeIncompatible": { requested: "SRV", fitted: "four-ball" },
+      "design.featuresMissing": { missingCount: 4 },
+      "design.descriptorsOutOfRange": { count: 2, features: "rdkit_MolWt" },
+      "design.testTypeNotCovered": { testType: "SRV" },
+      "design.baseOilNotCovered": { baseOil: "PAO-6" },
+      "design.concentrationNotCovered": { value: "5" },
+      "design.conditionNotCovered": { condition: "temperature" },
+      "design.conditionNotModelled": { conditions: "baseOil, temperature" },
+      "design.identicalTrainingMolecule": { moleculeId: "mol-2" }
     };
 
     for (const language of SUPPORTED_LANGUAGES) {

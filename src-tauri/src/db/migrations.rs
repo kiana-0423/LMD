@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tauri::AppHandle;
 
-const LATEST_SCHEMA_VERSION: i64 = 6;
+const LATEST_SCHEMA_VERSION: i64 = 7;
 
 pub fn initialize_database_file(app: &AppHandle) -> Result<(), String> {
     let workspace = default_workspace_dir(app)?;
@@ -92,6 +92,11 @@ fn apply_migrations(connection: &Connection) -> Result<(), String> {
         enforce_scientific_constraints(connection)?;
         set_schema_version(connection, 6)?;
         version = 6;
+    }
+    if version < 7 {
+        create_design_tables(connection)?;
+        set_schema_version(connection, 7)?;
+        version = 7;
     }
     if version > LATEST_SCHEMA_VERSION {
         return Err(format!(
@@ -319,6 +324,42 @@ fn add_model_feature_schema_columns(connection: &Connection) -> Result<(), Strin
                 .map_err(|err| format!("Failed to add models.{column}: {err}"))?;
         }
     }
+    check_foreign_keys(connection)
+}
+
+/// Adds the molecular-design candidate collection and the model provenance it reads.
+///
+/// Purely additive. The three model columns default to "no scope", "no molecule count" and "no
+/// domain recorded", which is exactly what an older model is: it can still predict, and a design
+/// assessment reports its domain evidence as unavailable rather than inventing it. Candidates are
+/// kept apart from `molecules` by construction — a generated structure enters the library only
+/// through an explicit promotion.
+fn create_design_tables(connection: &Connection) -> Result<(), String> {
+    for (column, definition) in [
+        ("dataset_scope_json", "TEXT NOT NULL DEFAULT '{}'"),
+        ("molecule_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("domain_json", "TEXT NOT NULL DEFAULT '{}'"),
+    ] {
+        if !column_exists(connection, "models", column)? {
+            connection
+                .execute(
+                    &format!("ALTER TABLE models ADD COLUMN {column} {definition}"),
+                    [],
+                )
+                .map_err(|err| format!("Failed to add models.{column}: {err}"))?;
+        }
+    }
+    // The table definitions are the ones in schema.rs, so a fresh and a migrated workspace carry
+    // the same shape; `CREATE TABLE IF NOT EXISTS` makes this a no-op where they already exist.
+    let start = INIT_SCHEMA_SQL
+        .find("CREATE TABLE IF NOT EXISTS design_candidates")
+        .ok_or("schema.rs no longer defines design_candidates")?;
+    let end = INIT_SCHEMA_SQL
+        .find("CREATE TABLE IF NOT EXISTS settings")
+        .ok_or("schema.rs no longer defines settings")?;
+    connection
+        .execute_batch(&INIT_SCHEMA_SQL[start..end])
+        .map_err(|err| format!("Failed to create the design candidate tables: {err}"))?;
     check_foreign_keys(connection)
 }
 
@@ -1130,7 +1171,7 @@ mod constraint_migration_tests {
 
     #[test]
     fn upgrading_from_every_released_schema_version_reaches_the_current_one() {
-        for from_version in 0..=5 {
+        for from_version in 0..=6 {
             let connection = workspace_without_constraints();
             connection
                 .pragma_update(None, "user_version", from_version)
@@ -1138,6 +1179,12 @@ mod constraint_migration_tests {
             // Versions 3 and above already have the model registry.
             if from_version >= 3 {
                 create_model_tables(&connection).expect("model registry should exist");
+            }
+            if from_version >= 4 {
+                add_model_provenance_columns(&connection).expect("provenance columns should exist");
+            }
+            if from_version >= 5 {
+                add_model_feature_schema_columns(&connection).expect("schema columns should exist");
             }
 
             apply_migrations(&connection)

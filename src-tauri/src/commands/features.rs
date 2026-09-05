@@ -47,6 +47,11 @@ pub const FEATURE_ADDITIVE_COUNT: &str = "additive_count";
 pub const FEATURE_TOTAL_ADDITIVE_CONCENTRATION: &str = "total_additive_concentration";
 pub const FEATURE_BASE_OIL_COUNT: &str = "base_oil_count";
 pub const FEATURE_BASE_OIL_TOTAL_CONCENTRATION: &str = "base_oil_total_concentration";
+/// Experimental conditions, included only when a dataset scope asks for them. A model whose
+/// feature order carries one of these needs the same condition supplied at prediction time.
+pub const FEATURE_CONDITION_TEMPERATURE: &str = "condition_temperature_c";
+pub const FEATURE_CONDITION_LOAD: &str = "condition_load_n";
+pub const CONDITION_FEATURES: [&str; 2] = [FEATURE_CONDITION_TEMPERATURE, FEATURE_CONDITION_LOAD];
 
 /// The six base-oil properties an aggregate row carries, in their stored column order.
 pub const BASE_OIL_FEATURES: [&str; 6] = [
@@ -166,6 +171,63 @@ pub fn read_concentration(value: Option<f64>, unit: &str) -> ConcentrationReadin
         None => ConcentrationReading::Incompatible {
             unit: unit.trim().to_string(),
         },
+    }
+}
+
+/// A test temperature in degrees Celsius, or `None` when the unit is missing or unknown.
+///
+/// A temperature with no unit is not assumed to be Celsius: 100 °F and 100 °C are different
+/// experiments, and a feature built from both would mean nothing.
+pub fn read_temperature_celsius(value: Option<f64>, unit: &str) -> Option<f64> {
+    let value = value.filter(|value| value.is_finite())?;
+    match canonical_unit(unit).as_str() {
+        "°c" | "c" | "degc" | "celsius" | "℃" => Some(value),
+        "k" | "kelvin" => Some(value - 273.15),
+        "°f" | "f" | "degf" | "fahrenheit" | "℉" => Some((value - 32.0) * 5.0 / 9.0),
+        _ => None,
+    }
+}
+
+/// An applied load in newtons, or `None` when the unit is missing or unknown.
+///
+/// Mass units are read as the force the mass exerts under standard gravity, which is how a
+/// four-ball rig labelled in kilograms actually loads the balls.
+pub fn read_load_newtons(value: Option<f64>, unit: &str) -> Option<f64> {
+    let value = value.filter(|value| value.is_finite())?;
+    match canonical_unit(unit).as_str() {
+        "n" | "newton" | "newtons" => Some(value),
+        "kn" => Some(value * 1000.0),
+        "mn" => Some(value / 1000.0),
+        "kgf" | "kg" | "kilogram" | "kilograms" => Some(value * 9.80665),
+        "gf" | "g" => Some(value * 9.80665 / 1000.0),
+        "lbf" | "lb" | "lbs" => Some(value * 4.448_221_615_260_5),
+        _ => None,
+    }
+}
+
+/// Experimental conditions of one measurement, as recorded.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ConditionInput {
+    pub test_type: String,
+    pub temperature: Option<f64>,
+    pub temperature_unit: String,
+    pub load: Option<f64>,
+    pub load_unit: String,
+}
+
+impl ConditionInput {
+    /// The condition features, in the model's units. A condition that is absent or in a unit
+    /// this build cannot convert is simply not a feature; the caller decides whether that makes
+    /// the row unusable.
+    pub fn features(&self) -> Map<String, Value> {
+        let mut features = Map::new();
+        if let Some(celsius) = read_temperature_celsius(self.temperature, &self.temperature_unit) {
+            features.insert(FEATURE_CONDITION_TEMPERATURE.to_string(), json!(celsius));
+        }
+        if let Some(newtons) = read_load_newtons(self.load, &self.load_unit) {
+            features.insert(FEATURE_CONDITION_LOAD.to_string(), json!(newtons));
+        }
+        features
     }
 }
 
@@ -536,6 +598,8 @@ pub struct ComponentInput {
     pub component_id: String,
     pub molecule_id: String,
     pub molecule_name: String,
+    /// Canonical SMILES, carried so a model can record which structures it was fitted on.
+    pub smiles: String,
     pub concentration: Option<f64>,
     pub concentration_unit: String,
     /// Descriptor features keyed `{set}_{descriptor}`.
@@ -551,6 +615,8 @@ impl ComponentInput {
 /// One base oil of one blend.
 #[derive(Debug, Clone, Default)]
 pub struct BaseOilInput {
+    pub id: String,
+    pub name: String,
     /// Viscosity 40 °C, viscosity 100 °C, viscosity index, density, pour point, flash point.
     pub properties: [Option<f64>; 6],
     pub concentration: Option<f64>,
@@ -744,6 +810,7 @@ mod tests {
             concentration: value,
             concentration_unit: unit.to_string(),
             descriptors,
+            ..ComponentInput::default()
         }
     }
 
@@ -752,6 +819,7 @@ mod tests {
             properties: [Some(32.0), Some(6.0), Some(135.0), Some(0.83), None, None],
             concentration: value,
             concentration_unit: unit.to_string(),
+            ..BaseOilInput::default()
         }
     }
 
@@ -1215,6 +1283,53 @@ mod tests {
             .expect_err("a molecule present at nothing is not a screening candidate");
 
         assert!(matches!(problem, UnitProblem::ZeroTotal { .. }));
+    }
+
+    // --- experimental conditions ---------------------------------------------------------------
+
+    #[test]
+    fn temperatures_convert_to_celsius_only_when_the_unit_says_what_they_are() {
+        assert_eq!(read_temperature_celsius(Some(80.0), "°C"), Some(80.0));
+        assert_eq!(read_temperature_celsius(Some(353.15), "K"), Some(80.0));
+        let fahrenheit = read_temperature_celsius(Some(176.0), "°F").expect("converts");
+        assert!((fahrenheit - 80.0).abs() < 1e-9);
+        // No unit is not Celsius by default: it is not a temperature this build can use.
+        assert_eq!(read_temperature_celsius(Some(80.0), ""), None);
+        assert_eq!(read_temperature_celsius(Some(80.0), "bar"), None);
+        assert_eq!(read_temperature_celsius(None, "°C"), None);
+    }
+
+    #[test]
+    fn loads_convert_to_newtons_by_definition() {
+        assert_eq!(read_load_newtons(Some(392.0), "N"), Some(392.0));
+        assert_eq!(read_load_newtons(Some(0.392), "kN"), Some(392.0));
+        let kilograms = read_load_newtons(Some(40.0), "kg").expect("converts");
+        assert!((kilograms - 392.266).abs() < 1e-3);
+        assert_eq!(read_load_newtons(Some(392.0), ""), None);
+        assert_eq!(read_load_newtons(Some(392.0), "MPa"), None);
+    }
+
+    #[test]
+    fn condition_features_carry_only_the_conditions_that_could_be_read() {
+        let full = ConditionInput {
+            test_type: "four-ball".to_string(),
+            temperature: Some(75.0),
+            temperature_unit: "°C".to_string(),
+            load: Some(392.0),
+            load_unit: "N".to_string(),
+        };
+        let features = full.features();
+        assert_eq!(features[FEATURE_CONDITION_TEMPERATURE].as_f64(), Some(75.0));
+        assert_eq!(features[FEATURE_CONDITION_LOAD].as_f64(), Some(392.0));
+
+        let partial = ConditionInput {
+            temperature: Some(75.0),
+            ..ConditionInput::default()
+        };
+        assert!(
+            partial.features().is_empty(),
+            "a unit-less temperature is not a feature"
+        );
     }
 
     #[test]

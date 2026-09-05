@@ -29,3 +29,8 @@ build = [
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.pytest.ini_options]
+# The documented root-level npm command must work after installing the lock,
+# without requiring an additional editable installation of this package.
+pythonpath = ["."]

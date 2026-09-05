@@ -1,4 +1,5 @@
-import { Alert, Button, Checkbox, List, Modal, Space, Typography } from "antd";
+import PagedModal from "./PagedModal";
+import { Alert, Button, Checkbox, List, Space, Typography } from "antd";
 import { useState } from "react";
 import type { DeletionOutcome } from "../types";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -36,7 +37,7 @@ export default function BlockedDeletionDialog({
   const componentTotal = affected.reduce((sum, item) => sum + item.componentCount, 0);
 
   return (
-    <Modal
+    <PagedModal
       open={open}
       title={t("delete.blockedTitle")}
       onCancel={() => {
@@ -103,6 +104,6 @@ export default function BlockedDeletionDialog({
           </>
         ) : null}
       </Space>
-    </Modal>
+    </PagedModal>
   );
 }

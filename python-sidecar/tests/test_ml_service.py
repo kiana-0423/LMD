@@ -424,3 +424,159 @@ def test_an_aggregate_dataset_keeps_its_weighted_mean_column_names(tmp_path):
     )
     assert predicted["dataset_mode"] == "formulation_aggregate"
     assert len(predicted["predictions"]) == 1
+
+
+# --- validation for unseen molecules ---------------------------------------------------------------
+
+
+def linked_rows(molecule_count: int, repeats: int, *, formulations_per_molecule: int = 1):
+    """Rows where one molecule appears in several formulations, each measured `repeats` times."""
+    rows = []
+    for molecule in range(molecule_count):
+        for formulation in range(formulations_per_molecule):
+            for repeat in range(repeats):
+                weight = 100.0 + molecule * 10.0
+                rows.append(
+                    {
+                        "id": f"r-{molecule}-{formulation}-{repeat}",
+                        "label": f"Molecule {molecule}",
+                        "group_id": f"form-{molecule}-{formulation}",
+                        "molecule_id": f"mol-{molecule}",
+                        "smiles": "C" * (molecule + 2),
+                        "features": {"rdkit_MolWt": weight, "rdkit_MolLogP": 1.0 + molecule * 0.2, "concentration": 1.0 + repeat},
+                        "target": 0.02 * weight + 0.3 * (1.0 + repeat) + 0.001 * formulation,
+                    }
+                )
+    return rows
+
+
+def write_rows(tmp_path, rows, name="linked.json"):
+    path = tmp_path / name
+    path.write_text(
+        json.dumps(
+            {
+                "target": "average_friction_coefficient",
+                "feature_order": ["rdkit_MolWt", "rdkit_MolLogP", "concentration"],
+                "feature_schema_version": "4",
+                "concentration_basis": "wt%",
+                "rows": rows,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_leakage_groups_link_molecules_across_formulations():
+    from lmd_sidecar.services.ml_service import leakage_groups
+
+    rows = [
+        {"group_id": "f-1", "molecule_id": "m-a"},
+        {"group_id": "f-1", "molecule_id": "m-b"},  # f-1 holds two additives
+        {"group_id": "f-2", "molecule_id": "m-b"},  # m-b appears again in f-2
+        {"group_id": "f-3", "molecule_id": "m-c"},
+        {"group_id": "f-4", "molecule_ids": ["m-c", "m-d"]},  # an aggregate row naming two molecules
+        {"group_id": "f-5", "molecule_id": "m-e"},
+    ]
+    groups, grouping = leakage_groups(rows)
+
+    assert grouping == "linked"
+    # f-1, f-2 share m-b and f-1 also has m-a: one component. f-3, f-4 share m-c: another.
+    assert groups[0] == groups[1] == groups[2]
+    assert groups[3] == groups[4]
+    assert groups[5] not in {groups[0], groups[3]}
+    assert len(set(groups)) == 3
+
+
+def test_leakage_groups_fall_back_to_formulations_when_no_molecule_is_named():
+    from lmd_sidecar.services.ml_service import leakage_groups
+
+    groups, grouping = leakage_groups([{"group_id": "f-1"}, {"group_id": "f-1"}, {"group_id": "f-2"}])
+    assert grouping == "formulation"
+    assert groups[0] == groups[1] != groups[2]
+
+    groups, grouping = leakage_groups([{}, {}])
+    assert grouping == "none"
+    assert groups[0] != groups[1]
+
+
+def test_a_molecule_never_appears_on_both_sides_of_the_split(tmp_path, monkeypatch):
+    """The decisive property for unseen-molecule validation."""
+    rows = linked_rows(8, 2, formulations_per_molecule=2)  # 32 rows, 8 molecules, 16 formulations
+    dataset = write_rows(tmp_path, rows)
+
+    captured = {}
+    from sklearn.model_selection import GroupShuffleSplit as RealSplitter
+
+    class RecordingSplitter(RealSplitter):
+        def split(self, X, y=None, groups=None):
+            for train_index, valid_index in super().split(X, y, groups):
+                captured["train"] = {rows[i]["molecule_id"] for i in train_index}
+                captured["valid"] = {rows[i]["molecule_id"] for i in valid_index}
+                yield train_index, valid_index
+
+    monkeypatch.setattr("sklearn.model_selection.GroupShuffleSplit", RecordingSplitter)
+
+    result, warnings = train_model({"dataset_path": str(dataset), "model_path": str(tmp_path / "linked.joblib")})
+
+    assert result["split_grouping"] == "linked"
+    assert result["split_method"].startswith("GroupShuffleSplit")
+    assert "linked molecules" in result["split_method"]
+    assert captured["train"] and captured["valid"]
+    assert captured["train"].isdisjoint(captured["valid"]), "a molecule straddled the split"
+    assert result["molecule_count"] == 8
+    assert result["group_count"] == 8
+    assert result["metrics"]["validation"]["molecule_count"] == len(captured["valid"])
+    assert result["metrics"]["validation"]["grouping"] == "linked"
+    assert not any(warning["code"] in {"training.ungroupedSplit", "training.formulationGroupsOnly"} for warning in warnings)
+
+
+def test_too_few_independent_groups_yields_no_validation_rather_than_a_validation_of_one(tmp_path):
+    # 24 rows but only three molecules: enough observations, not enough independent groups.
+    rows = linked_rows(3, 8)
+    dataset = write_rows(tmp_path, rows)
+
+    result, warnings = train_model({"dataset_path": str(dataset), "model_path": str(tmp_path / "few.joblib")})
+
+    assert result["validated"] is False
+    assert "validation" not in result["metrics"]
+    assert "training_only" in result["metrics"]
+    assert result["validation_unavailable_reason"] == "too_few_groups"
+    assert any(warning["code"] == "training.tooFewGroups" for warning in warnings)
+    assert not any(warning["code"] == "training.smallSample" for warning in warnings)
+
+
+def test_formulation_only_grouping_is_named_as_weaker_evidence(tmp_path):
+    dataset = build_dataset(tmp_path, 40, group_size=4)
+
+    result, warnings = train_model({"dataset_path": str(dataset), "model_path": str(tmp_path / "f.joblib")})
+
+    assert result["split_grouping"] == "formulation"
+    assert result["molecule_count"] == 0
+    assert any(warning["code"] == "training.formulationGroupsOnly" for warning in warnings)
+
+
+def test_the_bundle_records_the_training_domain(tmp_path):
+    rows = linked_rows(8, 2, formulations_per_molecule=2)
+    for row in rows:
+        row["conditions"] = {"test_type": "SRV", "base_oils": [{"id": "bo-9", "name": "Group III"}], "additive_count": 1}
+    dataset = write_rows(tmp_path, rows)
+    model_path = tmp_path / "domain.joblib"
+
+    result, _ = train_model({"dataset_path": str(dataset), "model_path": str(model_path)})
+    described, _ = describe_model({"model_path": str(model_path)})
+
+    assert described["domain_recorded"] is True
+    assert described["molecule_count"] == 8
+    assert described["split_grouping"] == "linked"
+    assert result["domain_summary"]["conditions"]["test_types"] == {"SRV": 32}
+    assert result["domain_summary"]["conditions"]["base_oils"] == [{"id": "bo-9", "name": "Group III", "rows": 32}]
+    assert result["domain_summary"]["conditions"]["single_additive_rows"] == 32
+    assert result["domain_summary"]["conditions"]["concentration_range"] == [1.0, 2.0]
+
+    import joblib
+
+    bundle = joblib.load(model_path)
+    assert bundle["domain"]["feature_ranges"]["rdkit_MolWt"] == [100.0, 170.0]
+    assert len(bundle["domain"]["training_molecules"]) == 8
+    assert bundle["domain"]["training_molecules"][0]["smiles"] == "CC"

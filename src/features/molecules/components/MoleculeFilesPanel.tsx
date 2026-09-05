@@ -1,3 +1,4 @@
+import PagedModal from "../../../components/PagedModal";
 import { Alert, Button, Empty, Input, Modal, Space, Table, Tag, Tooltip, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCallback, useEffect, useState } from "react";
@@ -278,7 +279,7 @@ export default function MoleculeFilesPanel({ molecule }: { molecule: Molecule })
         </Typography.Paragraph>
       </div>
 
-      <Modal
+      <PagedModal
         title={t("files.attachTitle")}
         open={attachOpen}
         confirmLoading={busy}
@@ -307,7 +308,7 @@ export default function MoleculeFilesPanel({ molecule }: { molecule: Molecule })
         </Space.Compact>
         <Typography.Text style={{ display: "block", marginTop: 12 }}>{t("files.description")}</Typography.Text>
         <Input value={description} onChange={(event) => setDescription(event.target.value)} />
-      </Modal>
+      </PagedModal>
     </Space>
   );
 }

@@ -180,3 +180,29 @@ describe("bundle separation", () => {
     expect(offenders, "only lib/tauri.ts may reach the demo adapter").toEqual([]);
   });
 });
+
+describe("molecular design separation", () => {
+  const designSources = import.meta.glob("../features/molecular-design/**/*.{ts,tsx}", {
+    query: "?raw",
+    import: "default",
+    eager: true
+  }) as Record<string, string>;
+
+  it("never imports a browser-demo module", () => {
+    for (const [file, source] of Object.entries(designSources)) {
+      expect(importsDemoModule(source), file).toBe(false);
+    }
+  });
+
+  it("leaves screening and the workbench as they are: ranking existing molecules only", () => {
+    // The design page is the only place structure generation is invoked from.
+    expect(MoleculeScreeningPage).not.toContain("runDesignGeneration");
+    expect(ModelWorkbench).not.toContain("runDesignGeneration");
+    expect(Object.values(designSources).some((source) => source.includes("runDesignGeneration"))).toBe(true);
+  });
+
+  it("shows condition inputs in the workbench only for a model that uses them", () => {
+    expect(ModelWorkbench).toContain("needsConditions ? (");
+    expect(ModelWorkbench).toContain("modelUsesConditions(selectedModel)");
+  });
+});

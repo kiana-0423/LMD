@@ -19,6 +19,21 @@ export type ModelMetrics = {
  */
 export type DatasetMode = "additive_component" | "formulation_aggregate";
 
+/**
+ * Which measured results a training dataset is built from.
+ *
+ * The additive-component model assigns a whole formulation's performance to each additive in it.
+ * Restricting the dataset to single-additive formulations, or to one test type, is what makes a
+ * row say something about one molecule under one condition; a model records the scope it was
+ * fitted under and the design assessment reads it back.
+ */
+export type DatasetScope = {
+  singleAdditiveOnly: boolean;
+  testType: string;
+  includeConditionFeatures: boolean;
+};
+
+
 export type TrainedModel = {
   id: string;
   name: string;
@@ -51,6 +66,14 @@ export type TrainedModel = {
    * does not define. Either way the columns cannot be trusted and the model must be retrained.
    */
   usable: boolean;
+  /** The scope the model was fitted under. Absent on models trained before scopes existed. */
+  datasetScope?: DatasetScope;
+  /** Distinct molecules across the training rows; 0 for models trained before it was recorded. */
+  moleculeCount?: number;
+  /** How the validation split kept related rows together: linked, formulation, ungrouped, none. */
+  splitGrouping?: "linked" | "formulation" | "ungrouped" | "none";
+  /** Condition coverage recorded at training time; `{}` for older models. */
+  domain?: Record<string, unknown>;
 };
 
 export type DatasetReport = {
@@ -66,6 +89,12 @@ export type DatasetReport = {
   excludedNonphysical: number;
   excludedOtherBasis: number;
   excludedForUnits: number;
+  excludedMultiAdditive?: number;
+  excludedOtherTestType?: number;
+  excludedMissingConditions?: number;
+  moleculeCount?: number;
+  singleAdditiveResultCount?: number;
+  scope?: DatasetScope;
   concentrationBasis: string;
   warnings: BackendMessage[];
 };
@@ -100,6 +129,10 @@ export type TrainingSummary = {
   resultCount: number;
   excludedForUnits: number;
   datasetReport: DatasetReport;
+  datasetScope?: DatasetScope;
+  moleculeCount?: number;
+  splitGrouping?: string;
+  validationUnavailableReason?: string;
   warnings: BackendMessage[];
 };
 
@@ -136,6 +169,12 @@ export type MoleculePredictionItem = {
   moleculeId: string;
   concentration?: number;
   concentrationUnit?: string;
+  /** Test conditions, needed only by a model whose feature order carries condition features. */
+  testType?: string;
+  temperatureValue?: number;
+  temperatureUnit?: string;
+  loadValue?: number;
+  loadUnit?: string;
 };
 
 /** A blend described by hand rather than stored in the workspace. */
@@ -166,6 +205,8 @@ export async function trainModel(options: {
   /** Required: a page trains one kind of model, and the model records which kind it is. */
   datasetMode: DatasetMode;
   name?: string;
+  /** Which results to fit on. Omitted means every result, as before scopes existed. */
+  scope?: DatasetScope;
 }) {
   if (!isTauriRuntime()) desktopOnly();
   const value = await invokeCommand<Envelope<TrainingSummary>>("train_model", {
@@ -173,7 +214,8 @@ export async function trainModel(options: {
     algorithm: options.algorithm ?? "auto",
     descriptorSet: options.descriptorSet ?? "",
     datasetMode: options.datasetMode,
-    name: options.name ?? null
+    name: options.name ?? null,
+    scope: options.scope ?? null
   });
   return unwrap(value);
 }

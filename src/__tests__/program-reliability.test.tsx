@@ -100,6 +100,7 @@ describe("recoverable page loading", () => {
 
     expect((await screen.findAllByText(en["ui.pageFailedToLoad"])).length).toBeGreaterThan(0);
     expect(screen.getByText("registry unavailable")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
     fireEvent.click(screen.getByRole("button", { name: en["ui.retry"] }));
 
     expect((await screen.findAllByText("Friction model")).length).toBeGreaterThan(0);

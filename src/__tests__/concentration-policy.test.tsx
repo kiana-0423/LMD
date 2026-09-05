@@ -208,7 +208,9 @@ afterEach(() => {
 });
 
 async function chooseMolecule() {
-  fireEvent.click(await screen.findByRole("radio"));
+  fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
+    fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
   const picker = await screen.findByRole("combobox", { name: en["model.selectMoleculesToPredict"] });
   fireEvent.mouseDown(picker);
   fireEvent.click(await screen.findByTitle("ZDDP"));
@@ -293,7 +295,9 @@ describe("aggregate candidates follow the same policy", () => {
   it("sends concentrations and units for a weight-percent model", async () => {
     seed("wt%", "formulation_aggregate");
     renderWithLanguage(<FormulationPredictionPage />);
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
 
     await addCandidate("ZDDP", "model.candidateAddAdditive");
     await addCandidate("PAO-6", "model.candidateAddBaseOil");
@@ -319,7 +323,9 @@ describe("aggregate candidates follow the same policy", () => {
   it("sends unit-less values for a unit-less model", async () => {
     seed("unrecorded", "formulation_aggregate");
     renderWithLanguage(<FormulationPredictionPage />);
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
 
     await addCandidate("ZDDP", "model.candidateAddAdditive");
     await addCandidate("PAO-6", "model.candidateAddBaseOil");
@@ -337,7 +343,9 @@ describe("aggregate candidates follow the same policy", () => {
   it("builds a candidate from component ids alone for a model fitted without concentrations", async () => {
     seed("none", "formulation_aggregate");
     renderWithLanguage(<FormulationPredictionPage />);
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
 
     await addCandidate("ZDDP", "model.candidateAddAdditive");
     await addCandidate("PAO-6", "model.candidateAddBaseOil");
@@ -355,7 +363,9 @@ describe("aggregate candidates follow the same policy", () => {
   it("refuses a candidate whose required concentration is blank", async () => {
     seed("wt%", "formulation_aggregate");
     renderWithLanguage(<FormulationPredictionPage />);
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
 
     await addCandidate("ZDDP", "model.candidateAddAdditive");
     fireEvent.click(screen.getByRole("button", { name: en["model.predict"] }));

@@ -55,14 +55,12 @@ FORBIDDEN_MARKERS = [
     "correlation placeholder",
     "dangerouslySetInnerHTML",
     '"csp": null',
-    # Obsolete promises from earlier iterations. Candidate generation does not exist: the app
-    # ranks molecules that are already in the library.
+    # Obsolete promises from earlier iterations: a design "task" that was never run, and a
+    # comparison panel that was never built. Molecular design now exists as a real workflow
+    # (template-constrained generation with a persistent candidate collection), so its name is no
+    # longer a marker; what remains forbidden is the wording of the old placeholders.
     "Performance Comparison Placeholder",
     "Molecule design task created",
-    "Molecule Design",
-    "candidate generation",
-    "generate new molecules",
-    "generated candidate structures",
 ]
 
 # Fixed sample paths that must never reach a user's screen.
@@ -154,6 +152,8 @@ def check_buttons_have_behaviour(root: Path) -> list[str]:
                 attributes = attribute_span(text, match)
                 if any(handler in attributes for handler in REAL_HANDLERS):
                     continue
+                if is_dropdown_trigger(text, match):
+                    continue
                 line_number = text.count("\n", 0, match.start()) + 1
                 reason = "has no onClick or submit handler"
                 if "disabled" in attributes and "loading" not in attributes:
@@ -162,6 +162,27 @@ def check_buttons_have_behaviour(root: Path) -> list[str]:
                     reason = "only shows a loading state and never acts"
                 findings.append(f"{relative(root, path)}:{line_number}: button {reason}")
     return findings
+
+
+def is_dropdown_trigger(text: str, button: re.Match[str]) -> bool:
+    """Ant Design injects the click handler into its direct trigger child.
+
+    Only accept an explicit click trigger with actionable menu configuration;
+    unrelated or nested buttons must still provide their own handlers.
+    """
+    parents = list(re.finditer(r"<Dropdown\b", text[:button.start()]))
+    if not parents:
+        return False
+    parent = parents[-1]
+    attributes = attribute_span(text, parent)
+    end = parent.end() + len(attributes) + 1
+    if text[end:button.start()].strip():
+        return False
+    return bool(
+        re.search(r'trigger\s*=\s*\{\s*\[\s*[\"\']click[\"\']\s*\]\s*\}', attributes)
+        and re.search(r"\bmenu\s*=", attributes)
+        and re.search(r"\bonClick\s*:", attributes)
+    )
 
 
 # An inline array of objects carrying scientific-looking fields is a fabricated table.

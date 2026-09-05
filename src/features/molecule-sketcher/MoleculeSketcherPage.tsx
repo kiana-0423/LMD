@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Descriptions, Form, Input, Modal, Select, Space, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Descriptions, Dropdown, Form, Input, Modal, Select, Space, Tabs, Tag, Typography, message } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
@@ -55,6 +55,7 @@ export default function MoleculeSketcherPage() {
   const [statusKey, setStatusKey] = useState<MessageKey>("sketcher.notSaved");
   const [failure, setFailure] = useState<{ summary: string; detail: string }>();
   const [loadingAction, setLoadingAction] = useState<string>();
+  const [infoTab, setInfoTab] = useState("information");
 
   useEffect(() => {
     const moleculeId = searchParams.get("moleculeId");
@@ -103,6 +104,7 @@ export default function MoleculeSketcherPage() {
       // The code names the situation and is translated; the detail is whatever the sidecar or the
       // backend said, and is shown untouched because that is what makes it actionable.
       setFailure(describeBackendError(error, t));
+      setInfoTab("status");
       throw error;
     } finally {
       setLoadingAction(undefined);
@@ -147,6 +149,7 @@ export default function MoleculeSketcherPage() {
       if (!canonical.trim()) throw new Error(coded(SKETCHER_ERRORS.needsCanonical, ""));
       setCanonicalSmiles(canonical);
       setStatusKey("sketcher.canonicalGenerated");
+      setInfoTab("status");
       return result;
     });
   }
@@ -181,6 +184,7 @@ export default function MoleculeSketcherPage() {
       if (!smiles) throw new Error(coded(SKETCHER_ERRORS.invalidSmiles, ""));
       const descriptors = await calculateSketcherDescriptors(smiles);
       setDescriptorResult(descriptors);
+      setInfoTab("status");
       if (!descriptors.valid && !allowFailure) {
         throw new Error(coded(SKETCHER_ERRORS.descriptorFailed, descriptors.error ?? ""));
       }
@@ -301,6 +305,7 @@ export default function MoleculeSketcherPage() {
     setDescriptorResult(undefined);
     setStatusKey("sketcher.notSaved");
     setFailure(undefined);
+    setInfoTab("information");
   }
 
   function exportData(kind: "smiles" | "molfile" | "csv") {
@@ -337,24 +342,15 @@ export default function MoleculeSketcherPage() {
         title={t("ui.moleculeDrawingAndSmilesGeneration")}
         description={t("ui.drawMoleculesGenerateCanonicalSmilesCalculat")}
       />
-      {failure ? (
-        <Alert
-          type="error"
-          showIcon
-          className="error-panel"
-          message={failure.summary}
-          // The detail comes from the sidecar or the database and names ids, units, or paths, so
-          // it stays exactly as it arrived.
-          description={failure.detail ? <span translate="no">{failure.detail}</span> : undefined}
-        />
-      ) : null}
       <div className="sketcher-layout">
         <KetcherEditor ref={editorRef} loading={Boolean(loadingAction)} onChange={({ smiles, molfile }) => {
           setInputSmiles(smiles);
           setMolfile(molfile);
         }} />
-        <Card title={t("ui.moleculeInformation")} className="sketcher-info-panel">
-          <Form layout="vertical" className="sketcher-compact-form">
+        <Card className="sketcher-info-panel">
+          <Tabs activeKey={infoTab} onChange={setInfoTab} className="sketcher-info-tabs" items={[
+            { key: "information", label: t("ui.moleculeInformation"), forceRender: true, children: (
+          <Form layout="vertical" size="small" className="sketcher-compact-form">
             <Form.Item label={t("ui.smilesInput")} className="sketcher-form-full">
               <Input.TextArea
                 className="mono"
@@ -375,9 +371,10 @@ export default function MoleculeSketcherPage() {
             <Form.Item label={t("ui.moleculeCategory")}>
               <Select value={category} onChange={setCategory} options={moleculeCategories.map((value) => ({ value, label: t(moleculeCategoryLabelKeys[value]) }))} />
             </Form.Item>
-            <Form.Item label={t("ui.moleculeTags")}>
+            <Form.Item label={t("ui.moleculeTags")} className="sketcher-form-full">
               <Select
                 mode="tags"
+                maxTagCount="responsive"
                 value={tags}
                 onChange={setTags}
                 options={Object.entries(additiveFunctionLabelKeys).map(([value, key]) => ({ value, label: t(key) }))}
@@ -385,12 +382,18 @@ export default function MoleculeSketcherPage() {
               />
             </Form.Item>
           </Form>
+            ) },
+            { key: "status", label: t("ui.status"), forceRender: true, children: failure ? (
+              <Alert type="error" showIcon message={failure.summary}
+                description={failure.detail ? <Input.TextArea readOnly rows={3} value={failure.detail} translate="no" /> : undefined}
+              />
+            ) : (<>
           <Descriptions bordered size="small" column={2} className="sketcher-summary">
-            <Descriptions.Item label={t("ui.canonicalSmiles")} span={2}><span className="mono">{canonicalSmiles || "-"}</span></Descriptions.Item>
+            <Descriptions.Item label={t("ui.canonicalSmiles")} span={2}><Input.TextArea readOnly rows={2} className="mono" value={canonicalSmiles || "-"} aria-label={t("ui.canonicalSmiles")} translate="no" /></Descriptions.Item>
             <Descriptions.Item label={t("ui.molecularFormula")}>{metadata?.formula || "-"}</Descriptions.Item>
             <Descriptions.Item label={t("ui.molecularWeight")}>{metadata?.molecularWeight || "-"}</Descriptions.Item>
             <Descriptions.Item label="InChIKey" span={2}><span className="mono">{metadata?.inchiKey || "-"}</span></Descriptions.Item>
-            <Descriptions.Item label={t("ui.descriptorStatus")}>
+            <Descriptions.Item label={t("ui.descriptorStatus")} span={2}>
               <Tag color={descriptorResult?.valid ? "green" : descriptorResult ? "red" : "blue"}>
                 {descriptorResult?.valid
                   ? `${t("sketcher.successPrefix")}: ${descriptorResult.descriptorCount}`
@@ -399,32 +402,39 @@ export default function MoleculeSketcherPage() {
                     : t("ui.notCalculated")}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label={t("ui.saveStatus")}>{t(statusKey)}</Descriptions.Item>
           </Descriptions>
           <div className="descriptor-preview">
             {visibleDescriptorPreview.map(([key, value]) => (
-              <Tag key={key}>{key}: {String(value)}</Tag>
+              <Tag key={key} title={`${key}: ${String(value)}`}>{key}: {String(value)}</Tag>
             ))}
             {descriptorPreview.length > visibleDescriptorPreview.length && (
               <Tag>+{descriptorPreview.length - visibleDescriptorPreview.length}</Tag>
             )}
           </div>
+            </>) }
+          ]} />
           <Space className="sketcher-actions" wrap>
             <Button loading={loadingAction === "generate"} onClick={handle(generateSmiles)}>{t("ui.generateSmiles")}</Button>
             <Button loading={loadingAction === "load"} onClick={handle(loadFromSmiles)}>{t("ui.loadFromSmiles")}</Button>
             <Button loading={loadingAction === "validate"} onClick={handle(validateMolecule)}>{t("ui.validate")}</Button>
             <Button loading={loadingAction === "descriptors"} onClick={handle(() => calculateDescriptors())}>{t("ui.calculateDescriptors")}</Button>
-            <Button onClick={handle(clearCanvas)}>{t("ui.clear")}</Button>
-            <Button onClick={() => exportData("smiles")}>{t("ui.exportSmiles")}</Button>
-            <Button onClick={() => exportData("molfile")}>{t("ui.exportMolfile")}</Button>
-            <Button onClick={() => exportData("csv")}>{t("ui.exportCsv")}</Button>
           </Space>
           <Space className="sketcher-save-actions" wrap>
             <Button type="primary" loading={loadingAction === "save"} onClick={handle(() => saveToLibrary(false))}>{t("ui.saveToMoleculeLibrary")}</Button>
-            <Button loading={loadingAction === "import"} onClick={handle(importAsNewMolecule)}>{t("ui.importAsNewMolecule")}</Button>
-            <Button loading={loadingAction === "save"} onClick={handle(() => saveToLibrary(true))}>{t("ui.saveAndView")}</Button>
+            <Dropdown trigger={["click"]} menu={{ items: [
+              { key: "import", label: t("ui.importAsNewMolecule"), onClick: handle(importAsNewMolecule) },
+              { key: "save-view", label: t("ui.saveAndView"), onClick: handle(() => saveToLibrary(true)) },
+              { type: "divider" },
+              { key: "smiles", label: t("ui.exportSmiles"), onClick: () => exportData("smiles") },
+              { key: "molfile", label: t("ui.exportMolfile"), onClick: () => exportData("molfile") },
+              { key: "csv", label: t("ui.exportCsv"), onClick: () => exportData("csv") },
+              { key: "clear", label: t("ui.clear"), onClick: handle(clearCanvas) }
+            ] }} disabled={Boolean(loadingAction)}>
+              <Button loading={loadingAction === "import"}>{t("ui.actions")}</Button>
+            </Dropdown>
           </Space>
           <Typography.Paragraph type="secondary" className="sketcher-source-line">
+            <span role="status">{t(statusKey)}</span><br />
             {t("ui.source")}:{" "}
             {t(SOURCE_LABEL_KEYS[molfile ? "molfile_input" : inputSmiles ? "smiles_input" : "ketcher"])}
           </Typography.Paragraph>

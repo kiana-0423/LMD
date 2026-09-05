@@ -13,8 +13,8 @@ use crate::commands::errors::{self, coded};
 use crate::commands::features::{
     additive_component_concentration, additive_component_features, aggregate_features,
     numeric_descriptors, order_features, resolve_category, BaseOilInput, CategoryRecording,
-    ComponentInput, ConcentrationBasis, ConcentrationCategory, UnitProblem, FEATURE_CONCENTRATION,
-    FEATURE_SCHEMA_VERSION,
+    ComponentInput, ConcentrationBasis, ConcentrationCategory, ConditionInput, UnitProblem,
+    CONDITION_FEATURES, FEATURE_CONCENTRATION, FEATURE_SCHEMA_VERSION,
 };
 use crate::commands::ok;
 use crate::commands::sidecar::{
@@ -24,6 +24,7 @@ use crate::commands::tempfile::TempFile;
 use crate::db::open_database;
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 use std::fs;
@@ -130,12 +131,14 @@ struct RawJoinRow {
     component_id: String,
     molecule_id: String,
     molecule_name: String,
+    smiles: String,
     descriptor_set: String,
     descriptors_json: String,
     concentration: Option<f64>,
     concentration_unit: String,
     target: Option<f64>,
     formulation_id: String,
+    conditions: ConditionInput,
 }
 
 /// One training row handed to the sidecar.
@@ -147,10 +150,59 @@ struct TrainingRow {
     group_id: String,
     /// Present for additive-component rows; empty for aggregate rows.
     molecule_id: String,
+    /// Every molecule the row describes: the one additive, or all of an aggregate's additives.
+    /// The sidecar links rows through these so one molecule never straddles a validation split.
+    molecule_ids: Vec<String>,
+    /// Canonical SMILES of the additive, for additive-component rows.
+    smiles: String,
     features: Map<String, Value>,
     target: f64,
     /// Which concentration basis this row's features were built on.
     basis: ConcentrationBasis,
+    /// The experimental context, recorded with the model as its condition coverage.
+    conditions: Value,
+}
+
+/// Which measured results a training dataset is built from.
+///
+/// The additive-component model assigns a whole formulation's performance to each additive in it.
+/// That is a property of the mixture, not of the molecule, and the only way to read a row as
+/// saying something about one molecule is to restrict the dataset to mixtures with one additive —
+/// or to a controlled series where everything else stays fixed. The scope makes that restriction
+/// explicit, and a model records the scope it was fitted under.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DatasetScope {
+    /// Only results whose formulation holds exactly one additive component.
+    pub single_additive_only: bool,
+    /// Only experiments of this test type; empty means every test type.
+    pub test_type: String,
+    /// Add the test temperature (°C) and load (N) as features. Rows that do not record both in a
+    /// convertible unit are excluded and counted.
+    pub include_condition_features: bool,
+}
+
+impl DatasetScope {
+    pub fn parse(value: Option<&Value>) -> Result<Self, String> {
+        match value {
+            None | Some(Value::Null) => Ok(Self::default()),
+            Some(value) => serde_json::from_value(value.clone())
+                .map_err(|err| format!("The dataset scope could not be read: {err}")),
+        }
+    }
+
+    pub fn from_json_text(text: &str) -> Self {
+        serde_json::from_str(text).unwrap_or_default()
+    }
+
+    pub fn to_json(&self) -> Value {
+        serde_json::to_value(self).unwrap_or_else(|_| json!({}))
+    }
+
+    /// True when no restriction and no condition feature was asked for.
+    pub fn is_unrestricted(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// What the dataset builder had to leave out, so the caller can explain itself.
@@ -171,7 +223,20 @@ pub struct DatasetReport {
     pub excluded_nonphysical: usize,
     /// Rows dropped because the dataset as a whole settled on a different basis.
     pub excluded_other_basis: usize,
+    /// Results left out because their formulation holds more than one additive, under a
+    /// single-additive scope.
+    pub excluded_multi_additive: usize,
+    /// Results left out because their experiment is of another test type than the scope names.
+    pub excluded_other_test_type: usize,
+    /// Results left out because the scope asks for condition features the experiment does not
+    /// record in a convertible unit.
+    pub excluded_missing_conditions: usize,
+    /// Distinct molecules across the rows that survived.
+    pub molecule_count: usize,
+    /// Results whose formulation holds exactly one additive, among those considered.
+    pub single_additive_result_count: usize,
     pub basis: ConcentrationBasis,
+    pub scope: DatasetScope,
     /// Messages naming the affected records, for display next to the training result.
     ///
     /// Message descriptors, not sentences: each one carries a code, the values it needs, and the
@@ -202,6 +267,12 @@ impl DatasetReport {
             "excludedNonphysical": self.excluded_nonphysical,
             "excludedOtherBasis": self.excluded_other_basis,
             "excludedForUnits": self.excluded_for_units(),
+            "excludedMultiAdditive": self.excluded_multi_additive,
+            "excludedOtherTestType": self.excluded_other_test_type,
+            "excludedMissingConditions": self.excluded_missing_conditions,
+            "moleculeCount": self.molecule_count,
+            "singleAdditiveResultCount": self.single_additive_result_count,
+            "scope": self.scope.to_json(),
             "concentrationBasis": self.basis.as_str(),
             "warnings": crate::commands::messages::to_json_array(&self.warnings)
         })
@@ -218,7 +289,9 @@ fn load_raw_join(
     let sql = format!(
         "SELECT r.id, c.id, m.id, COALESCE(m.name, m.id), d.descriptor_set, d.descriptors_json,
                 c.concentration_value, COALESCE(c.concentration_unit, ''), r.{target_column},
-                e.formulation_id
+                e.formulation_id, COALESCE(m.smiles_canonical, ''), COALESCE(e.test_type, ''),
+                e.temperature_value, COALESCE(e.temperature_unit, ''), e.load_value,
+                COALESCE(e.load_unit, '')
          FROM performance_results r
          JOIN experiments e ON e.id = r.experiment_id
          JOIN formulation_components c ON c.formulation_id = e.formulation_id
@@ -245,6 +318,14 @@ fn load_raw_join(
                 concentration_unit: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
                 target: row.get(8)?,
                 formulation_id: row.get(9)?,
+                smiles: row.get::<_, Option<String>>(10)?.unwrap_or_default(),
+                conditions: ConditionInput {
+                    test_type: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
+                    temperature: row.get(12)?,
+                    temperature_unit: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
+                    load: row.get(14)?,
+                    load_unit: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
+                },
             })
         })
         .map_err(|err| format!("Failed to query training data: {err}"))?;
@@ -252,8 +333,14 @@ fn load_raw_join(
         .map_err(|err| format!("Failed to read a training row: {err}"))
 }
 
-/// One measured result: its formulation, its target, and the components that fed it.
-type ResultBundle = (String, Option<f64>, BTreeMap<String, ComponentInput>);
+/// One measured result: its formulation, its target, its conditions, and the components that
+/// fed it.
+struct ResultBundle {
+    formulation_id: String,
+    target: Option<f64>,
+    conditions: ConditionInput,
+    components: BTreeMap<String, ComponentInput>,
+}
 
 /// Collects the join into result → component → features, so no molecule's descriptors can be
 /// written over another's.
@@ -263,11 +350,20 @@ fn collect_components(raw: Vec<RawJoinRow>) -> (BTreeMap<String, ResultBundle>, 
     for row in raw {
         let entry = results
             .entry(row.result_id)
-            .or_insert_with(|| (row.formulation_id, row.target, BTreeMap::new()));
-        let component = entry.2.entry(row.component_id.clone()).or_default();
+            .or_insert_with(|| ResultBundle {
+                formulation_id: row.formulation_id,
+                target: row.target,
+                conditions: row.conditions,
+                components: BTreeMap::new(),
+            });
+        let component = entry
+            .components
+            .entry(row.component_id.clone())
+            .or_default();
         component.component_id = row.component_id;
         component.molecule_id = row.molecule_id;
         component.molecule_name = row.molecule_name;
+        component.smiles = row.smiles;
         component.concentration = row.concentration;
         component.concentration_unit = row.concentration_unit;
         // Descriptor sets for the same molecule extend that molecule's own feature map only.
@@ -288,7 +384,7 @@ fn load_base_oils(
         .prepare(
             "SELECT b.viscosity_40c, b.viscosity_100c, b.viscosity_index, b.density,
                     b.pour_point, b.flash_point, c.concentration_value,
-                    COALESCE(c.concentration_unit, '')
+                    COALESCE(c.concentration_unit, ''), b.id, b.name
              FROM formulation_components c
              JOIN base_oils b ON b.id = c.base_oil_id
              WHERE c.formulation_id = ?1
@@ -298,6 +394,8 @@ fn load_base_oils(
     let rows = statement
         .query_map(params![formulation_id], |row| {
             Ok(BaseOilInput {
+                id: row.get(8)?,
+                name: row.get(9)?,
                 properties: [
                     row.get(0)?,
                     row.get(1)?,
@@ -326,11 +424,13 @@ fn load_base_oil(
     connection
         .query_row(
             "SELECT viscosity_40c, viscosity_100c, viscosity_index, density, pour_point,
-                    flash_point
+                    flash_point, name
              FROM base_oils WHERE id = ?1",
             params![base_oil_id],
             |row| {
                 Ok(BaseOilInput {
+                    id: base_oil_id.to_string(),
+                    name: row.get(6)?,
                     properties: [
                         row.get(0)?,
                         row.get(1)?,
@@ -367,12 +467,46 @@ fn note_unit_problem(report: &mut DatasetReport, subject: &str, problem: &UnitPr
     }
 }
 
-/// Builds the training rows for the requested dataset mode.
+/// Builds the training rows for the requested dataset mode, with no scope restriction.
 fn build_training_rows(
     connection: &Connection,
     target_column: &str,
     descriptor_set: &str,
     mode: DatasetMode,
+) -> Result<(Vec<TrainingRow>, DatasetReport), String> {
+    build_training_rows_scoped(
+        connection,
+        target_column,
+        descriptor_set,
+        mode,
+        &DatasetScope::default(),
+    )
+}
+
+/// The experimental context one row carries, as the sidecar records it in the model's domain.
+fn conditions_json(
+    conditions: &ConditionInput,
+    base_oils: &[BaseOilInput],
+    additive_count: usize,
+) -> Value {
+    json!({
+        "test_type": conditions.test_type,
+        "temperature_value": conditions.temperature,
+        "temperature_unit": conditions.temperature_unit,
+        "load_value": conditions.load,
+        "load_unit": conditions.load_unit,
+        "base_oils": base_oils.iter().map(|oil| json!({ "id": oil.id, "name": oil.name })).collect::<Vec<_>>(),
+        "additive_count": additive_count
+    })
+}
+
+/// Builds the training rows for the requested dataset mode under an explicit scope.
+fn build_training_rows_scoped(
+    connection: &Connection,
+    target_column: &str,
+    descriptor_set: &str,
+    mode: DatasetMode,
+    scope: &DatasetScope,
 ) -> Result<(Vec<TrainingRow>, DatasetReport), String> {
     let raw = load_raw_join(connection, target_column, descriptor_set)?;
     let (results, considered) = collect_components(raw);
@@ -380,19 +514,62 @@ fn build_training_rows(
     let mut report = DatasetReport {
         considered_joins: considered,
         result_count: results.len(),
+        scope: scope.clone(),
         ..DatasetReport::default()
     };
     let mut rows = Vec::new();
     let mut base_oil_cache: BTreeMap<String, Vec<BaseOilInput>> = BTreeMap::new();
+    let wanted_test_type = scope.test_type.trim().to_string();
 
-    for (result_id, (formulation_id, target, components)) in results {
+    for (result_id, bundle) in results {
+        let ResultBundle {
+            formulation_id,
+            target,
+            conditions,
+            components,
+        } = bundle;
         if components.len() > 1 {
             report.multi_additive_result_count += 1;
+        } else if components.len() == 1 {
+            report.single_additive_result_count += 1;
         }
         let Some(target) = target.filter(|value| value.is_finite()) else {
             report.excluded_missing_target += 1;
             continue;
         };
+        if scope.single_additive_only && components.len() != 1 {
+            report.excluded_multi_additive += 1;
+            continue;
+        }
+        if !wanted_test_type.is_empty() && conditions.test_type.trim() != wanted_test_type {
+            report.excluded_other_test_type += 1;
+            continue;
+        }
+        let condition_features = if scope.include_condition_features {
+            let built = conditions.features();
+            if CONDITION_FEATURES
+                .iter()
+                .any(|key| !built.contains_key(*key))
+            {
+                report.excluded_missing_conditions += 1;
+                continue;
+            }
+            built
+        } else {
+            Map::new()
+        };
+        // Base oils are recorded as context for every row — the molecule-level model never
+        // uses their properties, but a later prediction needs to know which oils the fitted
+        // records were measured in.
+        let base_oils = match base_oil_cache.get(&formulation_id) {
+            Some(cached) => cached.clone(),
+            None => {
+                let loaded = load_base_oils(connection, &formulation_id)?;
+                base_oil_cache.insert(formulation_id.clone(), loaded.clone());
+                loaded
+            }
+        };
+        let context = conditions_json(&conditions, &base_oils, components.len());
         let ordered: Vec<ComponentInput> = components.into_values().collect();
         match mode {
             DatasetMode::AdditiveComponent => {
@@ -421,6 +598,8 @@ fn build_training_rows(
                         continue;
                     }
                     produced = true;
+                    let mut features = additive_component_features(component, *concentration);
+                    features.extend(condition_features.clone());
                     rows.push(TrainingRow {
                         // The row id names the exact component it came from, so an exported
                         // dataset can be traced back to a single molecule.
@@ -428,9 +607,12 @@ fn build_training_rows(
                         label: component.molecule_name.clone(),
                         group_id: formulation_id.clone(),
                         molecule_id: component.molecule_id.clone(),
-                        features: additive_component_features(component, *concentration),
+                        molecule_ids: vec![component.molecule_id.clone()],
+                        smiles: component.smiles.clone(),
+                        features,
                         target,
                         basis,
+                        conditions: context.clone(),
                     });
                 }
                 if !produced {
@@ -445,15 +627,7 @@ fn build_training_rows(
                     report.excluded_no_descriptors += 1;
                     continue;
                 }
-                let base_oils = match base_oil_cache.get(&formulation_id) {
-                    Some(cached) => cached.clone(),
-                    None => {
-                        let loaded = load_base_oils(connection, &formulation_id)?;
-                        base_oil_cache.insert(formulation_id.clone(), loaded.clone());
-                        loaded
-                    }
-                };
-                let (features, basis) = match aggregate_features(&ordered, &base_oils) {
+                let (mut features, basis) = match aggregate_features(&ordered, &base_oils) {
                     Ok(built) => built,
                     Err(problem) => {
                         note_unit_problem(
@@ -470,20 +644,33 @@ fn build_training_rows(
                     .map(|component| component.molecule_name.clone())
                     .collect();
                 labels.sort();
+                features.extend(condition_features.clone());
                 rows.push(TrainingRow {
                     id: result_id,
                     label: labels.join(" + "),
                     group_id: formulation_id.clone(),
                     molecule_id: String::new(),
+                    molecule_ids: ordered
+                        .iter()
+                        .filter(|component| !component.descriptors.is_empty())
+                        .map(|component| component.molecule_id.clone())
+                        .collect(),
+                    smiles: String::new(),
                     features,
                     target,
                     basis,
+                    conditions: context.clone(),
                 });
             }
         }
     }
 
     reconcile_dataset_basis(&mut rows, &mut report);
+    report.molecule_count = rows
+        .iter()
+        .flat_map(|row| row.molecule_ids.iter())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
     Ok((rows, report))
 }
 
@@ -645,15 +832,104 @@ pub fn dataset_summary(
     descriptor_set: &str,
     dataset_mode: &str,
 ) -> Result<Value, String> {
+    dataset_summary_scoped(
+        connection,
+        target,
+        descriptor_set,
+        dataset_mode,
+        &DatasetScope::default(),
+    )
+}
+
+/// The same summary under an explicit scope.
+pub fn dataset_summary_scoped(
+    connection: &Connection,
+    target: &str,
+    descriptor_set: &str,
+    dataset_mode: &str,
+    scope: &DatasetScope,
+) -> Result<Value, String> {
     let mode = DatasetMode::parse(dataset_mode)?;
-    let (rows, report) = build_training_rows(connection, target, descriptor_set, mode)?;
+    let (rows, report) =
+        build_training_rows_scoped(connection, target, descriptor_set, mode, scope)?;
     Ok(json!({
         "rowCount": rows.len(),
+        "moleculeCount": report.molecule_count,
         "featureOrder": select_feature_order(&rows),
         "datasetMode": mode.as_str(),
         "featureSchemaVersion": FEATURE_SCHEMA_VERSION,
         "report": report.to_json()
     }))
+}
+
+/// What the workspace offers a training scope to choose from, for one target.
+///
+/// Read from the database rather than from a fixed list, so a workspace that records its own
+/// test-type names sees those names.
+pub fn training_scope_options(connection: &Connection, target: &str) -> Result<Value, String> {
+    let (_, label, unit) = crate::commands::analysis::describe_metric(target)?;
+    let raw = load_raw_join(connection, target, "")?;
+    let (results, _) = collect_components(raw);
+    let mut test_types: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    let mut single = 0_usize;
+    let mut multi = 0_usize;
+    let mut with_conditions = 0_usize;
+    let mut molecules: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for bundle in results.values() {
+        if bundle.target.filter(|value| value.is_finite()).is_none() {
+            continue;
+        }
+        let is_single = bundle.components.len() == 1;
+        if is_single {
+            single += 1;
+        } else {
+            multi += 1;
+        }
+        let entry = test_types
+            .entry(bundle.conditions.test_type.trim().to_string())
+            .or_insert((0, 0));
+        entry.0 += 1;
+        if is_single {
+            entry.1 += 1;
+        }
+        let features = bundle.conditions.features();
+        if CONDITION_FEATURES
+            .iter()
+            .all(|key| features.contains_key(*key))
+        {
+            with_conditions += 1;
+        }
+        for component in bundle.components.values() {
+            molecules.insert(component.molecule_id.clone());
+        }
+    }
+    Ok(json!({
+        "target": target,
+        "label": label,
+        "labelCode": crate::commands::analysis::metric_label_code(target),
+        "unit": unit,
+        "resultCount": single + multi,
+        "singleAdditiveResultCount": single,
+        "multiAdditiveResultCount": multi,
+        "resultsWithConditions": with_conditions,
+        "moleculeCount": molecules.len(),
+        "testTypes": test_types
+            .iter()
+            .map(|(name, (count, single_count))| json!({
+                "value": name,
+                "resultCount": count,
+                "singleAdditiveResultCount": single_count
+            }))
+            .collect::<Vec<_>>()
+    }))
+}
+
+/// The scope choices for one target, so the workbench offers only what the workspace records.
+#[tauri::command]
+pub fn describe_training_scope(app: AppHandle, target: String) -> Result<Value, String> {
+    let connection = open(&app)?;
+    let options = training_scope_options(&connection, &target)?;
+    ok("describe_training_scope", options)
 }
 
 /// Trains a model for one performance metric and records it in the workspace registry.
@@ -665,12 +941,14 @@ pub async fn train_model(
     descriptor_set: Option<String>,
     dataset_mode: Option<String>,
     name: Option<String>,
+    scope: Option<Value>,
 ) -> Result<Value, String> {
     // The request is checked first: a target that does not exist, or a mode that is not one of the
     // two, is a malformed request rather than work, and leaves no job behind.
     let (_, label, unit) = crate::commands::analysis::describe_metric(&target)?;
     let descriptor_set = descriptor_set.unwrap_or_default();
     let mode = DatasetMode::parse(dataset_mode.as_deref().unwrap_or_default())?;
+    let scope = DatasetScope::parse(scope.as_ref())?;
 
     // Everything from here on is tracked, including reading the workspace: a training run that
     // fails because the workspace is too small is still an attempt worth recording, and the guard
@@ -682,18 +960,20 @@ pub async fn train_model(
         &json!({
             "target": target,
             "descriptorSet": descriptor_set,
-            "datasetMode": mode.as_str()
+            "datasetMode": mode.as_str(),
+            "scope": scope.to_json()
         }),
     )?;
 
     let connection = open(&app)?;
-    let (rows, report) = match build_training_rows(&connection, &target, &descriptor_set, mode) {
-        Ok(built) => built,
-        Err(err) => {
-            job.fail(0, 0, &err)?;
-            return Err(err);
-        }
-    };
+    let (rows, report) =
+        match build_training_rows_scoped(&connection, &target, &descriptor_set, mode, &scope) {
+            Ok(built) => built,
+            Err(err) => {
+                job.fail(0, 0, &err)?;
+                return Err(err);
+            }
+        };
     job.set_total(rows.len() as i64)?;
 
     if rows.len() < MIN_TRAINING_SAMPLES {
@@ -708,6 +988,24 @@ pub async fn train_model(
                 " {} record(s) were excluded because of their concentration units: {}",
                 report.excluded_for_units(),
                 crate::commands::messages::details(&report.warnings)
+            ));
+        }
+        if report.excluded_multi_additive > 0 {
+            message.push_str(&format!(
+                " {} result(s) were excluded because their formulation holds more than one additive and the scope asks for single-additive records.",
+                report.excluded_multi_additive
+            ));
+        }
+        if report.excluded_other_test_type > 0 {
+            message.push_str(&format!(
+                " {} result(s) were excluded because they are not '{}' experiments.",
+                report.excluded_other_test_type, scope.test_type
+            ));
+        }
+        if report.excluded_missing_conditions > 0 {
+            message.push_str(&format!(
+                " {} result(s) were excluded because they do not record a test temperature and load in a convertible unit.",
+                report.excluded_missing_conditions
             ));
         }
         message.push_str(" Add more experiments with measured results, or calculate RDKit and Mordred descriptors for the molecules already used in formulations.");
@@ -746,6 +1044,7 @@ pub async fn train_model(
         "interpretation": mode.interpretation(),
         "feature_schema_version": FEATURE_SCHEMA_VERSION,
         "concentration_basis": report.basis.as_str(),
+        "dataset_scope": scope.to_json(),
         "feature_order": feature_order,
         "rows": rows
             .iter()
@@ -754,8 +1053,11 @@ pub async fn train_model(
                 "label": row.label,
                 "group_id": row.group_id,
                 "molecule_id": row.molecule_id,
+                "molecule_ids": row.molecule_ids,
+                "smiles": row.smiles,
                 "features": row.features,
-                "target": row.target
+                "target": row.target,
+                "conditions": row.conditions
             }))
             .collect::<Vec<_>>()
     });
@@ -804,14 +1106,19 @@ pub async fn train_model(
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    let domain_summary = data
+        .get("domain_summary")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let registration = connection.execute(
         "INSERT INTO models (
                 id, name, target, task, algorithm, model_version, relative_path, feature_order,
                 metrics_json, sample_count, feature_count, trained_at, split_method, dataset_mode,
                 interpretation, group_count, validated, feature_schema_version,
-                concentration_basis, dataset_report_json, notes, created_at, updated_at
+                concentration_basis, dataset_report_json, notes, created_at, updated_at,
+                dataset_scope_json, molecule_count, domain_json
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
-                       ?18, ?19, ?20, ?21, ?12, ?12)",
+                       ?18, ?19, ?20, ?21, ?12, ?12, ?22, ?23, ?24)",
         params![
             &model_id,
             name.unwrap_or_else(|| format!("{label} model")),
@@ -851,7 +1158,12 @@ pub async fn train_model(
             FEATURE_SCHEMA_VERSION,
             report.basis.as_str(),
             report.to_json().to_string(),
-            format!("Unit: {unit}")
+            format!("Unit: {unit}"),
+            scope.to_json().to_string(),
+            data.get("molecule_count")
+                .and_then(Value::as_i64)
+                .unwrap_or_default(),
+            domain_summary.to_string()
         ],
     );
     if let Err(err) = registration {
@@ -908,6 +1220,11 @@ pub async fn train_model(
         "resultCount": report.result_count,
         "excludedForUnits": report.excluded_for_units(),
         "datasetReport": report.to_json(),
+        "datasetScope": scope.to_json(),
+        "moleculeCount": data.get("molecule_count"),
+        "splitGrouping": data.get("split_grouping"),
+        "validationUnavailableReason": data.get("validation_unavailable_reason"),
+        "domain": domain_summary,
         "splitMethod": data.get("split_method"),
         "groupCount": data.get("group_count"),
         "validated": data.get("validated"),
@@ -958,7 +1275,9 @@ fn split_method_message(split_method: &str) -> Value {
 
     let trimmed = split_method.trim();
     let not_scoreable = trimmed.contains("not scoreable");
-    let code = if trimmed.starts_with("GroupShuffleSplit") {
+    let code = if trimmed.starts_with("GroupShuffleSplit") && trimmed.contains("linked molecules") {
+        messages::SPLIT_GROUPED_LINKED
+    } else if trimmed.starts_with("GroupShuffleSplit") {
         messages::SPLIT_GROUPED
     } else if trimmed.starts_with("train_test_split") {
         messages::SPLIT_UNGROUPED
@@ -973,6 +1292,31 @@ fn split_method_message(split_method: &str) -> Value {
         code
     };
     Message::new(code).detail(trimmed).to_json()
+}
+
+/// How a model's validation split kept related records together, read from its split string.
+pub fn split_grouping(split_method: &str) -> &'static str {
+    let trimmed = split_method.trim();
+    if trimmed.starts_with("GroupShuffleSplit") && trimmed.contains("linked molecules") {
+        "linked"
+    } else if trimmed.starts_with("GroupShuffleSplit") {
+        "formulation"
+    } else if trimmed.starts_with("train_test_split") {
+        "ungrouped"
+    } else {
+        "none"
+    }
+}
+
+/// The split strings the sidecar writes, for tests that need a model with a known grouping.
+#[cfg(test)]
+pub fn split_method_for_tests(grouping: &str) -> String {
+    match grouping {
+        "linked" => "GroupShuffleSplit(test_size=0.25, random_state=42) grouped by linked molecules and formulations".to_string(),
+        "formulation" => "GroupShuffleSplit(test_size=0.25, random_state=42) grouped by formulation".to_string(),
+        "ungrouped" => "train_test_split(test_size=0.25, random_state=42), ungrouped".to_string(),
+        _ => "none (in-sample metrics only)".to_string(),
+    }
 }
 
 /// A model as stored, including everything a prediction must agree with.
@@ -993,12 +1337,68 @@ struct ModelRow {
     interpretation: String,
     feature_schema_version: String,
     concentration_basis: String,
+    dataset_scope: DatasetScope,
+    molecule_count: i64,
+    validated: bool,
+    domain_json: String,
+}
+
+/// A model as stored, for the design assessment that needs to read it whole.
+#[derive(Debug, Clone)]
+pub struct StoredModel {
+    pub id: String,
+    pub name: String,
+    pub target: String,
+    pub algorithm: String,
+    pub model_version: String,
+    pub trained_at: String,
+    pub split_method: String,
+    pub dataset_mode: String,
+    pub feature_schema_version: String,
+    pub concentration_basis: ConcentrationBasis,
+    pub feature_order: Vec<String>,
+    pub metrics: Value,
+    pub sample_count: i64,
+    pub molecule_count: i64,
+    pub validated: bool,
+    pub dataset_scope: DatasetScope,
+    pub domain: Value,
+    pub path: std::path::PathBuf,
+}
+
+/// Loads an additive-component model with everything a candidate assessment has to agree with.
+pub fn load_stored_model(app: &AppHandle, model_id: &str) -> Result<StoredModel, String> {
+    let connection = open(app)?;
+    let (model, feature_order, basis) =
+        load_model_for(&connection, model_id, DatasetMode::AdditiveComponent)?;
+    let path = model_file_path(app, &model)?;
+    Ok(StoredModel {
+        id: model.id,
+        name: model.name,
+        target: model.target,
+        algorithm: model.algorithm,
+        model_version: model.model_version,
+        trained_at: model.trained_at,
+        split_method: model.split_method,
+        dataset_mode: model.dataset_mode,
+        feature_schema_version: model.feature_schema_version,
+        concentration_basis: basis,
+        feature_order,
+        metrics: serde_json::from_str(&model.metrics_json).unwrap_or_else(|_| json!({})),
+        sample_count: model.sample_count,
+        molecule_count: model.molecule_count,
+        validated: model.validated,
+        dataset_scope: model.dataset_scope,
+        domain: serde_json::from_str(&model.domain_json).unwrap_or_else(|_| json!({})),
+        path,
+    })
 }
 
 const MODEL_COLUMNS: &str = "id, name, target, algorithm, model_version, relative_path, \
                              feature_order, metrics_json, sample_count, trained_at, split_method, \
                              dataset_mode, interpretation, feature_schema_version, \
-                             concentration_basis";
+                             concentration_basis, dataset_scope_json, molecule_count, validated, \
+                             domain_json";
 
 fn read_model_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ModelRow> {
     Ok(ModelRow {
@@ -1017,6 +1417,10 @@ fn read_model_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ModelRow> {
         interpretation: row.get(12)?,
         feature_schema_version: row.get(13)?,
         concentration_basis: row.get(14)?,
+        dataset_scope: DatasetScope::from_json_text(&row.get::<_, String>(15)?),
+        molecule_count: row.get(16)?,
+        validated: row.get::<_, i64>(17)? == 1,
+        domain_json: row.get(18)?,
     })
 }
 
@@ -1149,6 +1553,32 @@ struct MoleculeRequest {
     molecule_id: String,
     concentration: Option<f64>,
     concentration_unit: String,
+    conditions: ConditionInput,
+}
+
+/// Reads the optional experimental conditions of one prediction item.
+pub fn read_conditions(item: &Value) -> ConditionInput {
+    let number = |keys: &[&str]| {
+        keys.iter()
+            .find_map(|key| item.get(*key))
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite())
+    };
+    let text = |keys: &[&str]| {
+        keys.iter()
+            .find_map(|key| item.get(*key))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_string()
+    };
+    ConditionInput {
+        test_type: text(&["testType", "test_type"]),
+        temperature: number(&["temperatureValue", "temperature_value"]),
+        temperature_unit: text(&["temperatureUnit", "temperature_unit"]),
+        load: number(&["loadValue", "load_value"]),
+        load_unit: text(&["loadUnit", "load_unit"]),
+    }
 }
 
 fn read_molecule_requests(items: &[Value]) -> Result<Vec<MoleculeRequest>, String> {
@@ -1173,6 +1603,7 @@ fn read_molecule_requests(items: &[Value]) -> Result<Vec<MoleculeRequest>, Strin
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_string(),
+            conditions: read_conditions(item),
         });
     }
     Ok(requests)
@@ -1197,11 +1628,12 @@ pub async fn predict_molecule_performance(
     let mut payload_items = Vec::new();
     let mut skipped = Vec::new();
     for request in &requests {
-        match molecule_prediction_row(
+        match molecule_prediction_row_with_conditions(
             &connection,
             &request.molecule_id,
             request.concentration,
             &request.concentration_unit,
+            &request.conditions,
             basis,
             &feature_order,
         )? {
@@ -1273,6 +1705,27 @@ pub fn molecule_prediction_row(
     basis: ConcentrationBasis,
     feature_order: &[String],
 ) -> Result<MoleculeRow, String> {
+    molecule_prediction_row_with_conditions(
+        connection,
+        molecule_id,
+        concentration,
+        concentration_unit,
+        &ConditionInput::default(),
+        basis,
+        feature_order,
+    )
+}
+
+/// The same row, with the experimental conditions a condition-aware model needs.
+pub fn molecule_prediction_row_with_conditions(
+    connection: &Connection,
+    molecule_id: &str,
+    concentration: Option<f64>,
+    concentration_unit: &str,
+    conditions: &ConditionInput,
+    basis: ConcentrationBasis,
+    feature_order: &[String],
+) -> Result<MoleculeRow, String> {
     let (label, descriptors) = molecule_descriptor_features(connection, molecule_id)?;
     let input = ComponentInput {
         molecule_id: molecule_id.to_string(),
@@ -1295,14 +1748,23 @@ pub fn molecule_prediction_row(
         }
     };
 
-    let features = additive_component_features(&input, concentration);
+    let mut features = additive_component_features(&input, concentration);
+    features.extend(conditions.features());
     let (ordered, missing) = order_features(&features, feature_order);
     if !missing.is_empty() {
         let needs_concentration = missing.iter().any(|key| key == FEATURE_CONCENTRATION);
+        let needs_conditions = missing
+            .iter()
+            .any(|key| CONDITION_FEATURES.contains(&key.as_str()));
         let (code, reason) = if needs_concentration {
             (
                 crate::commands::messages::SKIPPED_NEEDS_CONCENTRATION,
                 "This model uses concentration as a feature; supply a concentration and unit for this molecule.",
+            )
+        } else if needs_conditions {
+            (
+                crate::commands::messages::SKIPPED_NEEDS_CONDITIONS,
+                "This model uses the test temperature and load as features; supply both, with their units.",
             )
         } else {
             (
@@ -1377,6 +1839,7 @@ fn read_candidate(
             component_id: format!("candidate-{position}-{}", position_in_blend + 1),
             molecule_id: molecule_id.to_string(),
             molecule_name,
+            smiles: String::new(),
             concentration: additive
                 .get("concentration")
                 .and_then(Value::as_f64)
@@ -1474,6 +1937,7 @@ fn load_stored_formulation(
             component_id,
             molecule_id,
             molecule_name,
+            smiles: String::new(),
             concentration,
             concentration_unit: unit,
             descriptors,
@@ -1681,7 +2145,8 @@ pub fn model_registry_rows(
             "SELECT id, name, target, task, algorithm, model_version, relative_path,
                     feature_order, metrics_json, sample_count, feature_count, trained_at,
                     split_method, dataset_mode, interpretation, group_count, validated,
-                    feature_schema_version, concentration_basis, dataset_report_json
+                    feature_schema_version, concentration_basis, dataset_report_json,
+                    dataset_scope_json, molecule_count, domain_json
              FROM models
              WHERE (?1 = '' OR target = ?1) AND (?2 = '' OR dataset_mode = ?2)
              ORDER BY datetime(trained_at) DESC, trained_at DESC, id DESC",
@@ -1728,6 +2193,11 @@ pub fn model_registry_rows(
                 // silently offered for a prediction it cannot answer.
                 "usable": schema_version == FEATURE_SCHEMA_VERSION && basis_readable,
                 "datasetReport": serde_json::from_str::<Value>(&row.get::<_, String>(19)?)
+                    .unwrap_or_else(|_| json!({})),
+                "datasetScope": DatasetScope::from_json_text(&row.get::<_, String>(20)?).to_json(),
+                "moleculeCount": row.get::<_, i64>(21)?,
+                "splitGrouping": split_grouping(&row.get::<_, String>(12)?),
+                "domain": serde_json::from_str::<Value>(&row.get::<_, String>(22)?)
                     .unwrap_or_else(|_| json!({}))
             }))
         })

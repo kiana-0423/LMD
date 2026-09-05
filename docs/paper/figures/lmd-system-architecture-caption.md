@@ -1,0 +1,7 @@
+**Figure 1. System architecture of LMD.** The React and TypeScript interface operates within a Tauri desktop application. Rust services coordinate user commands, database transactions, statistical analysis, feature construction and candidate persistence. A Python sidecar provides molecular processing, descriptor calculation, model training and prediction, candidate generation, and structural and applicability-domain assessment. The frontend communicates with Rust through Tauri commands, while Rust exchanges structured inputs and responses with the sidecar through a JSON CLI protocol. SQLite access is mediated by Rust. Structure files, model bundles, exports and other artifacts reside in the local workspace. Generated candidates and their predictions are stored separately from measured records. Double-headed arrows denote communication or read/write exchanges, rather than an execution sequence.
+
+**中文说明：** LMD 系统架构。图中区分桌面交互层、Rust 应用服务、Python 科学计算服务及本地工作区存储。Rust 负责 SQLite 访问，Python sidecar 通过 JSON CLI 接收任务并返回结果；候选结构与预测结果和实测记录分别保存。双向箭头表示通信或读写关系，不表示任务执行顺序。
+
+**Source basis:** README.md, src-tauri/src/commands/sidecar.rs, src-tauri/src/commands/analysis.rs, src-tauri/src/db/schema_for_tests.sql, and the implemented molecular-design workflow.
+
+**Files:** lmd-system-architecture.svg is the editable vector original. lmd-system-architecture.png is a 2880 × 2160 pixel raster export at 400 dpi (7.2 × 5.4 inches). generate_architecture.py regenerates the SVG with Python's standard library.

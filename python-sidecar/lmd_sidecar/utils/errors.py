@@ -21,6 +21,8 @@ MODEL_TRAINING_FAILED = "model.trainingFailed"
 MODEL_PREDICTION_FAILED = "model.predictionFailed"
 MODEL_LOAD_FAILED = "model.loadFailed"
 MODEL_FILE_MISSING = "model.fileMissing"
+DESIGN_GENERATION_FAILED = "design.generationFailed"
+DESIGN_REQUEST_INVALID = "design.requestInvalid"
 
 
 @dataclass(frozen=True)
@@ -71,10 +73,14 @@ def classify_error(command: str, exc: Exception) -> SidecarError:
         return SidecarError(EXPORT_FAILED, detail, params)
     if command == "train-model":
         return SidecarError(MODEL_TRAINING_FAILED, detail, params)
-    if command == "predict-with-model":
+    if command in {"predict-with-model", "assess-candidates"}:
         if isinstance(exc, FileNotFoundError):
             return SidecarError(MODEL_FILE_MISSING, detail, params)
         return SidecarError(MODEL_PREDICTION_FAILED, detail, params)
+    if command in {"design-generate", "design-templates", "design-validate"}:
+        if isinstance(exc, (TypeError, ValueError)):
+            return SidecarError(DESIGN_REQUEST_INVALID, detail, params)
+        return SidecarError(DESIGN_GENERATION_FAILED, detail, params)
     if command == "describe-model":
         if isinstance(exc, FileNotFoundError):
             return SidecarError(MODEL_FILE_MISSING, detail, params)

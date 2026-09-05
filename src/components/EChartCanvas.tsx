@@ -18,7 +18,7 @@ import type {
   TooltipComponentOption
 } from "echarts/components";
 import type { ComposeOption, ECharts } from "echarts/core";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 /**
  * ECharts, with only the parts LMD draws.
@@ -65,7 +65,7 @@ export default function EChart({
   ariaLabel
 }: {
   option: LmdChartOption;
-  height?: number;
+  height?: CSSProperties["height"];
   ariaLabel?: string;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -75,9 +75,12 @@ export default function EChart({
     if (!container.current) return;
     chart.current = echarts.init(container.current);
     const resize = () => chart.current?.resize();
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(resize);
+    observer?.observe(container.current);
     window.addEventListener("resize", resize);
     return () => {
       window.removeEventListener("resize", resize);
+      observer?.disconnect();
       chart.current?.dispose();
       chart.current = undefined;
     };
@@ -88,5 +91,5 @@ export default function EChart({
     chart.current?.setOption(option, true);
   }, [option]);
 
-  return <div ref={container} style={{ width: "100%", height }} role="img" aria-label={ariaLabel} />;
+  return <div ref={container} data-page-block data-page-chart style={{ width: "100%", height }} role="img" aria-label={ariaLabel} />;
 }

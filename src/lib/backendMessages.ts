@@ -55,16 +55,40 @@ const MESSAGE_KEYS: Record<string, MessageKey> = {
   "split.none": "backend.splitNone",
   "split.notScoreable": "backend.splitNotScoreable",
   "split.unknown": "backend.splitUnknown",
+  "split.groupedLinked": "backend.splitGroupedLinked",
 
   "training.droppedFeatures": "backend.trainingDroppedFeatures",
   "training.ungroupedSplit": "backend.trainingUngroupedSplit",
   "training.smallSample": "backend.trainingSmallSample",
   "training.notScoreable": "backend.trainingNotScoreable",
+  "training.tooFewGroups": "backend.trainingTooFewGroups",
+  "training.formulationGroupsOnly": "backend.trainingFormulationGroupsOnly",
 
   "skipped.noDescriptors": "backend.skippedNoDescriptors",
   "skipped.needsConcentration": "backend.skippedNeedsConcentration",
   "skipped.concentration": "backend.skippedConcentration",
   "skipped.missingFeatures": "backend.skippedMissingFeatures",
+  "skipped.needsConditions": "backend.skippedNeedsConditions",
+
+  "design.structureInvalid": "backend.designStructureInvalid",
+  "design.noModel": "backend.designNoModel",
+  "design.descriptorsUnavailable": "backend.designDescriptorsUnavailable",
+  "design.concentrationIncompatible": "backend.designConcentrationIncompatible",
+  "design.conditionsRequired": "backend.designConditionsRequired",
+  "design.testTypeIncompatible": "backend.designTestTypeIncompatible",
+  "design.featuresMissing": "backend.designFeaturesMissing",
+  "design.domainNotRecorded": "backend.designDomainNotRecorded",
+  "design.descriptorsOutOfRange": "backend.designDescriptorsOutOfRange",
+  "design.testTypeNotCovered": "backend.designTestTypeNotCovered",
+  "design.baseOilNotCovered": "backend.designBaseOilNotCovered",
+  "design.concentrationNotCovered": "backend.designConcentrationNotCovered",
+  "design.conditionNotCovered": "backend.designConditionNotCovered",
+  "design.noHeldOutValidation": "backend.designNoHeldOutValidation",
+  "design.validationNotMoleculeGrouped": "backend.designValidationNotMoleculeGrouped",
+  "design.validationUngrouped": "backend.designValidationUngrouped",
+  "design.multiAdditiveTraining": "backend.designMultiAdditiveTraining",
+  "design.conditionNotModelled": "backend.designConditionNotModelled",
+  "design.identicalTrainingMolecule": "backend.designIdenticalTrainingMolecule",
 
   "analysis.notEnoughData": "backend.analysisNotEnoughData",
   "analysis.methodHistogram": "backend.analysisMethodHistogram",
@@ -96,7 +120,15 @@ const CATEGORY_KEYS: Record<string, MessageKey> = {
  * safer default: translating a molecule name or a unit would corrupt what the user recorded,
  * while leaving a token untranslated is merely ugly.
  */
+/** How a condition is named in a sentence. */
+const CONDITION_KEYS: Record<string, MessageKey> = {
+  temperature: "design.conditionTemperature",
+  load: "design.conditionLoad"
+};
+
 const TOKEN_PARAMS: Record<string, Record<string, MessageKey>> = {
+  condition: CONDITION_KEYS,
+  basis: BASIS_KEYS,
   category: CATEGORY_KEYS,
   recorded: CATEGORY_KEYS,
   unrecorded: CATEGORY_KEYS,

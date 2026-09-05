@@ -1,4 +1,5 @@
-import { Drawer, Tabs } from "antd";
+import PagedDrawer from "../../components/PagedDrawer";
+import { Tabs } from "antd";
 import { useLanguage } from "../../i18n/LanguageContext";
 import type { Molecule } from "../../types";
 import FormulationUsageTable from "./components/FormulationUsageTable";
@@ -31,7 +32,7 @@ export default function MoleculeDetailDrawer({
   if (!molecule) return null;
 
   return (
-    <Drawer width={760} title={<span translate="no">{molecule.name}</span>} open={open} onClose={onClose} destroyOnClose>
+    <PagedDrawer width={760} title={<span translate="no">{molecule.name}</span>} open={open} onClose={onClose} destroyOnClose>
       <Tabs
         className="molecule-detail-tabs"
         items={[
@@ -68,6 +69,6 @@ export default function MoleculeDetailDrawer({
           { key: "notes", label: t("molecule.tabNotes"), children: <MoleculeDesignNotesPanel molecule={molecule} /> }
         ]}
       />
-    </Drawer>
+    </PagedDrawer>
   );
 }

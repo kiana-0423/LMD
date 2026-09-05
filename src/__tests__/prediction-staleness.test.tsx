@@ -87,7 +87,9 @@ afterEach(() => {
 /** Selects the model row, picks a molecule, enters a concentration, and predicts. */
 async function predictOnce() {
   // The model table's radio selects which model a prediction is attributed to.
-  fireEvent.click(await screen.findByRole("radio"));
+  fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
+    fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
   const picker = await screen.findByRole("combobox", { name: en["model.selectMoleculesToPredict"] });
   fireEvent.mouseDown(picker);
   fireEvent.click(await screen.findByTitle("ZDDP"));

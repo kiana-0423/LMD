@@ -167,7 +167,9 @@ describe("an older model list cannot overwrite the current target's", () => {
     apiMock.predictMoleculePerformance.mockReturnValue(prediction.promise);
 
     renderWithLanguage(<MoleculePerformancePredictionPage />);
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
     const picker = await screen.findByRole("combobox", {
       name: en["model.selectMoleculesToPredict"]
     });
@@ -204,7 +206,9 @@ describe("an older model list cannot overwrite the current target's", () => {
     apiMock.listModels.mockResolvedValue([model("model-mismatch", "wear_scar_diameter_value", "Wear model")]);
 
     renderWithLanguage(<MoleculePerformancePredictionPage />);
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: en["model.predictTitle"] }));
     const picker = await screen.findByRole("combobox", {
       name: en["model.selectMoleculesToPredict"]
     });

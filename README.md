@@ -95,6 +95,15 @@ directly does not, so install it once before `cargo test`, `cargo clippy`, or `c
 npm run sidecar:prepare-dev
 ```
 
+Preparation also runs the launcher's real health check before Vite starts. Missing scientific
+dependencies or a broken Python environment stop startup with an error in the terminal. Install
+`python-sidecar/requirements.lock` into the selected environment and retry. The launcher checks
+both `.venv` and `python-sidecar/.venv`, in that order, after explicit/active environment overrides.
+
+Preparation refreshes the sidecar resource timestamp so Cargo replaces an older packaged sidecar
+in `target/debug` when returning to development. If an existing development app still reports an
+unavailable sidecar, stop it and restart with `npm run tauri dev` to rebuild and refresh its status.
+
 Without it the Tauri build script fails with `resource path binaries/lmd-sidecar-<triple> doesn't
 exist`, because the packaged sidecar is never committed to the repository.
 
@@ -157,6 +166,10 @@ CI output without certificates is suitable for internal testing, but public rele
 
 Generated directories such as `dist/`, `node_modules/`, `src-tauri/target/`, Python environments, and caches should not be committed as source.
 
+Old build output can be removed from `dist/`, `dist-demo/`, `src-tauri/target/`,
+`python-sidecar/build/`, and `python-sidecar/dist/`. Keep `node_modules/` and
+`python-sidecar/.venv/` for development; the next build recreates its output directories.
+
 ## Main Features
 
 - Dashboard with live SQLite workspace statistics
@@ -170,6 +183,9 @@ Generated directories such as `dist/`, `node_modules/`, `src-tauri/target/`, Pyt
   descriptor-performance correlation (Pearson and Spearman)
 - Molecule-performance prediction from a locally trained scikit-learn model
 - Molecule Screening: ranks existing library molecules with a trained model
+- Molecular Design: generates candidates using an optional phosphate-ester template or seed-fragment exchange,
+  keeps them in a candidate collection apart from the library, and assesses each performance
+  prediction by the evidence behind it (see below)
 - Formulation prediction from a locally trained scikit-learn model
 - Two-stage Import / Export: preview a file, review the detected type, columns, warnings and row
   counts, then confirm — the database is not touched until you do
@@ -220,8 +236,16 @@ code path that can produce a placeholder descriptor: a missing RDKit or Mordred 
 
 Models are trained by the packaged sidecar with scikit-learn, saved under `files/models/` in the
 active workspace, and recorded in the `models` table together with the feature order, metrics,
-algorithm, sample count, dataset mode, and validation split method — so a model's provenance is
-readable after a restart, not only in the response of the call that created it.
+algorithm, sample count, dataset mode, dataset scope, independent molecule count, condition
+coverage, and validation split method — so a model's provenance is readable after a restart, not
+only in the response of the call that created it. The fitted bundle also records the training
+feature ranges and the training molecules, which is what lets a later design assessment place a
+candidate against the data the model saw.
+
+Generated structures live in `design_candidates`, with their real descriptors in
+`design_candidate_descriptors` and every assessment in `design_predictions`. None of the three is
+read by the training dataset builder, and a candidate reaches `molecules` only through
+`promote_design_candidate`.
 
 Long-running work writes a row to the `jobs` table before it starts and closes it on every exit
 path. A job that ends without reporting an outcome is marked `failed`, so nothing is left claiming
@@ -329,7 +353,77 @@ nothing invoked that is unregistered), and the audits' own tests.
   `translate="no"` and kept out of the catalogue. A literal that is an example of *data* rather
   than interface text — the sample molecule name in the entry form — carries an `i18n-exempt`
   comment naming the reason.
-- **Molecule Screening ranks existing library molecules.** LMD does not generate new structures.
+- **Molecule Screening ranks existing library molecules.** LMD does not generate new structures
+  there; structure generation is a separate workflow, described under Molecular Design below, and
+  it never ranks candidates by a predicted value.
+- **Molecular Design accepts an optional chemical-class template.** A design request has three
+  independent dimensions: the *chemical class* (an optional template with numbered attachment positions and
+  explicit substituent rules), the *target function or property* (recorded as intent — a request
+  for an antiwear additive does not make a generated structure an antiwear agent), and the
+  *application conditions* (base oil, concentration and unit, other components, test type,
+  temperature, load). This release ships three phosphate-ester templates — monoester
+  `O=P(OH)2(OR)`, diester `O=P(OH)(OR1)(OR2)`, triester `O=P(OR1)(OR2)(OR3)` — assembled by RDKit
+  from a fixed core and permitted substituents (a curated library, the O-substituents of a
+  phosphate-ester seed, or BRICS fragments of any seed; BRICS never produces or alters the core).
+  In template mode, every complete structure is sanitised and checked by named rules — one P(V) with one P=O and
+  three P–O single bonds, no P–C, P–S, P=S, P–N or P–H, no second phosphorus, no charge, no
+  counterion, no metal, the template's exact esterification degree, and the requested element,
+  size, branching and type limits — so a phosphite, phosphonate, thiophosphate, salt or
+  pyrophosphate is rejected by the rule that names it.
+  With no template, at least one selected library or user seed is required. The sidecar cuts one
+  [BRICS bond](https://www.rdkit.org/docs/source/rdkit.Chem.BRICS.html) at a time and exchanges
+  compatible typed halves, using a single joining step. It examines at most 2,000 sampled fragment
+  pairs from at most 200 fragments; the random seed, work limits and contributing seed IDs are
+  recorded. Unchanged seed structures are excluded. Whole-molecule element, heavy-atom and carbon
+  branching limits are stored separately from template substituent limits. General validation checks
+  sanitisation, connectedness, filled attachment sites, charge, metals and those whole-molecule
+  limits; it does not assign a phosphate-ester class. A missing template is stored as empty, and
+  a fragment-pair count is never presented as the total molecular search space.
+  Candidates are canonicalised and
+  deduplicated by InChIKey, matched against stored molecules by InChIKey and canonical SMILES, and
+  stored in `design_candidates` with their template, substituents, seeds, generator version,
+  parameters, random seed, generation job, timestamp and validation findings. "Not in this
+  workspace" is a fact about the workspace, not a claim of novelty. Synthesis feasibility is
+  **not assessed**; structural validity is not evidence that a molecule can be made. A candidate
+  enters the molecule library only through an explicit promotion, which re-standardises the
+  structure and recalculates its descriptors through the entry form's sidecar path. Predictions
+  are stored in `design_predictions`, never read by the dataset builder, and never become training
+  labels. The generator's proposal step is an interface (`CandidateSource`); a later graph-based
+  genetic optimiser would implement it and pass through the same assembly, validation and
+  deduplication. No GAN, VAE or reinforcement-learning generator is trained.
+- **A design assessment reports four things separately** for one candidate, one model and one
+  application context: *structural compliance* (template rules or general structure checks), *prediction readiness* (a
+  usable model, real descriptors, a concentration on the model's basis, the test conditions a
+  condition-aware model needs, a compatible test-type scope), *applicability domain* (descriptor
+  coverage against the training ranges, nearest training molecules by Tanimoto similarity, the
+  spread of ensemble members where the estimator has any, and application-condition coverage
+  against the training records), and *validation support* (whether the model's held-out error was
+  measured on molecules it had not seen). The status is *supported by validation* only when the
+  validation held out linked molecule groups, the candidate lies inside every training feature
+  range and every requested condition is covered; *exploratory* when a value could be computed but
+  one of those does not hold, with the reasons listed; *unavailable* when an input requirement
+  failed, which is an input failure and not statistical uncertainty. No confidence percentage,
+  similarity cutoff or prediction interval is produced: similarity and disagreement are reported
+  as values and named as evidence. The assessment lists how the model treats each condition — a
+  model input, a scope the model was fitted under, a coverage check, or context recorded only — so
+  nothing entered is ignored silently. A base oil is never modelled through its representative
+  molecule; it is coverage only.
+- **A molecule-level model can be fitted under an explicit scope.** The additive-component
+  dataset assigns a formulation's measured performance to each additive in it, which is a property
+  of the mixture. The training scope can restrict the dataset to single-additive formulations, to
+  one test type, and can add the test temperature (°C) and load (N) as features — rows that do not
+  record both in a convertible unit are excluded and counted. A model records its scope, and a
+  prediction against a scoped model must satisfy it: a condition-aware model refuses a request
+  without conditions, and a model fitted on four-ball results refuses an SRV request. Feature
+  schema `4` is unchanged, because no existing column changed meaning; older models still predict,
+  but report their domain evidence as *not recorded* until retrained.
+- **Validation holds out linked molecules, not just formulations.** Rows sharing a molecule or a
+  formulation are joined into connected groups, and whole groups are held out, so no molecule
+  appears on both sides of the split; imputation and scaling are fitted inside the pipeline on the
+  training side only. The held-out score reports its independent molecule count as well as its
+  row count. Fewer than five independent groups is reported as *no validation* rather than as a
+  validation of one molecule's repeats. A dataset with formulation ids but no molecule ids still
+  trains, and says that its score describes repeat formulations better than unseen molecules.
 - **Model training covers regression targets only** (Ridge, random forest, histogram gradient
   boosting). There is no classification support, and LMD ships no pre-trained lubricant model —
   every metric shown in the app is measured on the records in your own workspace. The R² figures in

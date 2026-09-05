@@ -68,17 +68,16 @@ resolve_python_bin() {
   fi
 
   # 4. A project-local environment.
-  if [[ -x "$repo_dir/.conda/lmd/bin/python" ]] && python_is_compatible "$repo_dir/.conda/lmd/bin/python"; then
-    printf '%s\n' "$repo_dir/.conda/lmd/bin/python"
-    return 0
-  fi
+  for prefix in "$repo_dir/.venv" "$SIDECAR_DIR/.venv"; do
+    for executable in python3 python; do
+      if [[ -x "$prefix/bin/$executable" ]] && python_is_compatible "$prefix/bin/$executable"; then
+        printf '%s\n' "$prefix/bin/$executable"
+        return 0
+      fi
+    done
+  done
 
-  if [[ -x "$SIDECAR_DIR/.venv/bin/python" ]] && python_is_compatible "$SIDECAR_DIR/.venv/bin/python"; then
-    printf '%s\n' "$SIDECAR_DIR/.venv/bin/python"
-    return 0
-  fi
-
-  for candidate in python3.12 python3.11 python3.10 python3; do
+  for candidate in python3.12 python3.11 python3.10 python3 python; do
     if command -v "$candidate" >/dev/null 2>&1; then
       local candidate_path
       candidate_path="$(command -v "$candidate")"

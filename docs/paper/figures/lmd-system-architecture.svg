@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1080" viewBox="0 0 1440 1080">
+<title>LMD system architecture</title>
+<desc>Local desktop user interface, Rust application services, Python scientific sidecar, and local workspace storage. Only Rust reads and writes SQLite.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#526576"/></marker>
+</defs>
+<rect x="0" y="0" width="1440" height="1080" rx="0" fill="#fff" stroke="#fff" stroke-width="1.5"/>
+<text x="48" y="49" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#20354a" text-anchor="start">LMD SYSTEM ARCHITECTURE</text>
+<text x="1392" y="48" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" fill="#526576" text-anchor="end">Local desktop application</text>
+<rect x="26" y="76" width="1388" height="973" rx="18" fill="#fff" stroke="#b7c5d1" stroke-width="1.5" stroke-dasharray="7 6"/>
+<rect x="54" y="102" width="1332" height="212" rx="12" fill="#f0f6fc" stroke="#99bad5" stroke-width="1.5"/>
+<text x="78" y="140" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#245c8c" text-anchor="start">User interface</text>
+<text x="78" y="171" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#526576" text-anchor="start">React + TypeScript  |  Tauri desktop shell</text>
+<rect x="78" y="191" width="404" height="99" rx="8" fill="#fff" stroke="#d1dfeb" stroke-width="1.5"/>
+<text x="94" y="220" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" fill="#20354a" text-anchor="start">Data management</text>
+<text x="94" y="247" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#20354a" text-anchor="start">Molecules, formulations, experiments</text>
+<text x="94" y="274" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#526576" text-anchor="start">Entry forms, libraries, import / export</text>
+<rect x="518" y="191" width="404" height="99" rx="8" fill="#fff" stroke="#d1dfeb" stroke-width="1.5"/>
+<text x="534" y="220" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" fill="#20354a" text-anchor="start">Analysis and prediction</text>
+<text x="534" y="247" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#20354a" text-anchor="start">Statistics, models, candidate assessment</text>
+<text x="534" y="274" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#526576" text-anchor="start">ECharts visualizations</text>
+<rect x="958" y="191" width="404" height="99" rx="8" fill="#fff" stroke="#d1dfeb" stroke-width="1.5"/>
+<text x="974" y="220" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" fill="#20354a" text-anchor="start">Molecular drawing and design</text>
+<text x="974" y="247" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#20354a" text-anchor="start">Structure editing and design requests</text>
+<text x="974" y="274" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#526576" text-anchor="start">Ketcher + local Indigo WebAssembly</text>
+<path d="M 438 317 L 438 394" fill="none" stroke="#526576" stroke-width="2.4" stroke-linejoin="round"/>
+<polygon points="438.0,394.0 433.0,382.0 443.0,382.0" fill="#526576"/>
+<polygon points="438.0,317.0 443.0,329.0 433.0,329.0" fill="#526576"/>
+<text x="644" y="361" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#526576" text-anchor="middle">Tauri commands / structured responses</text>
+<rect x="54" y="399" width="768" height="253" rx="12" fill="#f0f8f6" stroke="#91b9ae" stroke-width="1.5"/>
+<text x="78" y="438" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#286b57" text-anchor="start">Application services</text>
+<text x="78" y="469" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#526576" text-anchor="start">Rust</text>
+<text x="78" y="518" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#20354a" text-anchor="start">Commands, validation and job coordination</text>
+<text x="78" y="553" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#20354a" text-anchor="start">Database queries, transactions and migrations</text>
+<text x="78" y="588" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#20354a" text-anchor="start">Statistics and training-feature construction</text>
+<text x="78" y="623" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#20354a" text-anchor="start">Candidate persistence, provenance and file operations</text>
+<rect x="974" y="399" width="412" height="253" rx="12" fill="#fbf6ec" stroke="#d7bb88" stroke-width="1.5"/>
+<text x="998" y="438" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#926526" text-anchor="start">Scientific sidecar</text>
+<text x="998" y="469" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#526576" text-anchor="start">Python</text>
+<text x="998" y="518" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">RDKit / Mordred descriptors</text>
+<text x="998" y="553" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">scikit-learn training and prediction</text>
+<text x="998" y="588" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Template / seed-based generation</text>
+<text x="998" y="623" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Structural and domain assessment</text>
+<path d="M 826 531 L 970 531" fill="none" stroke="#526576" stroke-width="2.4" stroke-linejoin="round"/>
+<polygon points="970.0,531.0 958.0,536.0 958.0,526.0" fill="#526576"/>
+<polygon points="826.0,531.0 838.0,526.0 838.0,536.0" fill="#526576"/>
+<text x="898" y="500" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#526576" text-anchor="middle">JSON CLI</text>
+<text x="898" y="561" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#526576" text-anchor="middle">Results / errors</text>
+<path d="M 438 655 L 438 770" fill="none" stroke="#526576" stroke-width="2.4" stroke-linejoin="round"/>
+<polygon points="438.0,770.0 433.0,758.0 443.0,758.0" fill="#526576"/>
+<polygon points="438.0,655.0 443.0,667.0 433.0,667.0" fill="#526576"/>
+<text x="570" y="707" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#526576" text-anchor="middle">Queries / transactions</text>
+<path d="M 1180 655 L 1180 770" fill="none" stroke="#526576" stroke-width="2.4" stroke-linejoin="round"/>
+<polygon points="1180.0,770.0 1175.0,758.0 1185.0,758.0" fill="#526576"/>
+<polygon points="1180.0,655.0 1185.0,667.0 1175.0,667.0" fill="#526576"/>
+<text x="1280" y="708" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#526576" text-anchor="middle">Scientific artifacts</text>
+<path d="M 754 655 L 754 741 L 1056 741 L 1056 770" fill="none" stroke="#526576" stroke-width="2.4" stroke-linejoin="round"/>
+<polygon points="1056.0,770.0 1051.0,758.0 1061.0,758.0" fill="#526576"/>
+<polygon points="754.0,655.0 759.0,667.0 749.0,667.0" fill="#526576"/>
+<text x="878" y="731" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#526576" text-anchor="middle">File management</text>
+<rect x="54" y="775" width="768" height="203" rx="12" fill="#f5f7fa" stroke="#b9c6d4" stroke-width="1.5"/>
+<text x="78" y="814" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#3e526a" text-anchor="start">Workspace database</text>
+<text x="78" y="845" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#526576" text-anchor="start">SQLite  |  accessed through Rust</text>
+<text x="78" y="887" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Molecules • additives • base oils • formulations</text>
+<text x="78" y="920" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Experiments • measured results • descriptors • models • jobs</text>
+<text x="78" y="953" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Design candidates and predictions stored separately</text>
+<rect x="974" y="775" width="412" height="203" rx="12" fill="#f5f7fa" stroke="#b9c6d4" stroke-width="1.5"/>
+<text x="998" y="814" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#3e526a" text-anchor="start">Workspace files</text>
+<text x="998" y="845" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#526576" text-anchor="start">Local filesystem</text>
+<text x="998" y="887" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Structures and attachments</text>
+<text x="998" y="920" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Model bundles and exports</text>
+<text x="998" y="953" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" fill="#20354a" text-anchor="start">Backups and diagnostic reports</text>
+<text x="54" y="1021" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" fill="#526576" text-anchor="start">Database writes are owned by Rust; the Python sidecar does not access SQLite directly.</text>
+</svg>

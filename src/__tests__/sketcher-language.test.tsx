@@ -27,7 +27,7 @@ vi.mock("../lib/moleculeSketcherApi", () => sketcherMock);
 // Ketcher draws onto a real canvas, which jsdom does not provide. The page's own text is what is
 // under test, and the DOM translation bridge covers Ketcher's chrome separately.
 vi.mock("../features/molecule-sketcher/KetcherEditor", () => ({
-  default: () => null
+  default: () => <div data-testid="drawing-canvas" />
 }));
 
 import MoleculeSketcherPage from "../features/molecule-sketcher/MoleculeSketcherPage";
@@ -47,6 +47,24 @@ afterEach(() => {
 });
 
 describe("the molecule sketcher follows the language", () => {
+  it("keeps the canvas and entered structure when switching the information panel", () => {
+    const messages = messagesForLanguage("en-US");
+    renderWithLanguage(<MoleculeSketcherPage />);
+    const canvas = screen.getByTestId("drawing-canvas");
+    fireEvent.change(screen.getByRole("textbox", { name: messages["ui.smilesInput"] }), { target: { value: "CCO" } });
+    fireEvent.change(screen.getByRole("textbox", { name: messages["ui.moleculeName"] }), { target: { value: "Trial molecule" } });
+    fireEvent.click(screen.getByRole("tab", { name: messages["ui.status"] }));
+    expect(screen.getByTestId("drawing-canvas")).toBe(canvas);
+    expect(screen.getByRole("button", { name: messages["ui.generateSmiles"] })).toBeTruthy();
+    expect(screen.getByRole("button", { name: messages["ui.saveToMoleculeLibrary"] })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: messages["ui.moleculeInformation"] }));
+    expect((screen.getByRole("textbox", { name: messages["ui.smilesInput"] }) as HTMLInputElement).value).toBe("CCO");
+    expect((screen.getByRole("textbox", { name: messages["ui.moleculeName"] }) as HTMLInputElement).value).toBe("Trial molecule");
+    fireEvent.click(screen.getByRole("button", { name: messages["ui.actions"] }));
+    expect(screen.getByRole("menuitem", { name: messages["ui.exportSmiles"] })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: messages["ui.importAsNewMolecule"] })).toBeTruthy();
+  });
+
   for (const language of SUPPORTED_LANGUAGES) {
     it(`renders its heading and initial status in ${language}`, async () => {
       const messages = messagesForLanguage(language);

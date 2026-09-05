@@ -19,6 +19,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from check_no_placeholders import BUTTON_OPEN, is_dropdown_trigger
+
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "scripts" / "audit_fixtures"
 AUDIT = ROOT / "scripts" / "check_no_placeholders.py"
@@ -128,6 +130,20 @@ def build_scratch_tree(scratch: Path) -> None:
 
 
 def main() -> int:
+    dropdown = '<Dropdown trigger={["click"]} menu={{ items: [{ onClick: run }] }}>'
+    for source, expected in [
+        (dropdown + '\n<Button loading={busy}>Actions</Button></Dropdown>', True),
+        (dropdown + '<div><Button>Unrelated</Button></div></Dropdown>', False),
+        (dropdown + '<span /> <Button>Unrelated</Button></Dropdown>', False),
+        (dropdown + '</Dropdown><Button>Unrelated</Button>', False),
+        ('<Dropdown trigger={["click"]} menu={{ items: [] }}><Button>Empty</Button></Dropdown>', False),
+        ('<Button loading={busy}>No handler</Button>', False),
+    ]:
+        button = BUTTON_OPEN.search(source)
+        assert button is not None
+        assert is_dropdown_trigger(source, button) == expected, source
+    print("ok   actionable dropdown triggers are recognised without exempting unrelated buttons")
+
     before = source_checksum()
 
     baseline = run_audit(ROOT)

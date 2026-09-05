@@ -2,6 +2,7 @@ import {
   BarChartOutlined,
   BulbOutlined,
   BuildOutlined,
+  ClusterOutlined,
   DatabaseOutlined,
   ExperimentOutlined,
   FileAddOutlined,
@@ -17,6 +18,7 @@ import { Layout, Menu, Space, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import PageErrorBoundary from "../components/PageErrorBoundary";
+import PagedContent from "../components/PagedContent";
 import { APP_NAME } from "../lib/constants";
 import { useLanguage, type MessageKey } from "../i18n/LanguageContext";
 import { invokeCommand, isDemoMode, isTauriRuntime } from "../lib/tauri";
@@ -73,7 +75,8 @@ const createMenuItems = (t: (key: MessageKey) => string) => [
       { key: "/analysis", label: t("menu.analysis"), icon: <BarChartOutlined /> },
       { key: "/data-mining/molecule-performance", label: t("menu.moleculePerformance"), icon: <LineChartOutlined /> },
       { key: "/data-mining/formulation-prediction", label: t("menu.formulationPrediction"), icon: <ExperimentOutlined /> },
-      { key: "/data-mining/molecule-screening", label: t("menu.moleculeScreening"), icon: <BulbOutlined /> }
+      { key: "/data-mining/molecule-screening", label: t("menu.moleculeScreening"), icon: <BulbOutlined /> },
+      { key: "/data-mining/molecule-design", label: t("menu.molecularDesign"), icon: <ClusterOutlined /> }
     ]
   },
   {
@@ -129,7 +132,6 @@ export default function MainLayout() {
         collapsedWidth={72}
         breakpoint="lg"
         collapsible
-        trigger={null}
         className={styles.appSider}
       >
         <div className={styles.brandBlock}>
@@ -138,15 +140,17 @@ export default function MainLayout() {
             <Typography.Text className={styles.brandTitle}>{APP_NAME}</Typography.Text>
           </div>
         </div>
-        <Menu
-          mode="inline"
-          theme="dark"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => {
-            if (String(key).startsWith("/")) navigate(String(key));
-          }}
-        />
+        <div className={styles.menuViewport}>
+          <Menu
+            mode="inline"
+            theme="dark"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={({ key }) => {
+              if (String(key).startsWith("/")) navigate(String(key));
+            }}
+          />
+        </div>
       </Sider>
       <Layout className={styles.appMain}>
         <Header className={styles.appHeader}>
@@ -164,13 +168,19 @@ export default function MainLayout() {
           ) : null}
         </Header>
         <Content className={styles.appContent}>
-          <PageErrorBoundary>
-            <Outlet />
-          </PageErrorBoundary>
+          {["/formulation-entry", "/molecule-sketcher", "/analysis"].includes(location.pathname) ? (
+            <div className="workspace-fixed-panel">
+              <PageErrorBoundary><Outlet /></PageErrorBoundary>
+            </div>
+          ) : <PagedContent key={location.pathname}>
+            <PageErrorBoundary>
+              <Outlet />
+            </PageErrorBoundary>
+          </PagedContent>}
         </Content>
         <Footer className={styles.statusFooter}>
-          <Space size="middle" wrap>
-            <span>
+          <Space size="middle">
+            <span className={styles.workspacePath} title={workspaceStatus.workspace_path}>
               {t("status.workspace")}：
               {/* i18n-exempt: a directory name on disk, shown verbatim. */}
               <span translate="no">{workspaceStatus.workspace_path ?? "LMD_Workspace"}</span>

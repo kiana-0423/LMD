@@ -9,7 +9,9 @@ src-tauri/binaries/lmd-sidecar-*
 python-sidecar/*.egg-info/
 python-sidecar/build/
 python-sidecar/dist/
-python-sidecar/**/__pycache__/
-python-sidecar/**/*.pyc
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
 python-sidecar/.venv/
 dist-demo/

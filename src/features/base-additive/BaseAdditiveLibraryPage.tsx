@@ -1,3 +1,4 @@
+import PagedModal from "../../components/PagedModal";
 import { Button, Card, Descriptions, Form, Input, InputNumber, Modal, Select, Space, Tabs, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
@@ -391,7 +392,7 @@ export default function BaseAdditiveLibraryPage() {
         onClose={() => setBlocked(undefined)}
         onCascade={() => void cascade.run()}
       />
-      <Modal
+      <PagedModal
         width={760}
         title={
           editingId
@@ -479,8 +480,8 @@ export default function BaseAdditiveLibraryPage() {
             </Form.Item>
           </Form>
         )}
-      </Modal>
-      <Modal
+      </PagedModal>
+      <PagedModal
         width={760}
         title={t("ui.completeBaseOilData")}
         open={Boolean(selectedBaseOil)}
@@ -488,8 +489,8 @@ export default function BaseAdditiveLibraryPage() {
         footer={<Button type="primary" onClick={() => setSelectedBaseOil(undefined)}>{t("ui.close")}</Button>}
       >
         {selectedBaseOil && <BaseOilDetails item={selectedBaseOil} />}
-      </Modal>
-      <Modal
+      </PagedModal>
+      <PagedModal
         width={760}
         title={t("ui.completeAdditiveData")}
         open={Boolean(selectedAdditive)}
@@ -497,7 +498,7 @@ export default function BaseAdditiveLibraryPage() {
         footer={<Button type="primary" onClick={() => setSelectedAdditive(undefined)}>{t("ui.close")}</Button>}
       >
         {selectedAdditive && <AdditiveDetails item={selectedAdditive} />}
-      </Modal>
+      </PagedModal>
     </div>
   );
 }

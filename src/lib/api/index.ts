@@ -2,6 +2,7 @@ export * from "./analysis";
 export * from "./baseAdditive";
 export * from "./dashboard";
 export * from "./descriptor";
+export * from "./design";
 export * from "./experiment";
 export * from "./export";
 export * from "./formulation";

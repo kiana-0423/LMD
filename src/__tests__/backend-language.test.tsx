@@ -129,6 +129,32 @@ function seedAnalysis(result: Record<string, unknown>) {
   });
 }
 
+describe("analysis panels load independently", () => {
+  it("keeps correlation available when the distribution request fails", async () => {
+    seedAnalysis(analysisResult());
+    apiMock.getPerformanceDistribution.mockRejectedValue(new Error("[record.notFound] histogram failure"));
+    renderWithLanguage(<AnalysisDesignPage />);
+    expect(await screen.findByText(/histogram failure/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: catalogue("en-US")["ui.descriptorCorrelation"] }));
+    expect(await screen.findByText("rdkit_MolWt")).toBeTruthy();
+  });
+
+  it("only refreshes comparison when the grouping changes", async () => {
+    seedAnalysis(analysisResult({ status: "insufficient_data", series: [] }));
+    renderWithLanguage(<AnalysisDesignPage />);
+    const words = catalogue("en-US");
+    expect(screen.queryByRole("combobox", { name: words["ui.comparisonGroup"] })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: words["ui.comparison"] }));
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: words["ui.comparisonGroup"] }));
+    fireEvent.click(await screen.findByTitle(words["ui.baseOil"]));
+    await waitFor(() => expect(apiMock.comparePerformanceByGroup).toHaveBeenLastCalledWith("base_oil", "average_friction_coefficient"));
+    expect(apiMock.comparePerformanceByGroup).toHaveBeenCalledTimes(2);
+    expect(apiMock.getPerformanceDistribution).toHaveBeenCalledTimes(1);
+    expect(apiMock.getConcentrationPerformance).toHaveBeenCalledTimes(1);
+    expect(apiMock.getDescriptorPropertyCorrelation).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe.each(LANGUAGES)("analysis metadata in %s", (language) => {
   const words = catalogue(language);
 
@@ -306,7 +332,9 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
 
     renderWithLanguage(<MoleculePerformancePredictionPage />, language);
 
+    fireEvent.click(screen.getByRole("tab", { name: words["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
+    fireEvent.click(screen.getByRole("tab", { name: words["model.predictTitle"] }));
     const picker = await screen.findByRole("combobox", {
       name: words["model.selectMoleculesToPredict"]
     });
@@ -370,7 +398,7 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
     });
 
     renderWithLanguage(<MoleculePerformancePredictionPage />, language);
-    await screen.findByRole("radio");
+    await screen.findByRole("radio", { hidden: true });
     fireEvent.click(buttonNamed(words["model.train"]));
 
     // The training warning, the exclusion warning, the interpretation, and the split method are
@@ -406,7 +434,7 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
     );
 
     renderWithLanguage(<MoleculePerformancePredictionPage />, language);
-    await screen.findByRole("radio");
+    await screen.findByRole("radio", { hidden: true });
     fireEvent.click(buttonNamed(words["model.train"]));
 
     await waitFor(() =>
