@@ -1625,17 +1625,29 @@ pub async fn predict_molecule_performance(
         load_model_for(&connection, &model_id, DatasetMode::AdditiveComponent)?;
     let model_path = model_file_path(&app, &model)?;
 
+    let (payload_items, skipped) =
+        prepare_molecule_prediction_items(&connection, &requests, basis, &feature_order)?;
+
+    run_prediction(&app, &model, &model_path, payload_items, skipped).await
+}
+
+fn prepare_molecule_prediction_items(
+    connection: &Connection,
+    requests: &[MoleculeRequest],
+    basis: ConcentrationBasis,
+    feature_order: &[String],
+) -> Result<(Vec<Value>, Vec<Value>), String> {
     let mut payload_items = Vec::new();
     let mut skipped = Vec::new();
-    for request in &requests {
+    for request in requests {
         match molecule_prediction_row_with_conditions(
-            &connection,
+            connection,
             &request.molecule_id,
             request.concentration,
             &request.concentration_unit,
             &request.conditions,
             basis,
-            &feature_order,
+            feature_order,
         )? {
             MoleculeRow::Ready { label, features } => {
                 payload_items.push(
@@ -1671,7 +1683,113 @@ pub async fn predict_molecule_performance(
         )));
     }
 
-    run_prediction(&app, &model, &model_path, payload_items, skipped).await
+    Ok((payload_items, skipped))
+}
+
+/// Opens an isolated explanation window with an immutable snapshot of the chosen inputs.
+#[tauri::command]
+pub async fn open_model_explanation(
+    app: AppHandle,
+    model_id: String,
+    items: Vec<Value>,
+) -> Result<(), String> {
+    if items.len() > 200 {
+        return Err("SHAP accepts up to 200 selected molecules per request.".into());
+    }
+    let connection = open(&app)?;
+    let (model, _, _) = load_model_for(&connection, &model_id, DatasetMode::AdditiveComponent)?;
+    read_molecule_requests(&items)?;
+    let context = json!({ "modelId": model.id, "modelName": model.name, "items": items });
+    drop(connection);
+    build_explanation_window(&app, &model.name, context)
+}
+
+fn build_explanation_window(app: &AppHandle, name: &str, context: Value) -> Result<(), String> {
+    tauri::WebviewWindowBuilder::new(
+        app,
+        format!("shap-{}", Uuid::new_v4()),
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title(format!("SHAP — {name}"))
+    .inner_size(1200.0, 800.0)
+    .min_inner_size(900.0, 620.0)
+    .initialization_script(format!("window.__LMD_EXPLANATION__ = {};", context))
+    .build()
+    .map_err(|error| format!("Could not open the SHAP window: {error}"))?;
+    Ok(())
+}
+
+/// A teaching case is available even in an empty workspace, outside the model registry.
+#[tauri::command]
+pub async fn open_model_example(app: AppHandle) -> Result<(), String> {
+    build_explanation_window(
+        &app,
+        "cLogP",
+        json!({
+            "modelId": "rdkit_clogp", "example": "rdkit_clogp", "items": []
+        }),
+    )
+}
+
+#[tauri::command]
+pub async fn explain_model_example(app: AppHandle) -> Result<Value, String> {
+    let response = run_sidecar_command(&app, "explain-model-example", json!({})).await?;
+    let data = response
+        .get("data")
+        .ok_or("The sidecar returned no model case.")?;
+    ok(
+        "explain_model_example",
+        json!({
+            "modelId": "rdkit_clogp", "modelName": "cLogP / Ridge", "target": "rdkit_clogp",
+            "targetLabelCode": "shap.exampleTarget", "unit": "", "trainedAt": Utc::now().to_rfc3339(),
+            "explanation": data.get("explanation"), "caseStudy": data.get("case_study"), "skipped": []
+        }),
+    )
+}
+
+/// SHAP receives the identical feature builder and condition/unit rules as prediction.
+#[tauri::command]
+pub async fn explain_molecule_model(
+    app: AppHandle,
+    model_id: String,
+    items: Vec<Value>,
+) -> Result<Value, String> {
+    if items.len() > 200 {
+        return Err("SHAP accepts up to 200 selected molecules per request.".into());
+    }
+    let (model, path, payload_items, skipped) = {
+        let connection = open(&app)?;
+        let (model, order, basis) =
+            load_model_for(&connection, &model_id, DatasetMode::AdditiveComponent)?;
+        let path = model_file_path(&app, &model)?;
+        let (payload_items, skipped) = if items.is_empty() {
+            (Vec::new(), Vec::new())
+        } else {
+            prepare_molecule_prediction_items(
+                &connection,
+                &read_molecule_requests(&items)?,
+                basis,
+                &order,
+            )?
+        };
+        (model, path, payload_items, skipped)
+    };
+    let response = run_sidecar_command(&app, "explain-model", json!({
+        "model_path": path, "feature_schema_version": FEATURE_SCHEMA_VERSION, "items": payload_items
+    })).await?;
+    let data = response
+        .get("data")
+        .cloned()
+        .ok_or("The sidecar returned no SHAP explanation.")?;
+    let (_, label, unit) = crate::commands::analysis::describe_metric(&model.target)?;
+    ok(
+        "explain_molecule_model",
+        json!({
+            "modelId": model.id, "modelName": model.name, "target": model.target,
+            "targetLabel": label, "targetLabelCode": crate::commands::analysis::metric_label_code(&model.target), "unit": unit,
+            "trainedAt": model.trained_at, "explanation": data, "skipped": skipped
+        }),
+    )
 }
 
 /// One molecule, either described well enough to predict on or explained.

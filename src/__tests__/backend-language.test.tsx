@@ -401,6 +401,9 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
     await screen.findByRole("radio", { hidden: true });
     fireEvent.click(buttonNamed(words["model.train"]));
 
+    await screen.findByText(words["backend.interpretationAdditive"]);
+    fireEvent.click(screen.getByRole("tab", { name: new RegExp(words["model.trainingNotices"]) }));
+
     // The training warning, the exclusion warning, the interpretation, and the split method are
     // four separate backend-produced strings, and all four are rendered from codes.
     await waitFor(() =>
@@ -417,7 +420,10 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
       .replace("{count}", "3")
       .replace("{excluded}", words["model.basisUnrecorded"])
       .replace("{chosen}", words["model.basisMass"]);
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: words["model.trainingNotices"] }));
+    fireEvent.click(await screen.findByTitle(`2. ${words["model.unitExclusionsTitle"]}: 3`));
     expect(screen.getAllByText(exclusion).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("tab", { name: words["model.trainingOverview"] }));
     expect(
       screen.getAllByText(new RegExp(words["backend.splitGrouped"])).length
     ).toBeGreaterThan(0);

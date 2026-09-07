@@ -72,6 +72,8 @@ const TRANSLATED_CODES: Record<string, MessageKey> = {
   "model.wrongMode": "error.modelWrongMode",
   "model.notChosen": "error.modelNotChosen",
   "model.notFound": "error.modelNotFound",
+  "model.explanationReferenceMissing": "shap.referenceMissing",
+  "model.explanationFailed": "shap.failed",
   "model.fileMissing": "error.modelFileMissing",
   "model.notEnoughData": "error.modelNotEnoughData",
   "model.nothingToPredict": "error.modelNothingToPredict",

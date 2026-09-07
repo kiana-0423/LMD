@@ -241,12 +241,19 @@ async fn run_packaged_sidecar(
 
 fn sidecar_timeout(command_name: &str) -> Duration {
     match command_name {
-        "health" => Duration::from_secs(60),
+        // A frozen SHAP runtime loads additional native libraries. Its first macOS
+        // health probe can exceed two minutes while those libraries are validated.
+        "health" => Duration::from_secs(300),
         "calculate-required-descriptors"
         | "calculate-descriptor-batch"
         | "calculate-sketcher-descriptors"
         | "mordred-descriptors"
         | "generate-3d"
+        | "train-model"
+        | "predict-with-model"
+        | "describe-model"
+        | "explain-model"
+        | "explain-model-example"
         // The composite command does the work of five, so it carries the longest of their
         // deadlines rather than the default.
         | "prepare-molecule"
@@ -1170,6 +1177,12 @@ mod output_limit_tests {
         // The composite command does the work of five, so inheriting the 120-second default would
         // have made it time out on exactly the molecules it was written to speed up.
         assert!(sidecar_timeout("prepare-molecule") > sidecar_timeout("standardize"));
+        assert!(sidecar_timeout("explain-model") > sidecar_timeout("standardize"));
+        assert!(sidecar_timeout("health") >= sidecar_timeout("explain-model"));
+        assert_eq!(
+            sidecar_timeout("train-model"),
+            sidecar_timeout("explain-model")
+        );
         assert_eq!(
             sidecar_timeout("prepare-molecule"),
             sidecar_timeout("calculate-required-descriptors")

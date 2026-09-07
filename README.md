@@ -55,6 +55,49 @@ The canvas remains on one page. Files are limited to 5 MB and 2000 input atoms;
 multi-model PDB files must be split before import. PDB connectivity and bond
 orders may be incomplete, so the canvas includes a review reminder.
 
+## Explain molecular predictions with SHAP
+
+For a first run without a dataset, click **Model case (SHAP)** at the top of
+**Molecule Performance Prediction**. This opens an isolated teaching case with 48
+predefined molecular structures, eight calculated RDKit descriptors, and a Ridge
+regression fitted locally on every run. The target is
+[RDKit Wildman–Crippen cLogP](https://www.rdkit.org/docs/source/rdkit.Chem.Crippen.html),
+a calculated property, **not experimental solubility or lubricant performance**.
+cLogP itself and its atom contributions are excluded from the input features.
+The local contribution view also displays the RDKit reference value for comparison.
+The small homologous-series collection illustrates the workflow; it is not a
+generalisation benchmark. SHAP explains training reference rows, not held-out
+predictions. No experimental records or registered models are added; temporary
+training artifacts are removed after calculation. The case is versioned in
+`python-sidecar/lmd_sidecar/services/model_example_service.py`.
+
+In **Molecule Performance Prediction → Predict**, select a usable model and click
+**Explainable machine learning**. A separate native window opens with variable
+importance, a SHAP distribution plot, individual signed contributions, and a
+paginated ranking of all retained variables. Selected molecules use the same
+descriptor, concentration and condition construction as prediction. With none
+selected, the window explains a saved sample of the model's training rows, clearly
+labelled as training reference data rather than independent validation.
+
+New models retain up to 200 reference rows, sampled with seed 42. An explanation
+uses up to 50 rows. Ridge uses SHAP LinearExplainer with an independent background
+of up to 64 saved reference rows; forests and histogram boosting use TreeExplainer
+with the fitted trees' path counts. The window reports which reference is used.
+See the official [LinearExplainer](https://shap.readthedocs.io/en/stable/generated/shap.LinearExplainer.html)
+and [TreeExplainer](https://shap.readthedocs.io/en/stable/generated/shap.TreeExplainer.html)
+documentation for these reference conventions. Preprocessing is taken from the saved
+pipeline. Every explanation must satisfy baseline + contributions = prediction
+within numerical tolerance. Local plots retain an aggregate of undisplayed variables
+so the displayed contribution sum remains complete.
+
+Importance is mean absolute SHAP over the explained rows, not the entire workspace.
+Contributions use the model output unit; their sign does not mean better/worse
+performance. Correlated descriptors can share importance, and SHAP is neither causal
+evidence nor a validation score. All calculations stay local. Models created before
+reference data was stored still predict normally, but must be retrained to use this
+explanation workflow. SHAP and its dependencies are pinned in `requirements.lock`
+and included in the sidecar build and release verification.
+
 ## Requirements
 
 These requirements are for developers and release builders only. People who install a finished LMD package do not need Node.js, Rust, Python, Conda, RDKit, or SQLite.

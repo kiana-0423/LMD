@@ -72,6 +72,256 @@ body {
   overflow: clip;
 }
 
+.model-workbench-page {
+  height: 100%;
+}
+
+.model-workbench-page > [data-page-header] {
+  margin-bottom: 0;
+}
+
+.model-training-workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+}
+
+.model-training-context {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.model-training-context > span {
+  min-width: 0;
+  padding: 4px 8px;
+  background: #eef6fa;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-training-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  flex: 1 1 0;
+  min-height: 0;
+  gap: 10px;
+}
+
+.model-training-columns > .ant-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.model-training-columns > .ant-card > .ant-card-head {
+  flex: 0 0 auto;
+  min-height: 34px;
+}
+
+.model-training-columns > .ant-card > .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  padding: 10px;
+  gap: 8px;
+}
+
+.model-training-algorithm,
+.model-training-test-type {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.model-training-algorithm > .ant-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.model-training-scope .ant-card-head {
+  min-height: 30px;
+  padding-inline: 8px;
+}
+
+.model-training-scope .ant-card-body {
+  padding: 8px;
+}
+
+.model-training-scope .ant-space-item,
+.model-training-scope .ant-checkbox-wrapper {
+  min-width: 0;
+}
+
+.model-training-scope .ant-checkbox-wrapper {
+  display: flex;
+  width: 100%;
+  font-size: 12px;
+}
+
+.model-training-scope .ant-checkbox-wrapper > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-training-scope .ant-typography {
+  margin: 0;
+  font-size: 12px;
+}
+
+.model-training-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: auto;
+  gap: 6px;
+}
+
+.model-training-actions .ant-btn {
+  padding-inline: 6px;
+}
+
+.model-training-result-tabs,
+.model-training-result-tabs > .ant-tabs-content-holder {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+}
+
+.model-training-result-tabs > .ant-tabs-nav {
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+}
+
+.model-training-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.model-training-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+}
+
+.model-training-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.model-training-metrics .ant-statistic {
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.model-training-metrics .ant-statistic-title {
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.model-training-metrics .ant-statistic-content {
+  font-size: 20px;
+}
+
+.model-training-overview > .ant-typography {
+  margin: 0;
+  font-size: 12px;
+}
+
+.model-training-compact-alert {
+  padding: 4px 8px;
+}
+
+.model-training-compact-alert .ant-alert-content {
+  min-width: 0;
+}
+
+.model-training-compact-alert .ant-alert-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.model-training-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.model-training-facts > div,
+.model-training-facts dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.model-training-facts dt {
+  color: #64748b;
+}
+
+.model-training-facts dt,
+.model-training-facts dd span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-training-notices {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.model-training-notices .ant-alert-message,
+.model-training-error .ant-alert-description,
+.model-training-notices .ant-alert-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+@media (max-height: 700px) {
+  .model-training-columns > .ant-card > .ant-card-body {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .model-training-metrics .ant-statistic-content {
+    font-size: 17px;
+  }
+
+  .model-training-metrics .ant-statistic {
+    padding: 3px 6px;
+  }
+
+  .model-training-scope .ant-card-body {
+    padding: 6px;
+  }
+}
+
 .design-request-workspace {
   display: flex;
   flex-direction: column;
@@ -400,7 +650,102 @@ body {
 
 .shap-chart {
   width: 100%;
-  height: 360px;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.shap-window {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding: 16px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.shap-window-header,
+.shap-provenance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.shap-window-header > div {
+  min-width: 0;
+}
+
+.shap-window-header h4 {
+  margin: 0 0 4px;
+}
+
+.shap-context .ant-alert-content {
+  min-width: 0;
+}
+
+.shap-context .ant-alert-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shap-provenance {
+  font-size: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.shap-view-tabs {
+  flex: 0 0 auto;
+}
+
+.shap-view-tabs > .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.shap-panels {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.shap-panels > .ant-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shap-panels > .ant-card > .ant-card-head {
+  flex: 0 0 auto;
+}
+
+.shap-panels > .ant-card > .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  gap: 8px;
+  padding: 10px;
+}
+
+.shap-chart-caption {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.shap-variable-card .ant-table-cell {
+  padding: 5px !important;
+  font-size: 12px;
+}
+
+.shap-variable-card > .ant-card-body > .ant-typography {
+  font-size: 12px;
 }
 
 @media (max-width: 1180px) {

@@ -1,10 +1,10 @@
+import { openModelExplanation, openModelExample } from "../../lib/modelExplanationApi";
 import WorkspaceTabs from "../../components/WorkspaceTabs";
 import {
   Alert,
   Button,
   Card,
   Checkbox,
-  Descriptions,
   Empty,
   Input,
   InputNumber,
@@ -12,6 +12,8 @@ import {
   Space,
   Statistic,
   Table,
+  Tabs,
+  Tooltip,
   Tag,
   Typography,
   message
@@ -140,6 +142,9 @@ export default function ModelWorkbench({
   const [candidateBaseOils, setCandidateBaseOils] = useState<CandidateRow[]>([]);
 
   const [training, setTraining] = useState(false);
+  const [explanationOpening, setExplanationOpening] = useState(false);
+  const [exampleOpening, setExampleOpening] = useState(false);
+  const [trainingWarningIndex, setTrainingWarningIndex] = useState(0);
   const [predicting, setPredicting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<TrainingSummary>();
@@ -319,6 +324,34 @@ export default function ModelWorkbench({
     setTarget(nextTarget);
   }
 
+  async function handleExplain() {
+    if (!selectedModel?.usable || aggregate || explanationOpening) return;
+    let items: { moleculeId: string; concentration?: number; concentrationUnit?: string; temperatureValue?: number; temperatureUnit?: string; loadValue?: number; loadUnit?: string }[] = [];
+    if (selectedMolecules.length) {
+      if (!policy) return;
+      const checked = buildConcentration(policy, { value: concentration, unit: concentrationUnit });
+      if (!checked.ok) { message.warning(t(checked.messageKey)); return; }
+      if (needsConditions && (temperatureValue === null || loadValue === null)) {
+        message.warning(t("model.conditionsRequired")); return;
+      }
+      items = selectedMolecules.map((moleculeId) => ({ moleculeId, ...checked.payload,
+        ...(needsConditions ? { temperatureValue: temperatureValue!, temperatureUnit, loadValue: loadValue!, loadUnit } : {})
+      }));
+    }
+    setExplanationOpening(true);
+    try { await openModelExplanation({ modelId: selectedModel.id, items }); }
+    catch (error) { message.error(backendErrorText(error, t)); }
+    finally { setExplanationOpening(false); }
+  }
+
+  async function handleExample() {
+    if (exampleOpening) return;
+    setExampleOpening(true);
+    try { await openModelExample(); }
+    catch (error) { message.error(backendErrorText(error, t)); }
+    finally { setExampleOpening(false); }
+  }
+
   async function handleTrain() {
     const operation = trainingVersion.current + 1;
     trainingVersion.current = operation;
@@ -328,6 +361,7 @@ export default function ModelWorkbench({
       const result = await trainModel({ target, algorithm, datasetMode, scope: aggregate ? undefined : scope });
       if (operation !== trainingVersion.current) return;
       setSummary(result);
+      setTrainingWarningIndex(0);
       message.success(`${t("model.train")}: ${result.sampleCount}`);
       const refreshed = await refresh();
       if (operation !== trainingVersion.current) return;
@@ -580,12 +614,25 @@ export default function ModelWorkbench({
     ));
   }
 
+  const trainingScores = summary ? metricsOf(summary) : undefined;
+  const trainingNotices = summary ? [
+    ...translateMessages(summary.warnings, t).map((warning) => ({ title: warning, body: warning })),
+    ...(summary.excludedForUnits > 0 ? [{
+      title: `${t("model.unitExclusionsTitle")}: ${summary.excludedForUnits}`,
+      body: translateMessages(summary.datasetReport?.warnings, t).join("\n")
+    }] : []),
+    ...(trainingScores?.scored && !trainingScores.heldOut ? [{ title: t("model.inSampleWarningTitle"), body: t("model.inSampleWarningBody") }] : []),
+    ...(summary.sampleCount < 30 ? [{ title: `${t("model.smallSampleTitle")} (${summary.sampleCount})`, body: t("model.smallSampleBody") }] : [])
+  ] : [];
+
   return (
-    <div className="page-grid workspace-page">
+    <div className="page-grid workspace-page model-workbench-page">
       <PageHeader
         title={t(titleKey)}
         description={t(descriptionKey)}
         extra={
+          <Space wrap>
+          {!aggregate && <Tooltip title={t("shap.exampleHelp")}><Button loading={exampleOpening} onClick={() => void handleExample()}>{t("shap.exampleOpen")}</Button></Tooltip>}
           <Select
             style={{ width: 280 }}
             value={target}
@@ -593,50 +640,45 @@ export default function ModelWorkbench({
             onChange={selectTarget}
             aria-label={t("ui.performanceMetric")}
           />
+          </Space>
         }
       />
-      <WorkspaceTabs labels={[t("model.trainTitle"), t("model.modelsTitle"), t("model.predictTitle")]}>
-        <Space direction="vertical" size={10} style={{ width: "100%" }}>
-          <Alert type="info" showIcon message={t("model.workspaceOnlyTitle")} description={t("model.workspaceOnlyBody")} />
-          <Alert
-            type="info"
-            showIcon
-            message={aggregate ? t("model.modeLockedFormulation") : t("model.modeLockedAdditive")}
-            description={aggregate ? t("model.datasetInterpretationFormulation") : t("model.datasetInterpretationAdditive")}
-          />
-          <Card title={t("model.trainTitle")}>
-            <Space size={12} wrap style={{ marginBottom: 12 }}>
-              <Select
-                style={{ width: 260 }}
-                value={algorithm}
-                options={ALGORITHM_KEYS.map((item) => ({ value: item.value, label: t(item.key) }))}
-                onChange={setAlgorithm}
-                aria-label={t("model.algorithm")}
-              />
-              <Button type="primary" loading={training} onClick={handleTrain}>
-                {t("model.train")}
-              </Button>
-              <Button onClick={handleExportDataset}>{t("model.exportDataset")}</Button>
-            </Space>
+      <WorkspaceTabs unpagedKeys={["0"]} labels={[t("model.trainTitle"), t("model.modelsTitle"), t("model.predictTitle")]}>
+        <div className="model-training-workspace">
+          <div className="model-training-context">
+            <Tooltip title={t("model.workspaceOnlyBody")} trigger={["hover", "focus"]}>
+              <span tabIndex={0}>{t("model.workspaceOnlyTitle")}</span>
+            </Tooltip>
+            <Tooltip title={aggregate ? t("model.datasetInterpretationFormulation") : t("model.datasetInterpretationAdditive")} trigger={["hover", "focus"]}>
+              <span tabIndex={0}>{aggregate ? t("model.modeLockedFormulation") : t("model.modeLockedAdditive")}</span>
+            </Tooltip>
+          </div>
+          <div className="model-training-columns">
+            <Card size="small" title={t("model.trainingSettings")} className="model-training-settings">
+              <div className="model-training-algorithm">
+                <Typography.Text>{t("model.algorithm")}</Typography.Text>
+                <Select
+                  value={algorithm}
+                  options={ALGORITHM_KEYS.map((item) => ({ value: item.value, label: t(item.key) }))}
+                  onChange={setAlgorithm}
+                  aria-label={t("model.algorithm")}
+                />
+              </div>
             {!aggregate ? (
-              <Card size="small" title={t("model.scopeTitle")} style={{ marginBottom: 12 }}>
+              <Card size="small" title={t("model.scopeTitle")} className="model-training-scope">
                 <Space direction="vertical" size={8} style={{ width: "100%" }}>
-                  <Checkbox
-                    checked={scope.singleAdditiveOnly}
-                    onChange={(event) => setScope({ ...scope, singleAdditiveOnly: event.target.checked })}
-                  >
-                    {t("model.scopeSingleAdditiveOnly")}
-                  </Checkbox>
-                  <Typography.Text type="secondary">
-                    {t("model.scopeSingleAdditiveHelp", {
-                      single: scopeOptions?.singleAdditiveResultCount ?? 0,
-                      multi: scopeOptions?.multiAdditiveResultCount ?? 0
-                    })}
-                  </Typography.Text>
-                  <Space size={8} wrap>
+                  <Tooltip title={<>{t("model.scopeSingleAdditiveOnly")} — {t("model.scopeSingleAdditiveHelp", {
+                    single: scopeOptions?.singleAdditiveResultCount ?? 0,
+                    multi: scopeOptions?.multiAdditiveResultCount ?? 0
+                  })}</>} trigger={["hover", "focus"]}>
+                    <Checkbox checked={scope.singleAdditiveOnly} onChange={(event) => setScope({ ...scope, singleAdditiveOnly: event.target.checked })}>
+                      {t("model.scopeSingleAdditiveOnly")}
+                    </Checkbox>
+                  </Tooltip>
+                  <div className="model-training-test-type">
                     <span>{t("model.scopeTestType")}</span>
                     <Select
-                      style={{ width: 260, maxWidth: "100%" }}
+                      style={{ width: "100%" }}
                       value={scope.testType || ""}
                       aria-label={t("model.scopeTestType")}
                       onChange={(value) => setScope({ ...scope, testType: value })}
@@ -650,119 +692,110 @@ export default function ModelWorkbench({
                           }))
                       ]}
                     />
-                  </Space>
-                  <Checkbox
-                    checked={scope.includeConditionFeatures}
-                    onChange={(event) => setScope({ ...scope, includeConditionFeatures: event.target.checked })}
-                  >
-                    {t("model.scopeConditionFeatures")}
-                  </Checkbox>
-                  <Typography.Text type="secondary">
-                    {t("model.scopeConditionFeaturesHelp", { available: scopeOptions?.resultsWithConditions ?? 0 })}
-                  </Typography.Text>
+                  </div>
+                  <Tooltip title={<>{t("model.scopeConditionFeatures")} — {t("model.scopeConditionFeaturesHelp", { available: scopeOptions?.resultsWithConditions ?? 0 })}</>} trigger={["hover", "focus"]}>
+                    <Checkbox checked={scope.includeConditionFeatures} onChange={(event) => setScope({ ...scope, includeConditionFeatures: event.target.checked })}>
+                      {t("model.scopeConditionFeatures")}
+                    </Checkbox>
+                  </Tooltip>
                 </Space>
               </Card>
             ) : null}
-            {describedTrainingError ? (
-              <Alert
-                type="error"
-                showIcon
-                message={t("model.trainFailed")}
-                description={
-                  <Space direction="vertical" size={4}>
-                    <span>{describedTrainingError.summary}</span>
-                    <span translate="no">{describedTrainingError.detail}</span>
-                  </Space>
-                }
-              />
-            ) : null}
-            {summary ? (
-              <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                {translateMessages(summary.warnings, t).map((warning) => (
-                  <Alert key={warning} type="warning" showIcon message={warning} />
-                ))}
-                {summary.excludedForUnits > 0 ? (
-                  <Alert
-                    type="warning"
-                    showIcon
-                    message={`${t("model.unitExclusionsTitle")}: ${summary.excludedForUnits}`}
-                    description={
-                      <ul style={{ margin: 0, paddingInlineStart: 20 }}>
-                        {translateMessages(summary.datasetReport?.warnings, t).map((warning) => (
-                          <li key={warning}>{warning}</li>
+              <div className="model-training-actions">
+                <Button type="primary" loading={training} onClick={handleTrain}>{t("model.train")}</Button>
+                <Button onClick={handleExportDataset}>{t("model.exportDataset")}</Button>
+              </div>
+            </Card>
+            <Card size="small" title={t("model.trainingResults")} className="model-training-results">
+              {describedTrainingError ? (
+                <Tooltip title={<><div>{describedTrainingError.summary}</div><div translate="no">{describedTrainingError.detail}</div></>} trigger={["hover", "focus"]}>
+                  <div tabIndex={0} className="model-training-error">
+                    <Alert type="error" showIcon message={t("model.trainFailed")}
+                      description={<><div>{describedTrainingError.summary}</div><div translate="no">{describedTrainingError.detail}</div></>} />
+                  </div>
+                </Tooltip>
+              ) : summary ? (
+                <Tabs key={summary.modelId} className="model-training-result-tabs" size="small" items={[
+                  {
+                    key: "overview", label: t("model.trainingOverview"), children: (
+                      <div className="model-training-overview">
+                        <div className="model-training-counts">
+                          <span>{t("model.samples")}: <strong>{summary.sampleCount}</strong></span>
+                          <span>{t("model.independentMolecules")}: <strong>{summary.moleculeCount ?? 0}</strong></span>
+                        </div>
+                        {trainingScores?.scored ? (
+                          <div className="model-training-metrics">
+                            <Statistic title={trainingScores.heldOut ? t("model.r2HeldOut") : t("model.r2InSample")} value={trainingScores.scored.r2.toFixed(4)} />
+                            <Statistic title={t("model.meanAbsoluteError")} value={trainingScores.scored.mae.toFixed(5)} />
+                            <Statistic title={t("model.rootMeanSquaredError")} value={trainingScores.scored.rmse.toFixed(5)} />
+                            <Statistic title={t("model.scoredOn")} value={trainingScores.scored.sampleCount ?? trainingScores.scored.sample_count ?? 0} />
+                          </div>
+                        ) : <Alert type="info" showIcon message={t("model.trainingNoMetrics")} />}
+                        <Typography.Paragraph type="secondary" ellipsis={{ rows: 1, tooltip: true }}>
+                          {t("model.splitPrefix")} {translateMessage(summary.splitMethodMessage, t) || summary.splitMethod}
+                          {summary.groupCount > 0 ? ` — ${summary.groupCount} ${t("model.groupSuffix")}` : ""}
+                          {summary.multiAdditiveResultCount > 0 ? ` — ${summary.multiAdditiveResultCount} ${t("model.multiAdditiveNote")}` : ""}
+                        </Typography.Paragraph>
+                        <Typography.Paragraph type="secondary" ellipsis={{ rows: 1, tooltip: true }}>
+                          {summary.interpretationCode ? translateMessage({ code: summary.interpretationCode }, t) : summary.interpretation}
+                        </Typography.Paragraph>
+                        {trainingScores?.scored && !trainingScores.heldOut ? (
+                          <Tooltip title={t("model.inSampleWarningBody")} trigger={["hover", "focus"]}>
+                            <div tabIndex={0}><Alert className="model-training-compact-alert" type="warning" showIcon message={t("model.inSampleWarningTitle")} /></div>
+                          </Tooltip>
+                        ) : null}
+                        {summary.sampleCount < 30 ? (
+                          <Tooltip title={t("model.smallSampleBody")} trigger={["hover", "focus"]}>
+                            <div tabIndex={0}><Alert className="model-training-compact-alert" type="warning" showIcon message={`${t("model.smallSampleTitle")} (${summary.sampleCount})`} /></div>
+                          </Tooltip>
+                        ) : null}
+                      </div>
+                    )
+                  },
+                  {
+                    key: "details", label: t("model.trainingDetails"), children: (
+                      <dl className="model-training-facts">
+                        {[
+                          [t("model.algorithm"), summary.algorithm],
+                          [t("model.modelVersion"), summary.modelVersion],
+                          [t("model.trainedAt"), summary.trainedAt],
+                          [t("model.samples"), summary.sampleCount],
+                          [t("model.features"), summary.featureCount],
+                          [t("model.excluded"), summary.excludedCount ?? 0],
+                          [t("model.independentMolecules"), summary.moleculeCount ?? 0],
+                          [t("model.splitGrouping"), summary.splitGrouping ? t(splitGroupingLabelKeys[summary.splitGrouping] ?? "design.groupingNone") : "-"],
+                          [t("model.basis"), t(basisLabelKey(summary.concentrationBasis))],
+                          [t("model.datasetInterpretation"), summary.interpretationCode ? translateMessage({ code: summary.interpretationCode }, t) : summary.interpretation]
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <dt title={String(label)}>{label}</dt>
+                            <dd><Tooltip title={String(value)} trigger={["hover", "focus"]}><span tabIndex={0}>{value}</span></Tooltip></dd>
+                          </div>
                         ))}
-                      </ul>
-                    }
-                  />
-                ) : null}
-                <Descriptions size="small" bordered column={3}>
-                  <Descriptions.Item label={t("model.algorithm")}>{summary.algorithm}</Descriptions.Item>
-                  <Descriptions.Item label={t("model.modelVersion")}>{summary.modelVersion}</Descriptions.Item>
-                  <Descriptions.Item label={t("model.trainedAt")}>{summary.trainedAt}</Descriptions.Item>
-                  <Descriptions.Item label={t("model.samples")}>{summary.sampleCount}</Descriptions.Item>
-                  <Descriptions.Item label={t("model.features")}>{summary.featureCount}</Descriptions.Item>
-                  <Descriptions.Item label={t("model.excluded")}>{summary.excludedCount ?? 0}</Descriptions.Item>
-                  <Descriptions.Item label={t("model.independentMolecules")}>
-                    {summary.moleculeCount ?? 0}
-                  </Descriptions.Item>
-                  <Descriptions.Item label={t("model.splitGrouping")} span={2}>
-                    {summary.splitGrouping
-                      ? t(splitGroupingLabelKeys[summary.splitGrouping] ?? "design.groupingNone")
-                      : "-"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label={t("model.basis")} span={3}>
-                    {t(basisLabelKey(summary.concentrationBasis))}
-                  </Descriptions.Item>
-                  <Descriptions.Item label={t("model.datasetInterpretation")} span={3}>
-                    {summary.interpretationCode
-                      ? translateMessage({ code: summary.interpretationCode }, t)
-                      : summary.interpretation}
-                  </Descriptions.Item>
-                </Descriptions>
-                {(() => {
-                  const { scored, heldOut } = metricsOf(summary);
-                  if (!scored) return null;
-                  return (
-                    <Space direction="vertical" size={8} style={{ width: "100%" }}>
-                      <Space size={24} wrap>
-                        <Statistic
-                          title={heldOut ? t("model.r2HeldOut") : t("model.r2InSample")}
-                          value={scored.r2.toFixed(4)}
+                      </dl>
+                    )
+                  },
+                  {
+                    key: "warnings", label: `${t("model.trainingNotices")} (${trainingNotices.length})`, children: trainingNotices.length ? (
+                      <div className="model-training-notices">
+                        <Select
+                          aria-label={t("model.trainingNotices")}
+                          value={Math.min(trainingWarningIndex, trainingNotices.length - 1)}
+                          onChange={setTrainingWarningIndex}
+                          options={trainingNotices.map((notice, index) => ({ value: index, label: `${index + 1}. ${notice.title}` }))}
                         />
-                        <Statistic title={t("model.meanAbsoluteError")} value={scored.mae.toFixed(5)} />
-                        <Statistic title={t("model.rootMeanSquaredError")} value={scored.rmse.toFixed(5)} />
-                        <Statistic title={t("model.scoredOn")} value={scored.sampleCount ?? scored.sample_count ?? 0} />
-                      </Space>
-                      <Typography.Text type="secondary">
-                        {t("model.splitPrefix")} {translateMessage(summary.splitMethodMessage, t) || summary.splitMethod}
-                        {summary.groupCount > 0 ? ` — ${summary.groupCount} ${t("model.groupSuffix")}` : ""}
-                        {summary.multiAdditiveResultCount > 0
-                          ? ` — ${summary.multiAdditiveResultCount} ${t("model.multiAdditiveNote")}`
-                          : ""}
-                      </Typography.Text>
-                      {!heldOut ? (
-                        <Alert
-                          type="warning"
-                          showIcon
-                          message={t("model.inSampleWarningTitle")}
-                          description={t("model.inSampleWarningBody")}
-                        />
-                      ) : null}
-                      {summary.sampleCount < 30 ? (
-                        <Alert
-                          type="warning"
-                          showIcon
-                          message={`${t("model.smallSampleTitle")} (${summary.sampleCount})`}
-                          description={t("model.smallSampleBody")}
-                        />
-                      ) : null}
-                    </Space>
-                  );
-                })()}
-              </Space>
-            ) : null}
-          </Card>
-        </Space>
+                        <Tooltip title={trainingNotices[Math.min(trainingWarningIndex, trainingNotices.length - 1)].body} trigger={["hover", "focus"]}>
+                          <div tabIndex={0}><Alert type="warning" showIcon message={trainingNotices[Math.min(trainingWarningIndex, trainingNotices.length - 1)].title}
+                            description={trainingNotices[Math.min(trainingWarningIndex, trainingNotices.length - 1)].body} /></div>
+                        </Tooltip>
+                      </div>
+                    ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("model.trainingNoNotices")} />
+                  }
+                ]} />
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={training ? t("model.trainingInProgress") : t("model.trainingAwaitingResult")} />}
+            </Card>
+          </div>
+        </div>
         <Card title={t("model.modelsTitle")}>
           {loading ? (
             <LoadingBlock />
@@ -800,7 +833,9 @@ export default function ModelWorkbench({
             />
           )}
         </Card>
-        <Card title={t("model.predictTitle")}>
+        <Card title={t("model.predictTitle")} extra={!aggregate ? (
+          <Tooltip title={t("shap.openHelp")}><Button disabled={!selectedModel?.usable || loading} loading={explanationOpening} onClick={() => void handleExplain()}>{t("shap.open")}</Button></Tooltip>
+        ) : undefined}>
           {loading ? (
             <Alert type="info" showIcon message={t("model.modelsLoading")} />
           ) : describedLoadError ? (

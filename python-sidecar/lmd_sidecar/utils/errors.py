@@ -25,6 +25,10 @@ DESIGN_GENERATION_FAILED = "design.generationFailed"
 DESIGN_REQUEST_INVALID = "design.requestInvalid"
 
 
+class ExplanationReferenceError(ValueError):
+    """An older bundle cannot supply the reference distribution SHAP needs."""
+
+
 @dataclass(frozen=True)
 class SidecarError:
     code: str
@@ -59,6 +63,10 @@ def classify_error(command: str, exc: Exception) -> SidecarError:
     detail = str(exc) or type(exc).__name__
     params: dict[str, Any] = {"command": command}
 
+    if isinstance(exc, ExplanationReferenceError):
+        return SidecarError("model.explanationReferenceMissing", detail, params)
+    if command in {"explain-model", "explain-model-example"} and not isinstance(exc, (ImportError, ModuleNotFoundError)):
+        return SidecarError("model.explanationFailed", detail, params)
     if isinstance(exc, KeyError):
         return SidecarError(SIDECAR_INVALID_INPUT, detail, params)
     if isinstance(exc, (ImportError, ModuleNotFoundError)) or "not available" in detail.lower():

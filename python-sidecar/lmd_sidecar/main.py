@@ -14,6 +14,8 @@ from .services.descriptor_service import (
 )
 from .services.design_service import generate_candidates, list_templates, validate_structure
 from .services.import_service import export_table_rows, preview_table_file
+from .services.explanation_service import explain_model
+from .services.model_example_service import explain_model_example
 from .services.ml_service import describe_model, predict_with_model, train_model
 from .services.preparation_service import prepare_molecule
 from .services.rdkit_service import (
@@ -101,6 +103,8 @@ def command_handlers() -> dict[str, Callable[[dict[str, Any]], tuple[dict[str, A
             payload["file_path"], payload["output_path"], payload.get("chunk_size", 500)
         ),
         "train-model": train_model,
+        "explain-model": explain_model,
+        "explain-model-example": explain_model_example,
         "predict-with-model": predict_with_model,
         "describe-model": describe_model,
         # Molecular design: template-constrained generation, and prediction with the evidence
@@ -119,17 +123,18 @@ def command_handlers() -> dict[str, Callable[[dict[str, Any]], tuple[dict[str, A
 # build to answer `health` with "real" while every model command failed on the first import: the
 # health check answered a narrower question than the one the caller was asking.
 REQUIRED_DEPENDENCIES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("rdkit", "rdkit", ("standardize", "validate-smiles", "rdkit-descriptors", "generate-3d", "convert-format", "design-templates", "design-generate", "design-validate", "assess-candidates")),
+    ("rdkit", "rdkit", ("standardize", "validate-smiles", "rdkit-descriptors", "generate-3d", "convert-format", "design-templates", "design-generate", "design-validate", "assess-candidates", "explain-model-example")),
     ("mordred", "mordred", ("mordred-descriptors", "calculate-required-descriptors", "calculate-descriptor-batch")),
     # Mordred builds molecular graphs with networkx, and the sidecar patches one function back
     # onto it; without networkx no Mordred descriptor can be calculated at all.
     ("networkx", "networkx", ("mordred-descriptors", "calculate-required-descriptors", "calculate-descriptor-batch")),
-    ("numpy", "numpy", ("train-model", "predict-with-model", "assess-candidates")),
+    ("shap", "shap", ("explain-model", "explain-model-example")),
+    ("numpy", "numpy", ("train-model", "predict-with-model", "assess-candidates", "explain-model", "explain-model-example")),
     ("pandas", "pandas", ("import-excel", "export-table-rows")),
     ("openpyxl", "openpyxl", ("import-excel",)),
-    ("scipy", "scipy", ("train-model", "predict-with-model", "assess-candidates")),
-    ("sklearn", "scikit-learn", ("train-model", "predict-with-model", "describe-model", "assess-candidates")),
-    ("joblib", "joblib", ("train-model", "predict-with-model", "describe-model", "assess-candidates")),
+    ("scipy", "scipy", ("train-model", "predict-with-model", "assess-candidates", "explain-model", "explain-model-example")),
+    ("sklearn", "scikit-learn", ("train-model", "predict-with-model", "describe-model", "assess-candidates", "explain-model", "explain-model-example")),
+    ("joblib", "joblib", ("train-model", "predict-with-model", "describe-model", "assess-candidates", "explain-model", "explain-model-example")),
 )
 
 

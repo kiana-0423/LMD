@@ -28,7 +28,7 @@ hiddenimports = []
 # scikit-learn's estimators are resolved by name when joblib unpickles a saved model. RDKit,
 # pandas, SciPy and NumPy are handled by PyInstaller's own hooks; collecting all of those would
 # also bundle tests, notebooks, and legacy GUI modules that LMD never executes.
-for package in ("mordred", "networkx", "openpyxl", "sklearn", "joblib"):
+for package in ("mordred", "networkx", "openpyxl", "sklearn", "joblib", "shap", "numba", "llvmlite"):
     package_datas, package_binaries, package_hiddenimports = collect_all(package)
     datas += package_datas
     binaries += package_binaries

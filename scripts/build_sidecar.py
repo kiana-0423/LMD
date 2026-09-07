@@ -65,6 +65,7 @@ def ensure_build_environment() -> None:
         "scipy": "scipy",
         "sklearn": "scikit-learn",
         "joblib": "joblib",
+        "shap": "shap",
     }
     missing = [label for module, label in required_modules.items() if importlib.util.find_spec(module) is None]
     if missing:

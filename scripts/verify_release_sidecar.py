@@ -62,6 +62,7 @@ REQUIRED_DEPENDENCIES = (
     "scipy",
     "sklearn",
     "joblib",
+    "shap",
 )
 
 # A per-command timeout. Mordred on a first invocation pays the unpacking cost of the whole
@@ -533,6 +534,17 @@ def check_model_lifecycle(executable: Path, directory: Path) -> None:
             raise VerificationError(f"predict-with-model returned a non-numeric value: {prediction}")
     print(f"  predict-with-model: {[round(float(item['value']), 4) for item in predictions]}")
 
+    explanation = data_of(run_command(executable, "explain-model", {
+        "model_path": str(model_path), "feature_schema_version": dataset["feature_schema_version"]
+    }, directory), "explain-model")
+    samples = explanation.get("samples") or []
+    if not samples or not explanation.get("importance"):
+        raise VerificationError("explain-model returned no SHAP values or importance ranking.")
+    for sample in samples:
+        if not math.isclose(sample["base_value"] + sum(sample["shap_values"]), sample["prediction"], rel_tol=1e-5, abs_tol=1e-7):
+            raise VerificationError("explain-model failed its additivity check.")
+    print(f"  explain-model: {explanation['method']}, {len(samples)} samples")
+
     # A third process, reading the same artifact: this is the path the model registry uses.
     described = data_of(
         run_command(executable, "describe-model", {"model_path": str(model_path)}, directory), "describe-model"
@@ -549,6 +561,22 @@ def check_model_lifecycle(executable: Path, directory: Path) -> None:
     print(f"  describe-model: reloaded in a separate process, {len(described['feature_order'])} features")
 
 
+def check_model_case(executable: Path, directory: Path) -> None:
+    data = data_of(run_command(executable, "explain-model-example", {}, directory), "explain-model-example")
+    case = data.get("case_study") or {}
+    explanation = data.get("explanation") or {}
+    if case.get("sample_count") != 48 or case.get("feature_count") != 8:
+        raise VerificationError("The cLogP teaching case returned an incomplete dataset.")
+    if explanation.get("cohort") != "training_reference" or len(explanation.get("samples", [])) != 48:
+        raise VerificationError("The cLogP teaching case returned no training-reference explanations.")
+    for sample in explanation["samples"]:
+        if not math.isfinite(sample["reference_value"]) or not math.isclose(
+            sample["base_value"] + sum(sample["shap_values"]), sample["prediction"], rel_tol=1e-5, abs_tol=1e-7
+        ):
+            raise VerificationError("The cLogP teaching case returned invalid reference values or SHAP contributions.")
+    print("  teaching case: 48 calculated cLogP targets, Ridge, 8 variables, additive SHAP")
+
+
 CHECKS = (
     ("dependency health", check_health),
     ("RDKit and Mordred descriptors", check_descriptors),
@@ -558,6 +586,7 @@ CHECKS = (
     ("composite preparation matches the sequence it replaces", check_preparation_replaces_the_sequence),
     ("CSV and XLSX import/export", check_tables),
     ("model train, predict, describe", check_model_lifecycle),
+    ("isolated cLogP teaching case", check_model_case),
 )
 
 

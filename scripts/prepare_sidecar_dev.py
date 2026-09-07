@@ -37,7 +37,7 @@ def check_launcher(destination: Path) -> None:
             cwd=SIDECAR_ROOT.parent,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=300 if platform.system() == "Windows" else 60,
         )
     try:
         response = json.loads(result.stdout)

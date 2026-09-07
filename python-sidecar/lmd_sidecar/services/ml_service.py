@@ -467,6 +467,16 @@ def train_model(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         "python_version": platform.python_version(),
         "domain": domain,
     }
+    # A bounded, reproducible reference from the exact rows/columns fitted here.
+    # Never reconstruct an explanation background from a subsequently edited database.
+    reference_indices = sorted(np.random.default_rng(42).choice(len(features), min(200, len(features)), replace=False).tolist())
+    bundle["explanation_reference"] = {
+        "version": 1,
+        "seed": 42,
+        "total_count": len(features),
+        "matrix": features[reference_indices],
+        "items": [{"id": str(kept_rows[i].get("id", i)), "label": str(kept_rows[i].get("label", i))} for i in reference_indices],
+    }
     tools["joblib"].dump(bundle, model_path)
 
     return {

@@ -52,6 +52,11 @@ def locked_versions() -> dict[str, str]:
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
+        if ";" in stripped:
+            from packaging.requirements import Requirement
+            marker = Requirement(stripped.split("#", 1)[0]).marker
+            if marker is not None and not marker.evaluate():
+                continue
         match = LINE.match(stripped)
         if match:
             versions[normalize(match.group(1))] = match.group(2)
