@@ -1,5 +1,6 @@
 use crate::app_paths::default_database_path;
 use crate::commands::attachments;
+use crate::commands::experiment_protocol::{save_parameters, TestParameters};
 use crate::commands::pagination::{Page, PageRequest};
 use crate::commands::patch;
 use crate::commands::validation;
@@ -18,6 +19,7 @@ pub struct ExperimentDto {
     pub formulation_id: String,
     pub formulation_name: String,
     pub test_type: String,
+    pub test_parameters: TestParameters,
     pub test_standard: String,
     pub instrument: String,
     pub upper_material: String,
@@ -44,6 +46,7 @@ pub struct PerformanceResultDto {
     pub stable_friction_coefficient: Option<f64>,
     pub wear_scar_width_value: Option<f64>,
     pub wear_scar_diameter_value: Option<f64>,
+    pub initial_decomposition_temperature_value: Option<f64>,
     pub initial_oxidation_temperature_value: Option<f64>,
     pub extreme_pressure_value: Option<f64>,
     pub pb_value: Option<f64>,
@@ -62,7 +65,7 @@ pub const EXPERIMENT_SELECT: &str =
     "SELECT e.id, e.formulation_id, COALESCE(f.name, ''), e.test_type,
             e.test_standard, e.instrument, e.upper_material, e.lower_material, e.load_value,
             e.load_unit, e.temperature_value, e.temperature_unit, e.duration_value, e.duration_unit,
-            e.operator, e.experiment_date, e.notes, e.created_at, e.updated_at
+            e.operator, e.experiment_date, e.notes, e.created_at, e.updated_at, e.test_parameters_json
      FROM experiments e
      LEFT JOIN formulations f ON f.id = e.formulation_id";
 
@@ -77,6 +80,11 @@ fn read_experiment_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ExperimentDt
         formulation_id: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
         formulation_name: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
         test_type: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+        test_parameters: serde_json::from_str(
+            &row.get::<_, Option<String>>(19)?
+                .unwrap_or_else(|| "{}".into()),
+        )
+        .unwrap_or_default(),
         test_standard: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
         instrument: row.get::<_, Option<String>>(5)?.unwrap_or_default(),
         upper_material: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
@@ -166,7 +174,7 @@ pub const PERFORMANCE_SELECT: &str = "SELECT id, experiment_id, average_friction
             stable_friction_coefficient, wear_scar_width_value, wear_scar_diameter_value,
             initial_oxidation_temperature_value, extreme_pressure_value, pb_value, pd_value,
             viscosity_40c, viscosity_100c, repeat_count, std_json, raw_result_json, notes,
-            created_at, updated_at
+            created_at, updated_at, initial_decomposition_temperature_value
      FROM performance_results";
 
 pub const PERFORMANCE_ORDER: &str = " ORDER BY datetime(created_at) DESC, created_at DESC, id DESC";
@@ -179,6 +187,7 @@ fn read_performance_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Performance
         stable_friction_coefficient: row.get(3)?,
         wear_scar_width_value: row.get(4)?,
         wear_scar_diameter_value: row.get(5)?,
+        initial_decomposition_temperature_value: row.get(18)?,
         initial_oxidation_temperature_value: row.get(6)?,
         extreme_pressure_value: row.get(7)?,
         pb_value: row.get(8)?,
@@ -338,8 +347,19 @@ pub fn update_experiment(
     id: String,
     payload: Value,
 ) -> Result<ExperimentDto, String> {
-    let connection = open_connection(&app)?;
-    if !experiment_exists(&connection, &id)? {
+    let mut connection = open_connection(&app)?;
+    update_experiment_in_connection(&mut connection, id, payload)
+}
+
+pub fn update_experiment_in_connection(
+    connection: &mut Connection,
+    id: String,
+    payload: Value,
+) -> Result<ExperimentDto, String> {
+    let transaction = connection.transaction().map_err(|e| e.to_string())?;
+    let connection = &transaction;
+
+    if !experiment_exists(connection, &id)? {
         return Err(format!("Experiment not found: {id}"));
     }
     if let Some(formulation_id) =
@@ -435,7 +455,47 @@ pub fn update_experiment(
             ],
         )
         .map_err(|err| format!("Failed to update experiment: {err}"))?;
-    get_experiment_by_id(&connection, &id)
+    let current = get_experiment_by_id(connection, &id)?;
+    if current.test_type == "kinematic-viscosity"
+        && !matches!(current.temperature_value, Some(40.0 | 100.0))
+    {
+        return Err("Kinematic viscosity requires a test temperature of 40 or 100 C.".into());
+    }
+    if let Some(value) = payload.get("testParameters") {
+        let mut parameters: TestParameters =
+            serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
+        parameters = parameters.validate(&current.test_type)?;
+        parameters.resolve_environment(connection, &current.test_type, &id, &now)?;
+        save_parameters(connection, &id, &parameters)?;
+    } else if payload.get("testType").is_some() || payload.get("test_type").is_some() {
+        let mut parameters = current.test_parameters.validate(&current.test_type)?;
+        for (key, slot) in [
+            ("ambientTemperatureC", &mut parameters.ambient_temperature_c),
+            ("humidityPercent", &mut parameters.humidity_percent),
+        ] {
+            if parameters.environment_provenance[key]["source"] == "mean" {
+                *slot = None;
+            }
+        }
+        parameters.resolve_environment(connection, &current.test_type, &id, &now)?;
+        save_parameters(connection, &id, &parameters)?;
+    }
+    if let Some(result_id) = payload.get("performanceResultId").and_then(Value::as_str) {
+        let owner: String = connection
+            .query_row(
+                "SELECT experiment_id FROM performance_results WHERE id=?1",
+                params![result_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if owner != id {
+            return Err("The performance result belongs to a different experiment.".into());
+        }
+        update_performance_in_connection(connection, result_id, &payload)?;
+    }
+    let updated = get_experiment_by_id(connection, &id)?;
+    transaction.commit().map_err(|e| e.to_string())?;
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -494,6 +554,14 @@ pub fn update_performance_result(
     payload: Value,
 ) -> Result<PerformanceResultDto, String> {
     let connection = open_connection(&app)?;
+    update_performance_in_connection(&connection, &id, &payload)
+}
+
+fn update_performance_in_connection(
+    connection: &Connection,
+    id: &str,
+    payload: &Value,
+) -> Result<PerformanceResultDto, String> {
     let experiment_id: String = connection
         .query_row(
             "SELECT experiment_id FROM performance_results WHERE id = ?1",
@@ -507,35 +575,37 @@ pub fn update_performance_result(
     // A measurement that turns out to be wrong must be removable, so every value can be cleared
     // and a genuine zero is stored as zero.
     let average_friction_coefficient = patch::number(
-        &payload,
+        payload,
         "averageFrictionCoefficient",
         "average_friction_coefficient",
     )?;
     let stable_friction_coefficient = patch::number(
-        &payload,
+        payload,
         "stableFrictionCoefficient",
         "stable_friction_coefficient",
     )?;
     let wear_scar_width_value =
-        patch::number(&payload, "wearScarWidthValue", "wear_scar_width_value")?;
-    let wear_scar_diameter_value = patch::number(
-        &payload,
-        "wearScarDiameterValue",
-        "wear_scar_diameter_value",
-    )?;
+        patch::number(payload, "wearScarWidthValue", "wear_scar_width_value")?;
+    let wear_scar_diameter_value =
+        patch::number(payload, "wearScarDiameterValue", "wear_scar_diameter_value")?;
     let initial_oxidation_temperature_value = patch::number(
-        &payload,
+        payload,
         "initialOxidationTemperatureValue",
         "initial_oxidation_temperature_value",
     )?;
     let extreme_pressure_value =
-        patch::number(&payload, "extremePressureValue", "extreme_pressure_value")?;
-    let pb_value = patch::number(&payload, "pbValue", "pb_value")?;
-    let pd_value = patch::number(&payload, "pdValue", "pd_value")?;
-    let viscosity_40c = patch::number(&payload, "viscosity40c", "viscosity_40c")?;
-    let viscosity_100c = patch::number(&payload, "viscosity100c", "viscosity_100c")?;
-    let repeat_count = patch::integer(&payload, "repeatCount", "repeat_count")?;
-    let notes = patch::text(&payload, "notes", "notes")?;
+        patch::number(payload, "extremePressureValue", "extreme_pressure_value")?;
+    let pb_value = patch::number(payload, "pbValue", "pb_value")?;
+    let pd_value = patch::number(payload, "pdValue", "pd_value")?;
+    let viscosity_40c = patch::number(payload, "viscosity40c", "viscosity_40c")?;
+    let viscosity_100c = patch::number(payload, "viscosity100c", "viscosity_100c")?;
+    let decomposition = patch::number(
+        payload,
+        "initialDecompositionTemperatureValue",
+        "initial_decomposition_temperature_value",
+    )?;
+    let repeat_count = patch::integer(payload, "repeatCount", "repeat_count")?;
+    let notes = patch::text(payload, "notes", "notes")?;
     connection
         .execute(
             "UPDATE performance_results SET
@@ -551,6 +621,7 @@ pub fn update_performance_result(
                 viscosity_100c = CASE WHEN ?20 THEN viscosity_100c ELSE ?21 END,
                 repeat_count = CASE WHEN ?22 THEN repeat_count ELSE ?23 END,
                 notes = CASE WHEN ?24 THEN notes ELSE ?25 END,
+                initial_decomposition_temperature_value = CASE WHEN ?27 THEN initial_decomposition_temperature_value ELSE ?28 END,
                 updated_at = ?26
              WHERE id = ?1",
             params![
@@ -579,12 +650,12 @@ pub fn update_performance_result(
                 patch::Patched(repeat_count),
                 notes.is_unchanged(),
                 patch::Patched(notes),
-                &now
+                &now, decomposition.is_unchanged(), patch::Patched(decomposition)
             ],
         )
         .map_err(|err| format!("Failed to update performance result: {err}"))?;
     let _ = experiment_id;
-    get_performance_result_by_id(&connection, &id)
+    get_performance_result_by_id(connection, id)
 }
 
 #[tauri::command]
@@ -655,37 +726,9 @@ fn open_connection(app: &AppHandle) -> Result<Connection, String> {
 fn get_experiment_by_id(connection: &Connection, id: &str) -> Result<ExperimentDto, String> {
     connection
         .query_row(
-            "SELECT e.id, e.formulation_id, COALESCE(f.name, ''), e.test_type, e.test_standard,
-                    e.instrument, e.upper_material, e.lower_material, e.load_value, e.load_unit,
-                    e.temperature_value, e.temperature_unit, e.duration_value, e.duration_unit,
-                    e.operator, e.experiment_date, e.notes, e.created_at, e.updated_at
-             FROM experiments e
-             LEFT JOIN formulations f ON f.id = e.formulation_id
-             WHERE e.id = ?1",
+            &format!("{EXPERIMENT_SELECT} WHERE e.id = ?1"),
             params![id],
-            |row| {
-                Ok(ExperimentDto {
-                    id: row.get(0)?,
-                    formulation_id: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    formulation_name: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                    test_type: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
-                    test_standard: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
-                    instrument: row.get::<_, Option<String>>(5)?.unwrap_or_default(),
-                    upper_material: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
-                    lower_material: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
-                    load_value: row.get(8)?,
-                    load_unit: row.get::<_, Option<String>>(9)?.unwrap_or_default(),
-                    temperature_value: row.get(10)?,
-                    temperature_unit: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
-                    duration_value: row.get(12)?,
-                    duration_unit: row.get::<_, Option<String>>(13)?.unwrap_or_default(),
-                    operator: row.get::<_, Option<String>>(14)?.unwrap_or_default(),
-                    experiment_date: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
-                    notes: row.get::<_, Option<String>>(16)?.unwrap_or_default(),
-                    created_at: row.get(17)?,
-                    updated_at: row.get(18)?,
-                })
-            },
+            read_experiment_row,
         )
         .map_err(|err| format!("Failed to load experiment: {err}"))
 }
@@ -696,40 +739,9 @@ fn get_performance_result_by_id(
 ) -> Result<PerformanceResultDto, String> {
     connection
         .query_row(
-            "SELECT id, experiment_id, average_friction_coefficient, stable_friction_coefficient,
-                    wear_scar_width_value, wear_scar_diameter_value,
-                    initial_oxidation_temperature_value, extreme_pressure_value, pb_value, pd_value,
-                    viscosity_40c, viscosity_100c, repeat_count, std_json, raw_result_json,
-                    notes, created_at, updated_at
-             FROM performance_results
-             WHERE id = ?1",
+            &format!("{PERFORMANCE_SELECT} WHERE id = ?1"),
             params![id],
-            |row| {
-                Ok(PerformanceResultDto {
-                    id: row.get(0)?,
-                    experiment_id: row.get(1)?,
-                    average_friction_coefficient: row.get(2)?,
-                    stable_friction_coefficient: row.get(3)?,
-                    wear_scar_width_value: row.get(4)?,
-                    wear_scar_diameter_value: row.get(5)?,
-                    initial_oxidation_temperature_value: row.get(6)?,
-                    extreme_pressure_value: row.get(7)?,
-                    pb_value: row.get(8)?,
-                    pd_value: row.get(9)?,
-                    viscosity_40c: row.get(10)?,
-                    viscosity_100c: row.get(11)?,
-                    repeat_count: row.get(12)?,
-                    std_json: parse_json_text(
-                        row.get::<_, Option<String>>(13)?.unwrap_or_default(),
-                    ),
-                    raw_result_json: parse_json_text(
-                        row.get::<_, Option<String>>(14)?.unwrap_or_default(),
-                    ),
-                    notes: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
-                    created_at: row.get(16)?,
-                    updated_at: row.get(17)?,
-                })
-            },
+            read_performance_row,
         )
         .map_err(|err| format!("Failed to load performance result: {err}"))
 }
@@ -785,6 +797,10 @@ fn field_string(payload: &Value, key: &str) -> Option<String> {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentWithPerformanceRequest {
+    #[serde(default)]
+    pub test_parameters: TestParameters,
+    #[serde(default, deserialize_with = "validation::optional_number")]
+    pub initial_decomposition_temperature_value: Option<f64>,
     #[serde(
         default,
         alias = "formulation_id",
@@ -942,6 +958,8 @@ pub struct ExperimentWithPerformanceRequest {
 /// A request that has passed every rule. Nothing here needs re-checking at the `params!` site.
 #[derive(Debug)]
 pub struct ValidatedExperimentWrite {
+    pub test_parameters: TestParameters,
+    pub initial_decomposition_temperature_value: Option<f64>,
     pub formulation_id: String,
     pub test_type: String,
     pub test_standard: String,
@@ -978,14 +996,55 @@ impl ExperimentWithPerformanceRequest {
     /// cannot be interpreted later: nobody can say what was tested, or how. Every other field is
     /// optional, and every supplied number has to be finite — a NaN friction coefficient would
     /// otherwise be averaged into every summary the workspace produces.
-    pub fn validate(self) -> Result<ValidatedExperimentWrite, String> {
+    pub fn validate(mut self) -> Result<ValidatedExperimentWrite, String> {
         let formulation_id = validation::require_name(
             self.formulation_id.as_deref(),
             "A formulation for the experiment",
         )?;
         let test_type = validation::require_name(self.test_type.as_deref(), "The test type")?;
 
+        if test_type == "kinematic-viscosity"
+            && !matches!(self.temperature_value, Some(40.0 | 100.0))
+        {
+            return Err("Kinematic viscosity requires a test temperature of 40 or 100 C.".into());
+        }
+        if matches!(
+            test_type.as_str(),
+            "UMT" | "TE77" | "four-ball" | "PDSC" | "TGA" | "kinematic-viscosity"
+        ) {
+            if !matches!(test_type.as_str(), "UMT" | "TE77" | "four-ball") {
+                self.average_friction_coefficient = None;
+                self.stable_friction_coefficient = None;
+                self.wear_scar_width_value = None;
+                self.wear_scar_diameter_value = None;
+                self.load_value = None;
+                self.upper_material = None;
+                self.lower_material = None;
+            }
+            if test_type != "four-ball" {
+                self.extreme_pressure_value = None;
+                self.pb_value = None;
+                self.pd_value = None;
+            }
+            if test_type != "PDSC" {
+                self.initial_oxidation_temperature_value = None;
+            }
+            if test_type != "TGA" {
+                self.initial_decomposition_temperature_value = None;
+            }
+            if test_type != "kinematic-viscosity" || self.temperature_value != Some(40.0) {
+                self.viscosity_40c = None;
+            }
+            if test_type != "kinematic-viscosity" || self.temperature_value != Some(100.0) {
+                self.viscosity_100c = None;
+            }
+        }
         Ok(ValidatedExperimentWrite {
+            test_parameters: self.test_parameters.validate(&test_type)?,
+            initial_decomposition_temperature_value: validation::require_finite(
+                self.initial_decomposition_temperature_value,
+                "Initial decomposition temperature",
+            )?,
             formulation_id,
             test_type,
             test_standard: self.test_standard.unwrap_or_default(),
@@ -1128,6 +1187,15 @@ pub fn write_experiment_with_performance(
         )
         .map_err(|err| format!("Failed to create performance result: {err}"))?;
 
+    let mut parameters = request.test_parameters.clone();
+    parameters.resolve_environment(&transaction, &request.test_type, &experiment_id, now)?;
+    save_parameters(&transaction, &experiment_id, &parameters)?;
+    transaction
+        .execute(
+            "UPDATE performance_results SET initial_decomposition_temperature_value=?2 WHERE id=?1",
+            params![&result_id, request.initial_decomposition_temperature_value],
+        )
+        .map_err(|e| format!("Failed to store thermal decomposition result: {e}"))?;
     transaction
         .commit()
         .map_err(|err| format!("Failed to commit the experiment save transaction: {err}"))?;

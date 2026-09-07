@@ -7,6 +7,7 @@ pub mod design;
 pub mod diagnostics;
 pub mod errors;
 pub mod experiment;
+pub mod experiment_protocol;
 pub mod export;
 pub mod features;
 pub mod formulation;

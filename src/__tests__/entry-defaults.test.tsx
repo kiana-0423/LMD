@@ -152,7 +152,7 @@ describe("experiment entry", () => {
   it("tells the user plainly that nothing here is filled in for them", async () => {
     await renderPage("../features/experiments/ExperimentPerformancePage");
     expect(
-      await screen.findByText("Nothing here is filled in for you. Every value is one you measured or chose.")
+      await screen.findByText("Record the test method and measured values. Optional environment defaults are explained below.")
     ).toBeTruthy();
   });
 });

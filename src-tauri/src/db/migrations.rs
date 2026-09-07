@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tauri::AppHandle;
 
-const LATEST_SCHEMA_VERSION: i64 = 7;
+const LATEST_SCHEMA_VERSION: i64 = 8;
 
 pub fn initialize_database_file(app: &AppHandle) -> Result<(), String> {
     let workspace = default_workspace_dir(app)?;
@@ -97,6 +97,24 @@ fn apply_migrations(connection: &Connection) -> Result<(), String> {
         create_design_tables(connection)?;
         set_schema_version(connection, 7)?;
         version = 7;
+    }
+    if version < 8 {
+        for (table, column, kind) in [
+            ("experiments", "test_parameters_json", "TEXT"),
+            (
+                "performance_results",
+                "initial_decomposition_temperature_value",
+                "REAL",
+            ),
+        ] {
+            if !column_exists(connection, table, column)? {
+                connection
+                    .execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {kind}"))
+                    .map_err(|err| format!("Failed to add test-specific field: {err}"))?;
+            }
+        }
+        set_schema_version(connection, 8)?;
+        version = 8;
     }
     if version > LATEST_SCHEMA_VERSION {
         return Err(format!(

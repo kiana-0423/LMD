@@ -55,6 +55,33 @@ The canvas remains on one page. Files are limited to 5 MB and 2000 input atoms;
 multi-model PDB files must be split before import. PDB connectivity and bond
 orders may be incomplete, so the canvas includes a review reminder.
 
+## Test-specific experiment entry
+
+Experiment entry and correction share a test-type driven form with condition,
+result and environment/record tabs. New entries offer UMT (reciprocating or
+ball-on-disk), four-ball, TE77 (reciprocating), PDSC, TGA, kinematic viscosity,
+corrosion and other. Historical SRV, standalone ball-on-disk, viscosity and
+stability records retain their original labels; they are not silently reclassified.
+
+Reciprocating UMT/TE77 records require stroke in mm and frequency in Hz. UMT
+ball-on-disk requires track radius in mm and rotational speed in rpm. Four-ball
+also accepts speed in rpm. PDSC retains common conditions and its existing
+oxidation result while special parameters remain undecided. TGA records initial
+thermal decomposition temperature in °C, separately from oxidation temperature.
+Kinematic viscosity selects 40 or 100 °C and stores only the corresponding result
+in mm²/s. Decomposition temperature and both viscosity metrics are available in
+analysis. These changes do not alter the existing ML feature schema.
+
+Ambient temperature (°C) and relative humidity (%) are optional. At save time,
+missing values use the arithmetic mean of valid measured values for the same test
+type, excluding the current record and previously inferred values. No measured
+values means no default. Each inferred value stores its source, sample count and
+time; the detail view labels it as a mean. Historical test temperatures are not
+repurposed as ambient temperatures. Schema migration 8 preserves existing rows,
+adds test-parameter provenance and the distinct TGA result, and uses the existing
+pre-migration backup workflow. Corrections to conditions and their selected
+performance result commit or roll back together.
+
 ## Explain molecular predictions with SHAP
 
 For a first run without a dataset, click **Model case (SHAP)** at the top of

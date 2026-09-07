@@ -151,6 +151,7 @@ export interface FormulationComponent {
 }
 
 export interface Experiment {
+  testParameters?: import("../lib/experimentProtocol").TestParameters;
   id: string;
   formulationId: string;
   formulationName: string;
@@ -173,6 +174,7 @@ export interface Experiment {
 }
 
 export interface PerformanceResult {
+  initialDecompositionTemperatureValue?: number;
   id: string;
   experimentId: string;
   averageFrictionCoefficient?: number;

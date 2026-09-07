@@ -113,6 +113,24 @@ const PERFORMANCE_METRICS: &[(&str, &str, &str, &str)] = &[
     ),
     ("pb_value", "metric.pbValue", "PB value", "N"),
     ("pd_value", "metric.pdValue", "PD value", "N"),
+    (
+        "initial_decomposition_temperature_value",
+        "metric.initialDecompositionTemperature",
+        "Initial thermal decomposition temperature",
+        "C",
+    ),
+    (
+        "viscosity_40c",
+        "metric.viscosity40c",
+        "Kinematic viscosity at 40 C",
+        "mm2/s",
+    ),
+    (
+        "viscosity_100c",
+        "metric.viscosity100c",
+        "Kinematic viscosity at 100 C",
+        "mm2/s",
+    ),
 ];
 
 /// Smallest sample an analysis will report on. Below this the answer is "not enough data",

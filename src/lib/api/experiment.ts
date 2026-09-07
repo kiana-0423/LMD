@@ -74,7 +74,7 @@ export async function deleteExperimentRecord(experimentId: string): Promise<Enti
 
 export async function updateExperimentRecord(
   experimentId: string,
-  payload: Partial<ExperimentPerformancePayload>
+  payload: Partial<ExperimentPerformancePayload> & { performanceResultId?: string }
 ) {
   return invokeCommand<Experiment>("update_experiment", { id: experimentId, payload });
 }

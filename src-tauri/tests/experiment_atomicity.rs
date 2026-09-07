@@ -140,3 +140,164 @@ fn a_rejected_payload_never_reaches_the_database() {
         .expect("the count should read");
     assert_eq!(experiments, 0);
 }
+
+fn protocol_request(payload: serde_json::Value) -> ValidatedExperimentWrite {
+    serde_json::from_value::<ExperimentWithPerformanceRequest>(payload)
+        .unwrap()
+        .validate()
+        .unwrap()
+}
+
+#[test]
+fn test_modes_and_thermal_viscosity_fields_round_trip() {
+    let mut connection = workspace_with_one_formulation();
+    for payload in [
+        json!({"formulationId":"f-1", "testType":"UMT", "testParameters":{"mode":"reciprocating", "strokeMm":2, "frequencyHz":20}}),
+        json!({"formulationId":"f-1", "testType":"UMT", "testParameters":{"mode":"ball-on-disk", "radiusMm":5, "speedRpm":300}}),
+        json!({"formulationId":"f-1", "testType":"TE77", "testParameters":{"strokeMm":4, "frequencyHz":10}}),
+        json!({"formulationId":"f-1", "testType":"four-ball", "testParameters":{"speedRpm":1200}}),
+    ] {
+        let request = protocol_request(payload);
+        let (id, _) =
+            write_experiment_with_performance(&mut connection, &request, "2026-09-07").unwrap();
+        let stored: String = connection
+            .query_row(
+                "SELECT test_parameters_json FROM experiments WHERE id=?1",
+                [&id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let actual: serde_json::Value = serde_json::from_str(&stored).unwrap();
+        assert_eq!(actual["mode"], json!(request.test_parameters.mode));
+        assert_eq!(actual["speedRpm"], json!(request.test_parameters.speed_rpm));
+        assert_eq!(
+            actual["frequencyHz"],
+            json!(request.test_parameters.frequency_hz)
+        );
+    }
+    let request = protocol_request(
+        json!({"formulationId":"f-1", "testType":"TGA", "initialDecompositionTemperatureValue":286.5, "averageFrictionCoefficient":0.1}),
+    );
+    let (_, result) =
+        write_experiment_with_performance(&mut connection, &request, "2026-09-07").unwrap();
+    let data: (f64, Option<f64>) = connection.query_row("SELECT initial_decomposition_temperature_value, average_friction_coefficient FROM performance_results WHERE id=?1", [result], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
+    assert_eq!(data, (286.5, None));
+    for temperature in [40, 100] {
+        let request = protocol_request(
+            json!({"formulationId":"f-1", "testType":"kinematic-viscosity", "temperatureValue":temperature, "viscosity40c":40.2, "viscosity100c":8.1}),
+        );
+        let (_, result) =
+            write_experiment_with_performance(&mut connection, &request, "2026-09-07").unwrap();
+        let data: (Option<f64>, Option<f64>) = connection
+            .query_row(
+                "SELECT viscosity_40c, viscosity_100c FROM performance_results WHERE id=?1",
+                [result],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            data,
+            if temperature == 40 {
+                (Some(40.2), None)
+            } else {
+                (None, Some(8.1))
+            }
+        );
+    }
+}
+
+#[test]
+fn environment_means_use_only_same_type_measurements_and_preserve_zero_humidity() {
+    let mut connection = workspace_with_one_formulation();
+    for (kind, parameters) in [
+        ("TGA", json!({})),
+        (
+            "TGA",
+            json!({"ambientTemperatureC":20, "humidityPercent":0}),
+        ),
+        (
+            "PDSC",
+            json!({"ambientTemperatureC":100, "humidityPercent":100}),
+        ),
+        ("TGA", json!({})),
+        (
+            "TGA",
+            json!({"ambientTemperatureC":30, "humidityPercent":60}),
+        ),
+    ] {
+        let request = protocol_request(
+            json!({"formulationId":"f-1", "testType":kind, "testParameters":parameters}),
+        );
+        write_experiment_with_performance(&mut connection, &request, "2026-09-07").unwrap();
+    }
+    let request = protocol_request(json!({"formulationId":"f-1", "testType":"TGA"}));
+    let (id, _) =
+        write_experiment_with_performance(&mut connection, &request, "2026-09-07").unwrap();
+    let actual =
+        lubricant_materials_database::commands::experiment::update_experiment_in_connection(
+            &mut connection,
+            id,
+            json!({"testParameters":{}}),
+        )
+        .unwrap()
+        .test_parameters;
+    assert_eq!(actual.ambient_temperature_c, Some(25.0));
+    assert_eq!(actual.humidity_percent, Some(30.0));
+    assert_eq!(
+        actual.environment_provenance["humidityPercent"]["sampleCount"],
+        2
+    );
+    assert_eq!(
+        actual.environment_provenance["humidityPercent"]["source"],
+        "mean"
+    );
+}
+
+#[test]
+fn invalid_mode_and_conditions_are_refused() {
+    for payload in [
+        json!({"testType":"UMT"}),
+        json!({"testType":"UMT", "testParameters":{"mode":"ball-on-disk","radiusMm":0,"speedRpm":300}}),
+        json!({"testType":"TE77", "testParameters":{"frequencyHz":10}}),
+        json!({"testType":"kinematic-viscosity","temperatureValue":80}),
+        json!({"testType":"TGA","testParameters":{"humidityPercent":101}}),
+    ] {
+        let mut payload = payload;
+        payload["formulationId"] = json!("f-1");
+        assert!(
+            serde_json::from_value::<ExperimentWithPerformanceRequest>(payload)
+                .unwrap()
+                .validate()
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn corrections_save_conditions_and_results_atomically() {
+    use lubricant_materials_database::commands::experiment::update_experiment_in_connection;
+    let mut connection = workspace_with_one_formulation();
+    let request = protocol_request(
+        json!({"formulationId":"f-1", "testType":"TGA", "initialDecompositionTemperatureValue":250}),
+    );
+    let (id, result) =
+        write_experiment_with_performance(&mut connection, &request, "2026-09-07").unwrap();
+    update_experiment_in_connection(&mut connection, id.clone(), json!({"instrument":"TGA-1", "performanceResultId":result, "initialDecompositionTemperatureValue":275})).unwrap();
+    let corrected: f64 = connection
+        .query_row(
+            "SELECT initial_decomposition_temperature_value FROM performance_results WHERE id=?1",
+            [&result],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(corrected, 275.0);
+    assert!(update_experiment_in_connection(&mut connection, id.clone(), json!({"instrument":"bad", "performanceResultId":result, "initialDecompositionTemperatureValue":"invalid"})).is_err());
+    let instrument: String = connection
+        .query_row(
+            "SELECT instrument FROM experiments WHERE id=?1",
+            [id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(instrument, "TGA-1");
+}

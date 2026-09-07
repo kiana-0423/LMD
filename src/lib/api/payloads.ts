@@ -62,6 +62,13 @@ export type CreateFormulationPayload = {
  * cannot be interpreted later.
  */
 export type ExperimentPerformancePayload = {
+  testParameters?: import("../experimentProtocol").TestParameters;
+  initialDecompositionTemperatureValue?: number;
+  wearScarWidthValue?: number;
+  pbValue?: number;
+  pdValue?: number;
+  viscosity40c?: number;
+  viscosity100c?: number;
   formulationId: string;
   testType: string;
   testStandard?: string;
