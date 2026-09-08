@@ -14,7 +14,6 @@ vi.mock("../lib/api", async () => {
 });
 
 import MoleculePerformancePredictionPage from "../features/data-mining/MoleculePerformancePredictionPage";
-import MoleculeScreeningPage from "../features/data-mining/MoleculeScreeningPage";
 
 const en = messagesForLanguage("en-US");
 
@@ -41,15 +40,15 @@ function deferred<T>() {
 
 const METRICS = [
   {
-    column: "average_friction_coefficient",
-    labelCode: "metric.averageFrictionCoefficient",
-    label: "Average friction coefficient",
+    column: "extreme_pressure_value",
+    labelCode: "metric.extremePressure",
+    label: "Extreme pressure",
     unit: ""
   },
   {
-    column: "wear_scar_diameter_value",
-    labelCode: "metric.wearScarDiameter",
-    label: "Wear scar diameter",
+    column: "pb_value",
+    labelCode: "metric.pbValue",
+    label: "PB value",
     unit: "um"
   }
 ];
@@ -78,8 +77,8 @@ function model(id: string, target: string, name: string) {
   };
 }
 
-const FRICTION_MODEL = model("model-friction", "average_friction_coefficient", "Friction model");
-const WEAR_MODEL = model("model-wear", "wear_scar_diameter_value", "Wear model");
+const FRICTION_MODEL = model("model-friction", "extreme_pressure_value", "Friction model");
+const WEAR_MODEL = model("model-wear", "pb_value", "Wear model");
 
 beforeEach(async () => {
   window.localStorage.clear();
@@ -117,7 +116,7 @@ describe("an older model list cannot overwrite the current target's", () => {
     // The first request is still open, so nothing is listed and nothing can be chosen.
     expect(await screen.findByText(en["model.modelsLoading"])).toBeTruthy();
 
-    await switchTarget("Wear scar diameter");
+    await switchTarget("PB value");
     await waitFor(() => expect(screen.getAllByText("Wear model").length).toBeGreaterThan(0));
 
     // Now the abandoned request answers, with the previous target's models.
@@ -136,7 +135,7 @@ describe("an older model list cannot overwrite the current target's", () => {
     renderWithLanguage(<MoleculePerformancePredictionPage />);
     await waitFor(() => expect(screen.getByText("Friction model")).toBeTruthy());
 
-    await switchTarget("Wear scar diameter");
+    await switchTarget("PB value");
 
     // The friction model is gone the moment the target changes, not when the new list lands.
     // Leaving it visible would offer a choice that is already wrong.
@@ -179,13 +178,13 @@ describe("an older model list cannot overwrite the current target's", () => {
     await waitFor(() => expect(apiMock.predictMoleculePerformance).toHaveBeenCalled());
 
     // The user moves on while the prediction is still running.
-    await switchTarget("Wear scar diameter");
+    await switchTarget("PB value");
     await waitFor(() => expect(screen.getByText("Wear model")).toBeTruthy());
 
     prediction.resolve({
       modelId: "model-friction",
       modelName: "Friction model",
-      target: "average_friction_coefficient",
+      target: "extreme_pressure_value",
       algorithm: "ridge",
       trainedAt: "2026-01-01",
       sampleCount: 24,
@@ -203,7 +202,7 @@ describe("an older model list cannot overwrite the current target's", () => {
   it("refuses to predict with a model that does not match the current target", async () => {
     // The model list is for the current target, but the model itself names another one — the
     // shape a stale response leaves behind if it ever slipped past the version check.
-    apiMock.listModels.mockResolvedValue([model("model-mismatch", "wear_scar_diameter_value", "Wear model")]);
+    apiMock.listModels.mockResolvedValue([model("model-mismatch", "pb_value", "Wear model")]);
 
     renderWithLanguage(<MoleculePerformancePredictionPage />);
     fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
@@ -218,53 +217,5 @@ describe("an older model list cannot overwrite the current target's", () => {
 
     expect(await screen.findByText(en["model.selectionMismatch"])).toBeTruthy();
     expect(apiMock.predictMoleculePerformance).not.toHaveBeenCalled();
-  });
-});
-
-describe("screening applies the same protection", () => {
-  it("discards a first model list that arrives after the second", async () => {
-    const first = deferred<unknown[]>();
-    apiMock.listModels.mockReturnValueOnce(first.promise).mockResolvedValueOnce([WEAR_MODEL]);
-
-    renderWithLanguage(<MoleculeScreeningPage />);
-    expect(await screen.findByText(en["screening.modelsLoading"])).toBeTruthy();
-
-    await switchTarget("Wear scar diameter");
-    await waitFor(() => expect(screen.getAllByText("Wear model").length).toBeGreaterThan(0));
-
-    first.resolve([FRICTION_MODEL]);
-    await waitFor(() => expect(apiMock.listModels).toHaveBeenCalledTimes(2));
-
-    await waitFor(() => expect(screen.queryByText("Friction model")).toBeNull());
-  });
-
-  it("discards a ranking whose request belonged to an earlier target", async () => {
-    apiMock.listModels.mockResolvedValueOnce([FRICTION_MODEL]).mockResolvedValueOnce([WEAR_MODEL]);
-    const ranking = deferred<Record<string, unknown>>();
-    apiMock.predictMoleculePerformance.mockReturnValue(ranking.promise);
-
-    renderWithLanguage(<MoleculeScreeningPage />);
-    expect((await screen.findAllByText("Friction model")).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(en["screening.run"]) }));
-    await waitFor(() => expect(apiMock.predictMoleculePerformance).toHaveBeenCalled());
-
-    await switchTarget("Wear scar diameter");
-    await waitFor(() => expect(screen.getAllByText("Wear model").length).toBeGreaterThan(0));
-
-    ranking.resolve({
-      modelId: "model-friction",
-      modelName: "Friction model",
-      target: "average_friction_coefficient",
-      algorithm: "ridge",
-      trainedAt: "2026-01-01",
-      sampleCount: 24,
-      datasetMode: "additive_component",
-      concentrationBasis: "none",
-      metrics: {},
-      predictions: [{ id: "mol-1", label: "ZDDP", value: 0.09876 }],
-      skipped: []
-    });
-
-    await waitFor(() => expect(screen.queryByText("0.09876")).toBeNull());
   });
 });

@@ -948,7 +948,10 @@ pub async fn train_model(
     let (_, label, unit) = crate::commands::analysis::describe_metric(&target)?;
     let descriptor_set = descriptor_set.unwrap_or_default();
     let mode = DatasetMode::parse(dataset_mode.as_deref().unwrap_or_default())?;
-    let scope = DatasetScope::parse(scope.as_ref())?;
+    let mut scope = DatasetScope::parse(scope.as_ref())?;
+    if mode == DatasetMode::AdditiveComponent {
+        scope.single_additive_only = true;
+    }
 
     // Everything from here on is tracked, including reading the workspace: a training run that
     // fails because the workspace is too small is still an attempt worth recording, and the guard
@@ -2340,15 +2343,21 @@ pub fn export_ml_dataset(
     target: String,
     descriptor_set: Option<String>,
     dataset_mode: Option<String>,
+    scope: Option<Value>,
 ) -> Result<Value, String> {
     let (_, label, unit) = crate::commands::analysis::describe_metric(&target)?;
     let mode = DatasetMode::parse(dataset_mode.as_deref().unwrap_or_default())?;
+    let mut scope = DatasetScope::parse(scope.as_ref())?;
+    if mode == DatasetMode::AdditiveComponent {
+        scope.single_additive_only = true;
+    }
     let connection = open(&app)?;
-    let (rows, report) = build_training_rows(
+    let (rows, report) = build_training_rows_scoped(
         &connection,
         &target,
         &descriptor_set.unwrap_or_default(),
         mode,
+        &scope,
     )?;
     if rows.is_empty() {
         let mut message = format!(

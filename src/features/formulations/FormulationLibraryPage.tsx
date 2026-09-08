@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import ExperimentFields from "../experiments/ExperimentFields";
 import { experimentPayload, performanceFields } from "../../lib/experimentProtocol";
 import PagedModal from "../../components/PagedModal";
@@ -42,6 +43,7 @@ import type { Experiment, Formulation, PerformanceResult } from "../../types";
 import { backendErrorText } from "../../lib/backendErrors";
 
 export default function FormulationLibraryPage() {
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -261,6 +263,7 @@ export default function FormulationLibraryPage() {
         description={t("ui.browseCompareAndCopyLubricantFormulationsAnd")}
         extra={
           <Space size={8}>
+            <Button type="primary" onClick={() => navigate("/formulations/new")}>{t("formulation.create")}</Button>
             <Button
               data-testid="copy-formulation"
               disabled={selectedKeys.length !== 1}

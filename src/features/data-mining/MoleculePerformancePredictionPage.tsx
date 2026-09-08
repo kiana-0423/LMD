@@ -13,10 +13,11 @@ export default function MoleculePerformancePredictionPage() {
       descriptionKey="model.pageMoleculeDescription"
       datasetMode="additive_component"
       targets={[
-        "average_friction_coefficient",
-        "stable_friction_coefficient",
-        "wear_scar_diameter_value",
-        "wear_scar_width_value"
+        "extreme_pressure_value",
+        "pb_value",
+        "pd_value",
+        "initial_oxidation_temperature_value",
+        "initial_decomposition_temperature_value",
       ]}
     />
   );

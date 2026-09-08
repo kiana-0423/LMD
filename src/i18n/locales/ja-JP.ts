@@ -272,12 +272,14 @@ export const jaJP: MessageCatalogue = {
   "model.datasetMode": "データセット",
   "files.fileName": "ファイル",
   "files.attachedAt": "添付日時",
+  "formulation.create": "新規配合",
+  "formulation.backToLibrary": "配合ライブラリに戻る",
   "model.pageMoleculeTitle": "分子性能予測",
   "model.pageMoleculeDescription":
-    "このワークスペースの実験から、添加剤分子ごとに 1 行のモデルを学習し、ライブラリ内の分子のトライボロジー性能を予測します。データが端末外に出ることはありません。",
+    "単一添加剤の実験と分子記述子から極圧値、PB/PD、熱特性を予測します。値は基油、濃度、試験条件に依存し、分子固有の定数ではありません。",
   "model.pageFormulationTitle": "配合予測",
   "model.pageFormulationDescription":
-    "配合全体を単位として（測定された混合物ごとに 1 行）モデルを学習し、保存済みの配合またはご自身が記述した候補配合の性能を予測します。データが端末外に出ることはありません。",
+    "配合全体の摩擦係数、摩耗痕寸法、動粘度などの潤滑性能を予測します。学習では測定した配合ごとに一行を使用します。",
   "model.modeLockedAdditive": "このページは添加剤分子を 1 件ずつ学習・予測します",
   "model.modeLockedFormulation": "このページは配合全体を単位として学習・予測します",
   "model.selectModel": "モデルを選択",

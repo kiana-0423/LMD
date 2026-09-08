@@ -32,7 +32,7 @@ describe("constants", () => {
         "/descriptors",
         "/data-mining/molecule-performance",
         "/data-mining/formulation-prediction",
-        "/data-mining/molecule-screening"
+        "/data-mining/molecule-design"
       ])
     );
   });

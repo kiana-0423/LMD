@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 
 import { Modal } from "antd";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { messagesForLanguage } from "../i18n/catalogues";
-import AnalysisDesignPage from "../features/analysis-design/AnalysisDesignPage";
 import MoleculePerformancePredictionPage from "../features/data-mining/MoleculePerformancePredictionPage";
-import MoleculeScreeningPage from "../features/data-mining/MoleculeScreeningPage";
 import { renderWithLanguage } from "./renderWithLanguage";
 
 const apiMock = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
@@ -18,21 +16,11 @@ vi.mock("../lib/api", async () => {
 
 const en = messagesForLanguage("en-US");
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((settle, fail) => {
-    resolve = settle;
-    reject = fail;
-  });
-  return { promise, resolve, reject };
-}
-
 function model(id = "model-1", name = "Friction model") {
   return {
     id,
     name,
-    target: "average_friction_coefficient",
+    target: "extreme_pressure_value",
     task: "regression",
     algorithm: "ridge",
     modelVersion: "1",
@@ -54,15 +42,15 @@ function model(id = "model-1", name = "Friction model") {
 
 const metrics = [
   {
-    column: "average_friction_coefficient",
-    labelCode: "metric.averageFrictionCoefficient",
-    label: "Average friction coefficient",
+    column: "extreme_pressure_value",
+    labelCode: "metric.extremePressure",
+    label: "Extreme pressure",
     unit: ""
   },
   {
-    column: "wear_scar_diameter_value",
-    labelCode: "metric.wearScarDiameter",
-    label: "Wear scar diameter",
+    column: "pb_value",
+    labelCode: "metric.pbValue",
+    label: "PB value",
     unit: "um"
   }
 ];
@@ -113,8 +101,8 @@ describe("recoverable page loading", () => {
       .mockRejectedValueOnce(new Error("[sidecar.commandFailed] registry refresh failed"));
     apiMock.trainModel.mockResolvedValue({
       modelId: "model-new",
-      target: "average_friction_coefficient",
-      label: "Average friction coefficient",
+      target: "extreme_pressure_value",
+      label: "Extreme pressure",
       unit: "",
       algorithm: "ridge",
       modelVersion: "1",
@@ -146,71 +134,5 @@ describe("recoverable page loading", () => {
     expect(await screen.findByText("Training completed summary")).toBeTruthy();
     expect(await screen.findByText("registry refresh failed")).toBeTruthy();
     expect(screen.queryByText(en["model.trainFailed"])).toBeNull();
-  });
-});
-
-describe("current selections own their results", () => {
-  it("does not let an abandoned analysis failure replace the newer metric", async () => {
-    const abandoned = deferred<Record<string, unknown>>();
-    const current = {
-      status: "insufficient_data",
-      message: { code: "analysis.notEnoughData", params: { required: 3, available: 0 } },
-      metadata: {
-        recordCount: 0,
-        excludedCount: 0,
-        field: "wear_scar_diameter_value",
-        label: "Wear scar diameter",
-        unit: "um"
-      },
-      series: []
-    };
-    for (const name of [
-      "getPerformanceDistribution",
-      "comparePerformanceByGroup",
-      "getConcentrationPerformance",
-      "getDescriptorPropertyCorrelation"
-    ]) {
-      apiMock[name].mockReturnValueOnce(abandoned.promise).mockResolvedValueOnce(current);
-    }
-
-    renderWithLanguage(<AnalysisDesignPage />);
-    fireEvent.mouseDown(await screen.findByRole("combobox", { name: en["ui.performanceMetric"] }));
-    fireEvent.click(await screen.findByTitle("Wear scar diameter"));
-    await waitFor(() => expect(apiMock.getPerformanceDistribution).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(en["ui.notEnoughDataYet"])).toBeTruthy();
-
-    abandoned.reject(new Error("old metric failed"));
-    await waitFor(() => expect(screen.queryByText("old metric failed")).toBeNull());
-    expect(screen.queryByText(en["ui.analysisFailed"])).toBeNull();
-  });
-
-  it("lets the user choose which screening model produces the ranking", async () => {
-    apiMock.listModels.mockResolvedValue([model(), model("model-2", "Second model")]);
-    apiMock.predictMoleculePerformance.mockResolvedValue({
-      modelId: "model-2",
-      modelName: "Second model",
-      target: "average_friction_coefficient",
-      algorithm: "ridge",
-      trainedAt: "2026-01-01",
-      sampleCount: 24,
-      datasetMode: "additive_component",
-      concentrationBasis: "none",
-      metrics: {},
-      predictions: [{ id: "mol-1", label: "ZDDP", value: 0.05 }],
-      skipped: []
-    });
-
-    renderWithLanguage(<MoleculeScreeningPage />);
-    const selector = await screen.findByRole("combobox", { name: en["model.selectModel"] });
-    fireEvent.mouseDown(selector);
-    fireEvent.click(await screen.findByTitle("Second model"));
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(en["screening.run"]) }));
-
-    await waitFor(() =>
-      expect(apiMock.predictMoleculePerformance).toHaveBeenCalledWith({
-        modelId: "model-2",
-        items: [{ moleculeId: "mol-1" }]
-      })
-    );
   });
 });

@@ -298,11 +298,12 @@ export async function listModelJobs(limit = 25) {
 export async function exportMlDataset(
   target: string,
   descriptorSet = "",
-  datasetMode: DatasetMode = "additive_component"
+  datasetMode: DatasetMode = "additive_component",
+  scope?: DatasetScope
 ): Promise<ExportResult> {
   if (!isTauriRuntime()) desktopOnly();
   return unwrapExport(
-    invokeCommand("export_ml_dataset", { target, descriptorSet, datasetMode }),
+    invokeCommand("export_ml_dataset", { target, descriptorSet, datasetMode, scope }),
     "ml-dataset.csv"
   );
 }

@@ -116,9 +116,8 @@ export default function ModelWorkbench({
   );
   const [target, setTarget] = useState(targets[0]);
   const [algorithm, setAlgorithm] = useState("auto");
-  // Which measured results the model is fitted on. Off by default, as before scopes existed;
-  // the counts beside each control say what the workspace holds so the choice is informed.
-  const [scope, setScope] = useState<DatasetScope>(DEFAULT_DATASET_SCOPE);
+  // Molecule training uses single-additive measurements; formulation training includes blends.
+  const [scope, setScope] = useState<DatasetScope>({ ...DEFAULT_DATASET_SCOPE, singleAdditiveOnly: !aggregate });
   const [scopeOptions, setScopeOptions] = useState<TrainingScopeOptions>();
   // Test conditions for a prediction, needed only by a model fitted with condition features.
   const [temperatureValue, setTemperatureValue] = useState<number | null>(null);
@@ -480,7 +479,7 @@ export default function ModelWorkbench({
 
   async function handleExportDataset() {
     try {
-      const result = await exportMlDataset(target, "", datasetMode);
+      const result = await exportMlDataset(target, "", datasetMode, aggregate ? undefined : scope);
       deliverExport(result);
       message.success(
         describeExport(result, t("model.exportDataset"), {
@@ -671,9 +670,9 @@ export default function ModelWorkbench({
                     single: scopeOptions?.singleAdditiveResultCount ?? 0,
                     multi: scopeOptions?.multiAdditiveResultCount ?? 0
                   })}</>} trigger={["hover", "focus"]}>
-                    <Checkbox checked={scope.singleAdditiveOnly} onChange={(event) => setScope({ ...scope, singleAdditiveOnly: event.target.checked })}>
+                    <Tag color="blue">
                       {t("model.scopeSingleAdditiveOnly")}
-                    </Checkbox>
+                    </Tag>
                   </Tooltip>
                   <div className="model-training-test-type">
                     <span>{t("model.scopeTestType")}</span>

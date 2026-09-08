@@ -6,10 +6,7 @@ import LoadingBlock from "../components/LoadingBlock";
 /**
  * Every feature page is loaded on demand.
  *
- * Only the sketcher used to be, which meant the initial chunk carried ECharts, the model
- * workbench, the screening page, the descriptor centre and every table — for a user who opens the
- * dashboard and goes to make coffee. The heaviest are the ones that matter most: the analysis page
- * pulls in the whole charting library, and the model pages pull in the prediction UI.
+ * The sketcher, charts, model workbench and tables load only when their page is opened.
  *
  * These are ordinary `import()` calls, so Vite emits one chunk per page and each is read from the
  * application's own bundle. Nothing here reaches the network.
@@ -21,15 +18,13 @@ const MoleculeSketcherPage = lazy(() => import("../features/molecule-sketcher/Mo
 const DescriptorCenterPage = lazy(() => import("../features/descriptors/DescriptorCenterPage"));
 const BaseAdditiveLibraryPage = lazy(() => import("../features/base-additive/BaseAdditiveLibraryPage"));
 const FormulationLibraryPage = lazy(() => import("../features/formulations/FormulationLibraryPage"));
-const FormulationEntryPage = lazy(() => import("../features/formulation-entry/FormulationEntryPage"));
+const FormulationEntryPage = lazy(() => import("../features/formulations/FormulationEntryPage"));
 const ExperimentPerformancePage = lazy(() => import("../features/experiments/ExperimentPerformancePage"));
 const ImportExportPage = lazy(() => import("../features/import-export/ImportExportPage"));
-const AnalysisDesignPage = lazy(() => import("../features/analysis-design/AnalysisDesignPage"));
 const MoleculePerformancePredictionPage = lazy(
   () => import("../features/data-mining/MoleculePerformancePredictionPage")
 );
 const FormulationPredictionPage = lazy(() => import("../features/data-mining/FormulationPredictionPage"));
-const MoleculeScreeningPage = lazy(() => import("../features/data-mining/MoleculeScreeningPage"));
 const MolecularDesignPage = lazy(() => import("../features/molecular-design/MolecularDesignPage"));
 const SettingsPage = lazy(() => import("../features/settings/SettingsPage"));
 
@@ -66,13 +61,11 @@ export default function AppRoutes() {
       <Route path="/descriptors" element={page(DescriptorCenterPage)} />
       <Route path="/base-additive" element={page(BaseAdditiveLibraryPage)} />
       <Route path="/formulations" element={page(FormulationLibraryPage)} />
-      <Route path="/formulation-entry" element={page(FormulationEntryPage)} />
+      <Route path="/formulations/new" element={page(FormulationEntryPage)} />
+      <Route path="/formulation-entry" element={<Navigate to="/formulations/new" replace />} />
       <Route path="/experiments" element={page(ExperimentPerformancePage)} />
-      <Route path="/analysis" element={page(AnalysisDesignPage)} />
-      <Route path="/analysis-design" element={<Navigate to="/analysis" replace />} />
       <Route path="/data-mining/molecule-performance" element={page(MoleculePerformancePredictionPage)} />
       <Route path="/data-mining/formulation-prediction" element={page(FormulationPredictionPage)} />
-      <Route path="/data-mining/molecule-screening" element={page(MoleculeScreeningPage)} />
       <Route path="/data-mining/molecule-design" element={page(MolecularDesignPage)} />
       <Route path="/import-export" element={page(ImportExportPage)} />
       <Route path="/settings" element={page(SettingsPage)} />

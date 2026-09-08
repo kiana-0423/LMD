@@ -1,4 +1,4 @@
-export * from "./analysis";
+export * from "./performanceMetrics";
 export * from "./baseAdditive";
 export * from "./dashboard";
 export * from "./descriptor";

@@ -66,10 +66,6 @@ describe("production API routing", () => {
     invoke.mockResolvedValue({ data: { status: "ok", metadata: {}, series: [], items: [], predictions: [] } });
 
     const calls: [string, () => Promise<unknown>][] = [
-      ["get_performance_distribution", () => api.getPerformanceDistribution("average_friction_coefficient")],
-      ["compare_performance_by_group", () => api.comparePerformanceByGroup("additive", "pb_value")],
-      ["get_concentration_performance", () => api.getConcentrationPerformance("pb_value")],
-      ["get_descriptor_property_correlation", () => api.getDescriptorPropertyCorrelation("pb_value")],
       ["train_model", () => api.trainModel({ target: "pb_value", datasetMode: "additive_component" })],
       [
         "predict_molecule_performance",
@@ -100,7 +96,7 @@ describe("production API routing", () => {
     // A backend failure must surface, not silently become demo data.
     await expect(api.listMoleculePage()).rejects.toThrow("database unavailable");
     await expect(api.exportAllDescriptorsCsv()).rejects.toThrow("database unavailable");
-    await expect(api.getPerformanceDistribution("pb_value")).rejects.toThrow("database unavailable");
+    await expect(api.listPerformanceMetrics()).rejects.toThrow("database unavailable");
   });
 
   it("propagates a backend failure from every new workflow", async () => {
@@ -176,15 +172,6 @@ describe("browser demo mode isolation", () => {
     await expect(
       api.predictFormulationPerformance({ modelId: "model-1", formulationIds: ["f-1"] })
     ).rejects.toThrow(/\[app\.desktopOnly\]/);
-    expect(invoke).not.toHaveBeenCalled();
-  });
-
-  it("reports analysis as unavailable rather than returning a fabricated series", async () => {
-    const api = await import("../lib/api");
-
-    const result = await api.getPerformanceDistribution("average_friction_coefficient");
-    expect(result.status).toBe("insufficient_data");
-    expect(result.series).toEqual([]);
     expect(invoke).not.toHaveBeenCalled();
   });
 });

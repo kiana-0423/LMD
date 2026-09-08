@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Tooltip, message } from "antd";
 import { useState } from "react";
 
@@ -48,6 +49,7 @@ function positiveConcentration(message: string) {
 }
 
 export default function FormulationEntryPage() {
+  const navigate = useNavigate();
   const { t } = useLanguage();
   const [form] = Form.useForm<FormulationFormValues>();
   const [selectedAdditive, setSelectedAdditive] = useState(0);
@@ -125,7 +127,7 @@ export default function FormulationEntryPage() {
   return (
     <div className="page-grid entry-page formulation-entry-page">
       <PageHeader title={t("ui.formulationEntry")} description={t("ui.selectABaseOilAndAdditivesDefineComponent")}
-        extra={<Button type="primary" disabled={options.loading || Boolean(options.error)} loading={save.running} onClick={() => void save.run()}>{t("ui.saveFormulation")}</Button>}
+        extra={<Space><Button onClick={() => navigate("/formulations")}>{t("formulation.backToLibrary")}</Button><Button type="primary" disabled={options.loading || Boolean(options.error)} loading={save.running} onClick={() => void save.run()}>{t("ui.saveFormulation")}</Button></Space>}
       />
       <Card className="formulation-entry-card">
         <Tooltip title={t("entry.noAssumedValues")} trigger={["hover", "focus"]}>

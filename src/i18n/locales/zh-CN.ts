@@ -275,12 +275,14 @@ export const zhCN: MessageCatalogue = {
   "model.datasetMode": "数据集",
   "files.fileName": "文件",
   "files.attachedAt": "附加时间",
+  "formulation.create": "新建配方",
+  "formulation.backToLibrary": "返回配方库",
   "model.pageMoleculeTitle": "分子性能预测",
   "model.pageMoleculeDescription":
-    "使用本工作区的实验训练模型（每个添加剂分子一行），再对分子库中的分子预测摩擦学性能。所有数据都不会离开本机。",
+    "基于单添加剂实验和分子描述符，预测极压值、PB/PD 及热性能。结果受基础油、浓度和测试条件影响，不等同于分子的固有常数。",
   "model.pageFormulationTitle": "配方预测",
   "model.pageFormulationDescription":
-    "以整个配方为单位训练模型（每个被测混合物一行），再对已存储的配方或您描述的候选配方预测性能。所有数据都不会离开本机。",
+    "以整个配方为单位，预测摩擦系数、磨斑尺寸、运动粘度等润滑性能；训练数据每个被测配方一行。",
   "model.modeLockedAdditive": "本页面按单个添加剂分子训练与预测",
   "model.modeLockedFormulation": "本页面以整个配方为单位训练与预测",
   "model.selectModel": "选择模型",

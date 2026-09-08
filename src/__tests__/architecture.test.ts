@@ -6,7 +6,6 @@ import FormulationUsageTable from "../features/molecules/components/FormulationU
 import MoleculeViewer3D from "../features/molecules/components/MoleculeViewer3D?raw";
 import MoleculeFilesPanel from "../features/molecules/components/MoleculeFilesPanel?raw";
 import ModelWorkbench from "../features/data-mining/ModelWorkbench?raw";
-import MoleculeScreeningPage from "../features/data-mining/MoleculeScreeningPage?raw";
 import MoleculePerformancePage from "../features/data-mining/MoleculePerformancePredictionPage?raw";
 import FormulationPredictionPage from "../features/data-mining/FormulationPredictionPage?raw";
 import KetcherTranslationBridge from "../features/molecule-sketcher/KetcherTranslationBridge?raw";
@@ -80,7 +79,7 @@ describe("Files & Attachments", () => {
 
 describe("model pages", () => {
   it("use no fixed prediction values", () => {
-    for (const source of [ModelWorkbench, MoleculeScreeningPage]) {
+    for (const source of [ModelWorkbench]) {
       expect(importsDemoModule(source)).toBe(false);
       // A literal prediction score or a hard-coded candidate has no place here.
       expect(source).not.toMatch(/prediction_score/);
@@ -95,11 +94,10 @@ describe("model pages", () => {
   });
 
   it("do not claim to generate molecules", () => {
-    for (const source of [ModelWorkbench, MoleculeScreeningPage]) {
+    for (const source of [ModelWorkbench]) {
       expect(source).not.toContain("Molecule Design");
       expect(source).not.toContain("candidate generation");
     }
-    expect(MoleculeScreeningPage).toContain("screening.rankingOnlyBody");
   });
 });
 
@@ -126,13 +124,6 @@ describe("prediction semantics", () => {
     expect(ModelWorkbench).toContain("selectedModelId");
     expect(ModelWorkbench).toContain('rowSelection={{');
     expect(ModelWorkbench).toContain("model.selectModelFirst");
-  });
-
-  it("screens with molecule-level models only", () => {
-    expect(MoleculeScreeningPage).toContain('listModels(target, "additive_component")');
-    // A model from an older feature definition cannot answer, so it is not offered.
-    expect(MoleculeScreeningPage).toContain("item.usable");
-    expect(MoleculeScreeningPage).not.toContain("formulation_aggregate");
   });
 });
 
@@ -194,9 +185,8 @@ describe("molecular design separation", () => {
     }
   });
 
-  it("leaves screening and the workbench as they are: ranking existing molecules only", () => {
+  it("keeps structure generation in molecular design, outside the prediction workbench", () => {
     // The design page is the only place structure generation is invoked from.
-    expect(MoleculeScreeningPage).not.toContain("runDesignGeneration");
     expect(ModelWorkbench).not.toContain("runDesignGeneration");
     expect(Object.values(designSources).some((source) => source.includes("runDesignGeneration"))).toBe(true);
   });

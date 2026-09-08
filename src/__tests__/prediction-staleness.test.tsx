@@ -21,16 +21,16 @@ import MoleculePerformancePredictionPage from "../features/data-mining/MoleculeP
 const en = messagesForLanguage("en-US");
 
 const METRICS = [
-  { column: "average_friction_coefficient", label: "Average friction coefficient", unit: "" },
-  { column: "stable_friction_coefficient", label: "Stable friction coefficient", unit: "" },
-  { column: "wear_scar_diameter_value", label: "Wear scar diameter", unit: "um" },
-  { column: "wear_scar_width_value", label: "Wear scar width", unit: "um" }
+  { column: "extreme_pressure_value", label: "Extreme pressure", unit: "" },
+  { column: "initial_oxidation_temperature_value", label: "Stable friction coefficient", unit: "" },
+  { column: "pb_value", label: "PB value", unit: "um" },
+  { column: "pd_value", label: "Wear scar width", unit: "um" }
 ];
 
 const MODEL = {
   id: "model-1",
   name: "Friction model",
-  target: "average_friction_coefficient",
+  target: "extreme_pressure_value",
   task: "regression",
   algorithm: "ridge",
   modelVersion: "1",
@@ -61,7 +61,7 @@ function seed() {
   apiMock.predictMoleculePerformance.mockResolvedValue({
     modelId: "model-1",
     modelName: "Friction model",
-    target: "average_friction_coefficient",
+    target: "extreme_pressure_value",
     algorithm: "ridge",
     trainedAt: "2026-01-01",
     sampleCount: 24,
@@ -125,7 +125,7 @@ describe("a prediction is never shown for inputs that changed", () => {
     await predictOnce();
 
     fireEvent.mouseDown(screen.getAllByRole("combobox")[0]);
-    fireEvent.click(await screen.findByTitle("Wear scar diameter"));
+    fireEvent.click(await screen.findByTitle("PB value"));
 
     // The friction value must not reappear under a wear-scar column heading.
     expect(await screen.findByText(en["model.staleTitle"])).toBeTruthy();
@@ -189,8 +189,8 @@ describe("a prediction is never shown for inputs that changed", () => {
     seed();
     apiMock.trainModel.mockResolvedValue({
       modelId: "model-1",
-      target: "average_friction_coefficient",
-      label: "Average friction coefficient",
+      target: "extreme_pressure_value",
+      label: "Extreme pressure",
       unit: "",
       algorithm: "ridge",
       modelVersion: "1",
@@ -217,11 +217,16 @@ describe("a prediction is never shown for inputs that changed", () => {
     renderWithLanguage(<MoleculePerformancePredictionPage />);
     fireEvent.click(await screen.findByRole("button", { name: en["model.train"] }));
     expect(await screen.findByText("One row per additive component.")).toBeTruthy();
+    expect(apiMock.trainModel).toHaveBeenCalledWith(expect.objectContaining({
+      target: "extreme_pressure_value",
+      datasetMode: "additive_component",
+      scope: expect.objectContaining({ singleAdditiveOnly: true })
+    }));
 
     fireEvent.mouseDown(screen.getAllByRole("combobox")[0]);
-    fireEvent.click(await screen.findByTitle("Wear scar diameter"));
+    fireEvent.click(await screen.findByTitle("PB value"));
 
-    // A summary measured for friction must not sit under a wear-scar heading.
+    // A summary measured for extreme pressure must not sit under the PB heading.
     await waitFor(() =>
       expect(screen.queryByText("One row per additive component.")).toBeNull()
     );

@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -42,7 +43,7 @@ async function renderPage(path: string) {
   const Page = module.default as () => JSX.Element;
   render(
     <LanguageProvider>
-      <Page />
+      <MemoryRouter><Page /></MemoryRouter>
     </LanguageProvider>
   );
 }
@@ -50,7 +51,7 @@ async function renderPage(path: string) {
 describe("formulation entry", () => {
   it("keeps every additive while switching editors and reveals a hidden invalid component", async () => {
     createFormulation.mockResolvedValue({ name: "Trial blend" });
-    await renderPage("../features/formulation-entry/FormulationEntryPage");
+    await renderPage("../features/formulations/FormulationEntryPage");
     await screen.findByLabelText("Formulation Name");
     fireEvent.change(screen.getByLabelText("Formulation Name"), { target: { value: "Trial blend" } });
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Base Oil" }));
@@ -87,7 +88,7 @@ describe("formulation entry", () => {
   });
 
   it("pre-fills units but never a concentration or a preparation method", async () => {
-    await renderPage("../features/formulation-entry/FormulationEntryPage");
+    await renderPage("../features/formulations/FormulationEntryPage");
     await screen.findByLabelText("Formulation Name");
 
     const ratio = screen.getByLabelText("Base-oil Ratio") as HTMLInputElement;
@@ -102,7 +103,7 @@ describe("formulation entry", () => {
   });
 
   it("refuses to submit without the values a blend cannot be described without", async () => {
-    await renderPage("../features/formulation-entry/FormulationEntryPage");
+    await renderPage("../features/formulations/FormulationEntryPage");
     await screen.findByLabelText("Formulation Name");
 
     fireEvent.click(screen.getByRole("button", { name: "Save Formulation" }));
@@ -113,7 +114,7 @@ describe("formulation entry", () => {
   });
 
   it("refuses a concentration of zero, as the backend does", async () => {
-    await renderPage("../features/formulation-entry/FormulationEntryPage");
+    await renderPage("../features/formulations/FormulationEntryPage");
     await screen.findByLabelText("Formulation Name");
 
     fireEvent.change(screen.getByLabelText("Formulation Name"), { target: { value: "Trial 1" } });

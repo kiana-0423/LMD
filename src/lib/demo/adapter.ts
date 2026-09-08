@@ -11,7 +11,6 @@
  * key identical is what makes the two paths comparable.
  */
 
-import type { AnalysisResult } from "../api/analysis";
 import {
   mockCompareFormulations,
   mockCreateAdditive,
@@ -57,33 +56,6 @@ type Handler = (args: Args) => unknown | Promise<unknown>;
 
 const record = (args: Args, key: string) => (args[key] ?? {}) as Record<string, unknown>;
 const text = (args: Args, key: string) => String(args[key] ?? "");
-
-/**
- * Analysis reads stored measurements, and the demo has no workspace to read.
- *
- * It reports "not enough data" rather than drawing a chart of numbers nobody measured. A demo
- * chart of invented friction coefficients is exactly the kind of thing that gets screenshotted
- * into a report.
- */
-function insufficientData<T>(field: string): AnalysisResult<T> {
-  return {
-    status: "insufficient_data",
-    // i18n-exempt: browser-demo mode only; the desktop application never reaches this branch.
-    message: { detail: "Analysis requires the desktop application and a workspace database." },
-    metadata: {
-      recordCount: 0,
-      excludedCount: 0,
-      // i18n-exempt: as above.
-      missingValueMessage: { detail: "not applicable in browser demo mode" },
-      field,
-      label: field,
-      unit: "",
-      // i18n-exempt: as above.
-      methodMessage: { detail: "unavailable outside the desktop application" }
-    },
-    series: []
-  };
-}
 
 /** Filters and pages the demo molecule list the way `list_molecules` does. */
 async function moleculePage(filter: MoleculeListFilter) {
@@ -252,10 +224,6 @@ const HANDLERS: Record<string, Handler> = {
   // --- analysis -------------------------------------------------------------------------------
   get_dashboard_summary: () => mockGetDashboardSummary(),
   list_performance_metrics: () => ({ metrics: [] }),
-  get_performance_distribution: (args) => insufficientData(text(args, "metric")),
-  compare_performance_by_group: (args) => insufficientData(text(args, "metric")),
-  get_concentration_performance: (args) => insufficientData(text(args, "metric")),
-  get_descriptor_property_correlation: (args) => insufficientData(text(args, "metric")),
 
   // --- models ---------------------------------------------------------------------------------
   // The demo has no workspace to fit anything on, and a fabricated model would produce

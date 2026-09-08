@@ -2,7 +2,7 @@
 
 ## Overview
 
-LMD is a local desktop database and intelligent-design application for lubricant-material research. It organizes molecules, descriptors, base oils, additives, formulations, experimental conditions, performance results, analysis, and prediction in one local workflow.
+LMD is a local desktop database and intelligent-design application for lubricant-material research. It organizes molecules, descriptors, base oils, additives, formulations, experimental conditions, performance results, and prediction in one local workflow.
 
 The project is currently an MVP. It provides a working Tauri desktop foundation, local SQLite storage, a Python scientific-computing sidecar, molecule drawing and import workflows, descriptor management, formulation and experimental data pages, and data-mining entry points.
 
@@ -12,6 +12,24 @@ The project is currently an MVP. It provides a working Tauri desktop foundation,
 - Tauri 2 and Rust provide the desktop shell, SQLite initialization, local file management, database commands, and sidecar integration.
 - Python provides SMILES standardization, RDKit and Mordred descriptors, 2D/3D structure generation and format conversion, Excel/CSV preprocessing, and scikit-learn model training and prediction.
 - SQLite stores local application data in the workspace database `lmd.sqlite`.
+
+## Formulation entry and prediction workflows
+
+Open **Formulation Library → New formulation** to enter a formulation on one page.
+The entry page includes a return-to-library button. The former standalone entry
+menu, Analysis page and Molecule Screening workflow have been removed; molecular
+design and SHAP explanations remain available.
+
+**Molecule Performance Prediction** offers extreme-pressure value, PB, PD, initial
+oxidation temperature and initial thermal decomposition temperature. New models
+use single-additive experiments and molecular descriptors. These measurements
+depend on base oil, concentration and test conditions; they are not intrinsic
+constants of an isolated molecule.
+
+**Formulation Prediction** offers average/stable friction coefficient, wear-scar
+diameter/width and kinematic viscosity at 40/100 °C. It uses whole-formulation
+features and one training row per measured result. Existing model artifacts and
+experimental records are preserved with their recorded meaning and scope.
 
 ## Import a molecule from MOL2
 
@@ -69,8 +87,8 @@ also accepts speed in rpm. PDSC retains common conditions and its existing
 oxidation result while special parameters remain undecided. TGA records initial
 thermal decomposition temperature in °C, separately from oxidation temperature.
 Kinematic viscosity selects 40 or 100 °C and stores only the corresponding result
-in mm²/s. Decomposition temperature and both viscosity metrics are available in
-analysis. These changes do not alter the existing ML feature schema.
+in mm²/s. Decomposition temperature is a molecular prediction target; both viscosity
+metrics are formulation prediction targets. These changes do not alter the existing ML feature schema.
 
 Ambient temperature (°C) and relative humidity (%) are optional. At save time,
 missing values use the arithmetic mean of valid measured values for the same test
@@ -546,7 +564,9 @@ nothing invoked that is unregistered), and the audits' own tests.
   whole mixture. `formulation_aggregate` produces one row per result, combining additive
   descriptors by concentration-weighted mean alongside base-oil properties and composition
   summaries. Molecule Performance Prediction trains and predicts the first; Formulation Prediction
-  the second; Molecule Screening uses molecule-level models only. A model records its mode, and a
+  the second. New molecule training and dataset exports are restricted to single-additive
+  experiments, so other additives' contributions are not assigned to the selected molecule.
+  Historical models retain their original recorded scope. A model records its mode, and a
   prediction addressed to the wrong one is refused rather than answered. Both group by formulation
   for validation splitting.
 - **Concentration units are converted only where arithmetic suffices.** wt%, mass fraction, ppm by

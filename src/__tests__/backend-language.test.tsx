@@ -26,11 +26,8 @@ vi.mock("../lib/api", async () => {
   Object.assign(apiMock, createApiMock());
   return apiMock;
 });
-
-import AnalysisDesignPage from "../features/analysis-design/AnalysisDesignPage";
 import DescriptorCenterPage from "../features/descriptors/DescriptorCenterPage";
 import MoleculePerformancePredictionPage from "../features/data-mining/MoleculePerformancePredictionPage";
-import MoleculeScreeningPage from "../features/data-mining/MoleculeScreeningPage";
 
 const LANGUAGES: Language[] = ["zh-CN", "ja-JP"];
 
@@ -49,17 +46,8 @@ function buttonNamed(label: string): HTMLElement {
   if (!match) throw new Error(`No button labelled ${label}`);
   return match;
 }
-
-/** The same, for text nodes whose content may carry inserted spacing. */
-function textNamed(text: string): HTMLElement[] {
-  const stripped = text.replace(/\s+/g, "");
-  return screen.getAllByText((_, element) => {
-    const content = element?.textContent ?? "";
-    return content.replace(/\s+/g, "").includes(stripped);
-  });
-}
 const catalogue = (language: Language) => messagesForLanguage(language);
-const en = messagesForLanguage("en-US");
+
 
 beforeEach(async () => {
   window.localStorage.clear();
@@ -77,191 +65,25 @@ afterEach(() => {
 
 const METRICS = [
   {
-    column: "average_friction_coefficient",
-    labelCode: "metric.averageFrictionCoefficient",
-    label: "Average friction coefficient",
+    column: "extreme_pressure_value",
+    labelCode: "metric.extremePressure",
+    label: "Extreme pressure",
     unit: ""
   },
   {
-    column: "wear_scar_diameter_value",
-    labelCode: "metric.wearScarDiameter",
-    label: "Wear scar diameter",
+    column: "pb_value",
+    labelCode: "metric.pbValue",
+    label: "PB value",
     unit: "um"
   }
 ];
-
-// --- analysis ---------------------------------------------------------------------------------
-
-function analysisResult(overrides: Record<string, unknown> = {}) {
-  return {
-    status: "ok",
-    metadata: {
-      recordCount: 12,
-      excludedCount: 2,
-      field: "average_friction_coefficient",
-      labelCode: "metric.averageFrictionCoefficient",
-      label: "Average friction coefficient",
-      unit: "dimensionless",
-      methodMessage: {
-        code: "analysis.methodHistogram",
-        params: {},
-        detail: "equal-width histogram over the observed range"
-      },
-      missingValueMessage: {
-        code: "analysis.missingExcluded",
-        params: {},
-        detail: "rows without a numeric value are excluded"
-      }
-    },
-    series: [{ binStart: 0, binEnd: 0.1, count: 7, label: "0.0000-0.1000" }],
-    ...overrides
-  };
-}
-
-function seedAnalysis(result: Record<string, unknown>) {
-  apiMock.listPerformanceMetrics.mockResolvedValue(METRICS);
-  apiMock.getPerformanceDistribution.mockResolvedValue(result);
-  apiMock.comparePerformanceByGroup.mockResolvedValue(result);
-  apiMock.getConcentrationPerformance.mockResolvedValue({ ...result, pearson: 0.4, spearman: 0.3 });
-  apiMock.getDescriptorPropertyCorrelation.mockResolvedValue({
-    ...result,
-    series: [{ descriptor: "rdkit_MolWt", sampleCount: 12, pearson: 0.61, spearman: 0.55 }]
-  });
-}
-
-describe("analysis panels load independently", () => {
-  it("keeps correlation available when the distribution request fails", async () => {
-    seedAnalysis(analysisResult());
-    apiMock.getPerformanceDistribution.mockRejectedValue(new Error("[record.notFound] histogram failure"));
-    renderWithLanguage(<AnalysisDesignPage />);
-    expect(await screen.findByText(/histogram failure/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: catalogue("en-US")["ui.descriptorCorrelation"] }));
-    expect(await screen.findByText("rdkit_MolWt")).toBeTruthy();
-  });
-
-  it("only refreshes comparison when the grouping changes", async () => {
-    seedAnalysis(analysisResult({ status: "insufficient_data", series: [] }));
-    renderWithLanguage(<AnalysisDesignPage />);
-    const words = catalogue("en-US");
-    expect(screen.queryByRole("combobox", { name: words["ui.comparisonGroup"] })).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: words["ui.comparison"] }));
-    fireEvent.mouseDown(screen.getByRole("combobox", { name: words["ui.comparisonGroup"] }));
-    fireEvent.click(await screen.findByTitle(words["ui.baseOil"]));
-    await waitFor(() => expect(apiMock.comparePerformanceByGroup).toHaveBeenLastCalledWith("base_oil", "average_friction_coefficient"));
-    expect(apiMock.comparePerformanceByGroup).toHaveBeenCalledTimes(2);
-    expect(apiMock.getPerformanceDistribution).toHaveBeenCalledTimes(1);
-    expect(apiMock.getConcentrationPerformance).toHaveBeenCalledTimes(1);
-    expect(apiMock.getDescriptorPropertyCorrelation).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe.each(LANGUAGES)("analysis metadata in %s", (language) => {
-  const words = catalogue(language);
-
-  it("states the method and the missing-value rule in the chosen language", async () => {
-    seedAnalysis(analysisResult());
-
-    renderWithLanguage(<AnalysisDesignPage />, language);
-
-    await waitFor(() =>
-      expect(textNamed(words["backend.analysisMethodHistogram"]).length).toBeGreaterThan(0)
-    );
-    expect(textNamed(words["backend.analysisMissingExcluded"]).length).toBeGreaterThan(0);
-    // The English prose the backend used to send is not on screen anywhere.
-    expect(screen.queryByText(/equal-width histogram/)).toBeNull();
-    expect(screen.queryByText(/rows without a numeric value/)).toBeNull();
-  });
-
-  it("names the metric with the backend's key rather than its English label", async () => {
-    seedAnalysis(analysisResult());
-
-    renderWithLanguage(<AnalysisDesignPage />, language);
-
-    await waitFor(() =>
-      expect(textNamed(words["backend.analysisMethodHistogram"]).length).toBeGreaterThan(0)
-    );
-    // The column name is a stored identifier and stays as it is; the metric's *name* does not.
-    expect(screen.getAllByText("average_friction_coefficient").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Average friction coefficient")).toBeNull();
-  });
-
-  it("explains an insufficient-data result with its counts", async () => {
-    seedAnalysis({
-      ...analysisResult(),
-      status: "insufficient_data",
-      series: [],
-      message: {
-        code: "analysis.notEnoughData",
-        params: { labelCode: "metric.averageFrictionCoefficient", required: 3, available: 1 },
-        detail: "Average friction coefficient needs at least 3 measured results; the workspace has 1."
-      }
-    });
-
-    renderWithLanguage(<AnalysisDesignPage />, language);
-
-    const expected = words["backend.analysisNotEnoughData"]
-      .replace("{label}", words["metric.averageFrictionCoefficient"])
-      .replace("{required}", "3")
-      .replace("{available}", "1");
-    await waitFor(() => expect(screen.getAllByText(expected).length).toBeGreaterThan(0));
-    // The English diagnostic is still available, but as detail rather than as the message.
-    expect(screen.getAllByText(new RegExp(words["ui.diagnosticDetail"])).length).toBeGreaterThan(0);
-  });
-
-  it("warns about mixed concentration units without translating the units themselves", async () => {
-    seedAnalysis({
-      ...analysisResult(),
-      warnings: [
-        {
-          code: "analysis.mixedUnits",
-          params: { units: "wt%, mol%", count: 2 },
-          detail: "Concentrations use more than one unit (wt%, mol%); values are plotted as stored."
-        }
-      ]
-    });
-
-    renderWithLanguage(<AnalysisDesignPage />, language);
-
-    const expected = words["backend.analysisMixedUnits"]
-      .replace("{count}", "2")
-      .replace("{units}", "wt%, mol%");
-    await waitFor(() => expect(screen.getAllByText(expected).length).toBeGreaterThan(0));
-  });
-
-  it("renders a correlation table with translated headers and untouched descriptor names", async () => {
-    seedAnalysis(analysisResult());
-
-    renderWithLanguage(<AnalysisDesignPage />, language);
-
-    fireEvent.click(await screen.findByRole("tab", { name: words["ui.descriptorCorrelation"] }));
-
-    // A descriptor name is a column in the user's data and is never translated.
-    expect(await screen.findByText("rdkit_MolWt")).toBeTruthy();
-    expect(screen.getAllByText(words["ui.samples"]).length).toBeGreaterThan(0);
-  });
-
-  it("shows a failed analysis as a translated summary beside its diagnostic", async () => {
-    apiMock.listPerformanceMetrics.mockResolvedValue(METRICS);
-    apiMock.getPerformanceDistribution.mockRejectedValue(
-      new Error("[record.notFound] Metric not found: bogus_column")
-    );
-
-    renderWithLanguage(<AnalysisDesignPage />, language);
-
-    await waitFor(() =>
-      expect(screen.getAllByText(words["error.recordNotFound"]).length).toBeGreaterThan(0)
-    );
-    // The identifier in the diagnostic survives untranslated, because it is what the user acts on.
-    expect(screen.getAllByText(/bogus_column/).length).toBeGreaterThan(0);
-  });
-});
 
 // --- prediction -------------------------------------------------------------------------------
 
 const MODEL = {
   id: "model-1",
   name: "Friction model",
-  target: "average_friction_coefficient",
+  target: "extreme_pressure_value",
   task: "regression",
   algorithm: "ridge",
   modelVersion: "1",
@@ -308,7 +130,7 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
     apiMock.predictMoleculePerformance.mockResolvedValue({
       modelId: "model-1",
       modelName: "Friction model",
-      target: "average_friction_coefficient",
+      target: "extreme_pressure_value",
       algorithm: "ridge",
       trainedAt: "2026-01-01",
       sampleCount: 24,
@@ -332,7 +154,7 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
 
     renderWithLanguage(<MoleculePerformancePredictionPage />, language);
 
-    fireEvent.click(screen.getByRole("tab", { name: words["model.modelsTitle"] }));
+    fireEvent.click(await screen.findByRole("tab", { name: words["model.modelsTitle"] }));
     fireEvent.click(await screen.findByRole("radio"));
     fireEvent.click(screen.getByRole("tab", { name: words["model.predictTitle"] }));
     const picker = await screen.findByRole("combobox", {
@@ -354,8 +176,8 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
     seedPrediction();
     apiMock.trainModel.mockResolvedValue({
       modelId: "model-1",
-      target: "average_friction_coefficient",
-      label: "Average friction coefficient",
+      target: "extreme_pressure_value",
+      label: "Extreme pressure",
       unit: "",
       algorithm: "ridge",
       modelVersion: "1",
@@ -449,84 +271,6 @@ describe.each(LANGUAGES)("prediction results in %s", (language) => {
     expect(screen.getAllByText(/this workspace provides 4/).length).toBeGreaterThan(0);
     // The bracketed code itself must never reach the screen.
     expect(screen.queryByText(/\[model\.notEnoughData\]/)).toBeNull();
-  });
-});
-
-// --- screening --------------------------------------------------------------------------------
-
-describe.each(LANGUAGES)("screening states in %s", (language) => {
-  const words = catalogue(language);
-
-  it("asks for a concentration using the shared policy's wording", async () => {
-    apiMock.listPerformanceMetrics.mockResolvedValue(METRICS);
-    apiMock.listModels.mockResolvedValue([MODEL]);
-    apiMock.listMoleculePage.mockResolvedValue({
-      items: [{ id: "mol-1", name: "ZDDP" }],
-      total: 1,
-      page: 1,
-      pageSize: 200
-    });
-
-    renderWithLanguage(<MoleculeScreeningPage />, language);
-
-    expect(await screen.findByText(words["concentration.massHelp"])).toBeTruthy();
-    expect(screen.queryByText(en["concentration.massHelp"])).toBeNull();
-  });
-
-  it("names every candidate it could not rank, in the chosen language", async () => {
-    apiMock.listPerformanceMetrics.mockResolvedValue(METRICS);
-    apiMock.listModels.mockResolvedValue([MODEL]);
-    apiMock.listMoleculePage.mockResolvedValue({
-      items: [{ id: "mol-1", name: "ZDDP" }],
-      total: 1,
-      page: 1,
-      pageSize: 200
-    });
-    apiMock.predictMoleculePerformance.mockResolvedValue({
-      modelId: "model-1",
-      modelName: "Friction model",
-      target: "average_friction_coefficient",
-      algorithm: "ridge",
-      trainedAt: "2026-01-01",
-      sampleCount: 24,
-      datasetMode: "additive_component",
-      concentrationBasis: "wt%",
-      metrics: {},
-      predictions: [],
-      skipped: [
-        {
-          id: "mol-1",
-          label: "ZDDP",
-          reason: "'ZDDP' records concentrations as 'wt%'.",
-          reasonMessage: {
-            code: "concentration.basisMismatch",
-            params: { subject: "ZDDP", found: "wt%", expected: "none" },
-            detail: "'ZDDP' records concentrations as 'wt%'."
-          }
-        }
-      ]
-    });
-
-    renderWithLanguage(<MoleculeScreeningPage />, language);
-    fireEvent.change(
-      await screen.findByLabelText(`${words["concentration.massLabel"]} 1`),
-      { target: { value: "1" } }
-    );
-    fireEvent.click(
-      screen
-        .getAllByRole("button")
-        .find((button) =>
-          (button.textContent ?? "").replace(/\s+/g, "").includes(words["screening.run"].replace(/\s+/g, ""))
-        ) as HTMLElement
-    );
-
-    await waitFor(() => expect(apiMock.predictMoleculePerformance).toHaveBeenCalled());
-    const expected = words["backend.concentrationBasisMismatch"]
-      .replace("{subject}", "ZDDP")
-      .replace("{found}", words["model.basisMass"])
-      .replace("{expected}", words["model.basisNone"]);
-    expect(await screen.findByText(new RegExp(expected.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeTruthy();
-    expect(screen.getByText(words["screening.allSkippedTitle"])).toBeTruthy();
   });
 });
 

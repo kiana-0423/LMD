@@ -21,7 +21,6 @@ vi.mock("../lib/api", async () => {
 
 import MoleculePerformancePredictionPage from "../features/data-mining/MoleculePerformancePredictionPage";
 import FormulationPredictionPage from "../features/data-mining/FormulationPredictionPage";
-import MoleculeScreeningPage from "../features/data-mining/MoleculeScreeningPage";
 
 const en = messagesForLanguage("en-US");
 
@@ -122,7 +121,7 @@ function model(basis: string, overrides: Record<string, unknown> = {}) {
   return {
     id: "model-1",
     name: `Model on ${basis}`,
-    target: "average_friction_coefficient",
+    target: "extreme_pressure_value",
     task: "regression",
     algorithm: "ridge",
     modelVersion: "1",
@@ -146,7 +145,7 @@ function model(basis: string, overrides: Record<string, unknown> = {}) {
 const RESULT = {
   modelId: "model-1",
   modelName: "Model",
-  target: "average_friction_coefficient",
+  target: "extreme_pressure_value",
   algorithm: "ridge",
   trainedAt: "2026-01-01",
   sampleCount: 24,
@@ -159,20 +158,20 @@ const RESULT = {
 
 /** The first target each page offers; a model for any other target is correctly refused. */
 const PAGE_TARGET = {
-  additive_component: "average_friction_coefficient",
-  formulation_aggregate: "initial_oxidation_temperature_value"
+  additive_component: "extreme_pressure_value",
+  formulation_aggregate: "average_friction_coefficient"
 } as const;
 
 function seed(basis: string, mode: "additive_component" | "formulation_aggregate" = "additive_component") {
   apiMock.listPerformanceMetrics.mockResolvedValue([
     {
-      column: "average_friction_coefficient",
+      column: "extreme_pressure_value",
       labelCode: "metric.averageFrictionCoefficient",
       label: "Average friction coefficient",
       unit: ""
     },
     {
-      column: "initial_oxidation_temperature_value",
+      column: "average_friction_coefficient",
       labelCode: "metric.initialOxidationTemperature",
       label: "Initial oxidation temperature",
       unit: "C"
@@ -372,39 +371,5 @@ describe("aggregate candidates follow the same policy", () => {
 
     expect(await screen.findByText(en["concentration.required"])).toBeTruthy();
     expect(apiMock.predictFormulationPerformance).not.toHaveBeenCalled();
-  });
-});
-
-describe("screening follows the same policy", () => {
-  it("sends a unit-less value for a unit-less model", async () => {
-    seed("unrecorded");
-    renderWithLanguage(<MoleculeScreeningPage />);
-
-    expect(await screen.findByText(en["concentration.unrecordedHelp"])).toBeTruthy();
-    expect(screen.queryByRole("combobox", { name: en["model.concentrationUnit"] })).toBeNull();
-    fireEvent.change(screen.getByLabelText(`${en["concentration.unrecordedLabel"]} 1`), {
-      target: { value: "3" }
-    });
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(en["screening.run"]) }));
-
-    await waitFor(() => expect(apiMock.predictMoleculePerformance).toHaveBeenCalled());
-    expect(apiMock.predictMoleculePerformance).toHaveBeenCalledWith({
-      modelId: "model-1",
-      items: [{ moleculeId: "mol-1", concentration: 3 }]
-    });
-  });
-
-  it("ranks without a concentration for a model fitted without one", async () => {
-    seed("none");
-    renderWithLanguage(<MoleculeScreeningPage />);
-
-    expect(await screen.findByText(en["concentration.noneHelp"])).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(en["screening.run"]) }));
-
-    await waitFor(() => expect(apiMock.predictMoleculePerformance).toHaveBeenCalled());
-    expect(apiMock.predictMoleculePerformance).toHaveBeenCalledWith({
-      modelId: "model-1",
-      items: [{ moleculeId: "mol-1" }]
-    });
   });
 });

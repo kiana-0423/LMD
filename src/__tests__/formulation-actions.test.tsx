@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import FormulationLibraryPage from "../features/formulations/FormulationLibraryPage";
 import { LanguageProvider } from "../i18n/LanguageContext";
 
@@ -70,7 +71,7 @@ const ROWS = [
 async function renderPage() {
   render(
     <LanguageProvider>
-      <FormulationLibraryPage />
+      <MemoryRouter><FormulationLibraryPage /></MemoryRouter>
     </LanguageProvider>
   );
   await waitFor(() => expect(screen.getByText("PAO-6 + ZDDP 1.0%")).toBeTruthy());

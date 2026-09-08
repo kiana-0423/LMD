@@ -19,10 +19,8 @@ export const formalRoutes = [
   { key: "/experiments", labelKey: "menu.experiments", group: "menu.database" },
   { key: "/molecule-entry", labelKey: "menu.moleculeEntry", group: "menu.input" },
   { key: "/molecule-sketcher", labelKey: "menu.moleculeSketcher", group: "menu.input" },
-  { key: "/formulation-entry", labelKey: "menu.formulationEntry", group: "menu.input" },
   { key: "/data-mining/molecule-performance", labelKey: "menu.moleculePerformance", group: "menu.dataMining" },
   { key: "/data-mining/formulation-prediction", labelKey: "menu.formulationPrediction", group: "menu.dataMining" },
-  { key: "/data-mining/molecule-screening", labelKey: "menu.moleculeScreening", group: "menu.dataMining" },
   { key: "/data-mining/molecule-design", labelKey: "menu.molecularDesign", group: "menu.dataMining" },
   { key: "/import-export", labelKey: "menu.importExport", group: "menu.system" }
 ] as const satisfies readonly { key: string; labelKey: MessageKey; group: MessageKey }[];

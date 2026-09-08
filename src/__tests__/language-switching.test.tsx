@@ -24,20 +24,17 @@ vi.mock("../lib/api", async () => {
 vi.mock("../features/molecule-sketcher/KetcherEditor", () => ({
   default: () => null
 }));
-
-import AnalysisDesignPage from "../features/analysis-design/AnalysisDesignPage";
 import BaseAdditiveLibraryPage from "../features/base-additive/BaseAdditiveLibraryPage";
 import DashboardPage from "../features/dashboard/DashboardPage";
 import DescriptorCenterPage from "../features/descriptors/DescriptorCenterPage";
 import ExperimentPerformancePage from "../features/experiments/ExperimentPerformancePage";
-import FormulationEntryPage from "../features/formulation-entry/FormulationEntryPage";
+import FormulationEntryPage from "../features/formulations/FormulationEntryPage";
 import FormulationLibraryPage from "../features/formulations/FormulationLibraryPage";
 import FormulationPredictionPage from "../features/data-mining/FormulationPredictionPage";
 import ImportExportPage from "../features/import-export/ImportExportPage";
 import MoleculeEntryPage from "../features/molecule-entry/MoleculeEntryPage";
 import MoleculeLibraryPage from "../features/molecules/MoleculeLibraryPage";
 import MoleculePerformancePredictionPage from "../features/data-mining/MoleculePerformancePredictionPage";
-import MoleculeScreeningPage from "../features/data-mining/MoleculeScreeningPage";
 import MoleculeSketcherPage from "../features/molecule-sketcher/MoleculeSketcherPage";
 import SettingsPage from "../features/settings/SettingsPage";
 
@@ -49,9 +46,8 @@ const ROUTES: { path: string; element: () => JSX.Element; titleKey: MessageKey }
   { path: "/descriptors", element: () => <DescriptorCenterPage />, titleKey: "ui.descriptorCenter" },
   { path: "/base-additive", element: () => <BaseAdditiveLibraryPage />, titleKey: "ui.baseOilsAdditives" },
   { path: "/formulations", element: () => <FormulationLibraryPage />, titleKey: "ui.formulationLibrary" },
-  { path: "/formulation-entry", element: () => <FormulationEntryPage />, titleKey: "ui.formulationEntry" },
+  { path: "/formulations/new", element: () => <FormulationEntryPage />, titleKey: "ui.formulationEntry" },
   { path: "/experiments", element: () => <ExperimentPerformancePage />, titleKey: "ui.experimentsPerformance" },
-  { path: "/analysis", element: () => <AnalysisDesignPage />, titleKey: "ui.analysis" },
   {
     path: "/data-mining/molecule-performance",
     element: () => <MoleculePerformancePredictionPage />,
@@ -62,7 +58,6 @@ const ROUTES: { path: string; element: () => JSX.Element; titleKey: MessageKey }
     element: () => <FormulationPredictionPage />,
     titleKey: "model.pageFormulationTitle"
   },
-  { path: "/data-mining/molecule-screening", element: () => <MoleculeScreeningPage />, titleKey: "screening.title" },
   {
     path: "/molecule-sketcher",
     element: () => <MoleculeSketcherPage />,

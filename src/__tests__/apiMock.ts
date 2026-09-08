@@ -14,13 +14,6 @@ import { vi } from "vitest";
 
 const emptyPage = { items: [], total: 0, page: 1, pageSize: 50 };
 const emptyExport = { path: "", fileName: "", bytes: 0, rowCount: 0, content: "" };
-const emptyAnalysis = {
-  status: "insufficient_data" as const,
-  message: "",
-  metadata: { recordCount: 0, excludedCount: 0, field: "", unit: "", method: "", missingValueHandling: "" },
-  series: [],
-  warnings: []
-};
 const emptyDeletion = { success: true, deleted: true, cleanupFailures: [] };
 /** A catalogue delete that was allowed: nothing referenced the record. */
 const emptyOutcome = {
@@ -124,10 +117,6 @@ export const API_MOCK_DEFAULTS: Record<string, () => unknown> = {
   // --- analysis ------------------------------------------------------------------------------
   getDashboardSummary: () => Promise.resolve({}),
   listPerformanceMetrics: () => Promise.resolve([]),
-  getPerformanceDistribution: () => Promise.resolve(emptyAnalysis),
-  comparePerformanceByGroup: () => Promise.resolve(emptyAnalysis),
-  getConcentrationPerformance: () => Promise.resolve(emptyAnalysis),
-  getDescriptorPropertyCorrelation: () => Promise.resolve(emptyAnalysis),
 
   // --- models --------------------------------------------------------------------------------
   listModels: () => Promise.resolve([]),

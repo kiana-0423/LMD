@@ -1,6 +1,5 @@
 import {
   BarChartOutlined,
-  BulbOutlined,
   BuildOutlined,
   ClusterOutlined,
   DatabaseOutlined,
@@ -10,7 +9,6 @@ import {
   HomeOutlined,
   LineChartOutlined,
   PartitionOutlined,
-  ProfileOutlined,
   SettingOutlined,
   UploadOutlined
 } from "@ant-design/icons";
@@ -64,7 +62,6 @@ const createMenuItems = (t: (key: MessageKey) => string) => [
     children: [
       { key: "/molecule-entry", label: t("menu.moleculeEntry"), icon: <FileAddOutlined /> },
       { key: "/molecule-sketcher", label: t("menu.moleculeSketcher"), icon: <EditOutlined /> },
-      { key: "/formulation-entry", label: t("menu.formulationEntry"), icon: <ProfileOutlined /> }
     ]
   },
   {
@@ -72,10 +69,8 @@ const createMenuItems = (t: (key: MessageKey) => string) => [
     label: t("menu.dataMining"),
     type: "group" as const,
     children: [
-      { key: "/analysis", label: t("menu.analysis"), icon: <BarChartOutlined /> },
       { key: "/data-mining/molecule-performance", label: t("menu.moleculePerformance"), icon: <LineChartOutlined /> },
       { key: "/data-mining/formulation-prediction", label: t("menu.formulationPrediction"), icon: <ExperimentOutlined /> },
-      { key: "/data-mining/molecule-screening", label: t("menu.moleculeScreening"), icon: <BulbOutlined /> },
       { key: "/data-mining/molecule-design", label: t("menu.molecularDesign"), icon: <ClusterOutlined /> }
     ]
   },
@@ -144,7 +139,7 @@ export default function MainLayout() {
           <Menu
             mode="inline"
             theme="dark"
-            selectedKeys={[location.pathname]}
+            selectedKeys={[location.pathname.startsWith("/formulations/") ? "/formulations" : location.pathname]}
             items={menuItems}
             onClick={({ key }) => {
               if (String(key).startsWith("/")) navigate(String(key));
@@ -168,7 +163,7 @@ export default function MainLayout() {
           ) : null}
         </Header>
         <Content className={styles.appContent}>
-          {["/experiments", "/formulation-entry", "/molecule-entry", "/molecule-sketcher", "/analysis", "/data-mining/molecule-performance", "/data-mining/formulation-prediction"].includes(location.pathname) ? (
+          {["/experiments", "/formulations/new", "/molecule-entry", "/molecule-sketcher", "/data-mining/molecule-performance", "/data-mining/formulation-prediction"].includes(location.pathname) ? (
             <div className="workspace-fixed-panel">
               <PageErrorBoundary><Outlet /></PageErrorBoundary>
             </div>

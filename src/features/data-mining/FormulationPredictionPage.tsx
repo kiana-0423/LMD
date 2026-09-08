@@ -14,10 +14,12 @@ export default function FormulationPredictionPage() {
       descriptionKey="model.pageFormulationDescription"
       datasetMode="formulation_aggregate"
       targets={[
-        "initial_oxidation_temperature_value",
-        "extreme_pressure_value",
-        "pb_value",
-        "pd_value"
+        "average_friction_coefficient",
+        "stable_friction_coefficient",
+        "wear_scar_diameter_value",
+        "wear_scar_width_value",
+        "viscosity_40c",
+        "viscosity_100c",
       ]}
     />
   );

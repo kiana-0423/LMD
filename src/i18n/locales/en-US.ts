@@ -282,12 +282,14 @@ export const enUS = {
   "model.datasetMode": "Dataset",
   "files.fileName": "File",
   "files.attachedAt": "Attached",
+  "formulation.create": "New formulation",
+  "formulation.backToLibrary": "Back to formulation library",
   "model.pageMoleculeTitle": "Molecule Performance Prediction",
   "model.pageMoleculeDescription":
-    "Train a model on this workspace's experiments, one row per additive molecule, then predict tribological performance for library molecules. Nothing leaves the machine.",
+    "Use single-additive experiments and molecular descriptors to predict extreme-pressure, PB/PD and thermal behaviour. Values depend on the base oil, concentration and test conditions; they are not intrinsic molecular constants.",
   "model.pageFormulationTitle": "Formulation Prediction",
   "model.pageFormulationDescription":
-    "Train a model on whole formulations, one row per measured blend, then predict performance for a stored formulation or a candidate blend you describe. Nothing leaves the machine.",
+    "Predict lubricant performance of complete formulations, including friction coefficients, wear-scar dimensions and kinematic viscosity. Train on one row per measured blend.",
   "model.modeLockedAdditive": "This page trains and predicts one additive molecule at a time",
   "model.modeLockedFormulation": "This page trains and predicts whole formulations",
   "model.selectModel": "Select a model",
