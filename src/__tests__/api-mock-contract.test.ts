@@ -25,7 +25,7 @@ describe("the shared API mock matches the real module", () => {
     const synchronous = new Set(["deliverExport", "describeExport"]);
     // These are genuinely nullable in the real API — a molecule that does not exist, a save that
     // returned nothing — so a default of `undefined` is the honest answer for them.
-    const nullable = new Set(["getMolecule", "saveMoleculeWithRequiredDescriptors"]);
+    const nullable = new Set(["getMolecule", "saveMoleculeWithRequiredDescriptors", "deleteCommercialProduct"]);
 
     for (const name of Object.keys(API_MOCK_DEFAULTS)) {
       const produced = mock[name]();

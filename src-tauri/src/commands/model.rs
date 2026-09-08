@@ -300,6 +300,10 @@ fn load_raw_join(
          JOIN molecule_descriptors d ON d.molecule_id = a.molecule_id
          WHERE d.mode = 'real' AND d.status = 'calculated'
            AND (?1 = '' OR d.descriptor_set = ?1)
+           AND NOT EXISTS (
+             SELECT 1 FROM formulation_components pc JOIN additives pa ON pa.id = pc.additive_id
+             WHERE pc.formulation_id = e.formulation_id AND pa.commercial_product_id IS NOT NULL
+           )
          ORDER BY r.id, c.id, d.descriptor_set"
     );
     let mut statement = connection
@@ -511,9 +515,16 @@ fn build_training_rows_scoped(
     let raw = load_raw_join(connection, target_column, descriptor_set)?;
     let (results, considered) = collect_components(raw);
 
+    // Never train on a partial blend after an inner join drops a commercial additive.
+    let commercial_results: usize = connection.query_row(
+        "SELECT COUNT(*) FROM performance_results r JOIN experiments e ON e.id = r.experiment_id
+         WHERE EXISTS (SELECT 1 FROM formulation_components c JOIN additives a ON a.id = c.additive_id
+             WHERE c.formulation_id = e.formulation_id AND a.commercial_product_id IS NOT NULL)",
+        [], |row| row.get(0)).map_err(|err| err.to_string())?;
     let mut report = DatasetReport {
         considered_joins: considered,
-        result_count: results.len(),
+        result_count: results.len() + commercial_results,
+        excluded_no_descriptors: commercial_results,
         scope: scope.clone(),
         ..DatasetReport::default()
     };
@@ -2024,6 +2035,13 @@ fn load_stored_formulation(
     let Some(name) = name else {
         return Err(format!("Formulation not found: {formulation_id}"));
     };
+    let has_commercial_additives: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM formulation_components c JOIN additives a ON a.id = c.additive_id
+            WHERE c.formulation_id = ?1 AND a.commercial_product_id IS NOT NULL)",
+        [formulation_id], |row| row.get(0)).map_err(|err| err.to_string())?;
+    if has_commercial_additives {
+        return Err(errors::coded("product.noDescriptors", &name));
+    }
 
     let mut statement = connection
         .prepare(

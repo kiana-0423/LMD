@@ -42,6 +42,11 @@ const emptyPrediction = {
 
 /** One default per export of `src/lib/api`, keyed by name. */
 export const API_MOCK_DEFAULTS: Record<string, () => unknown> = {
+  listCommercialProductPage: () => Promise.resolve(emptyEntityPage),
+  getCommercialProduct: () => Promise.resolve({}),
+  saveCommercialProduct: () => Promise.resolve({}),
+  deleteCommercialProduct: () => Promise.resolve(undefined),
+  registerCommercialProduct: () => Promise.resolve({}),
   // --- molecules -----------------------------------------------------------------------------
   listMoleculePage: () => Promise.resolve(emptyPage),
   listMolecules: () => Promise.resolve([]),

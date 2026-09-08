@@ -15,6 +15,7 @@ const DashboardPage = lazy(() => import("../features/dashboard/DashboardPage"));
 const MoleculeLibraryPage = lazy(() => import("../features/molecules/MoleculeLibraryPage"));
 const MoleculeEntryPage = lazy(() => import("../features/molecule-entry/MoleculeEntryPage"));
 const MoleculeSketcherPage = lazy(() => import("../features/molecule-sketcher/MoleculeSketcherPage"));
+const CommercialProductLibraryPage = lazy(() => import("../features/commercial-products/CommercialProductLibraryPage"));
 const DescriptorCenterPage = lazy(() => import("../features/descriptors/DescriptorCenterPage"));
 const BaseAdditiveLibraryPage = lazy(() => import("../features/base-additive/BaseAdditiveLibraryPage"));
 const FormulationLibraryPage = lazy(() => import("../features/formulations/FormulationLibraryPage"));
@@ -56,6 +57,7 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/dashboard" element={page(DashboardPage)} />
       <Route path="/molecules" element={page(MoleculeLibraryPage)} />
+      <Route path="/products" element={page(CommercialProductLibraryPage)} />
       <Route path="/molecule-entry" element={page(MoleculeEntryPage)} />
       <Route path="/molecule-sketcher" element={page(MoleculeSketcherPage)} />
       <Route path="/descriptors" element={page(DescriptorCenterPage)} />

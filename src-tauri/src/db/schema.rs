@@ -43,11 +43,38 @@ CREATE TABLE IF NOT EXISTS molecule_descriptors (
   FOREIGN KEY (molecule_id) REFERENCES molecules(id)
 );
 
+CREATE TABLE IF NOT EXISTS commercial_products (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+  category TEXT NOT NULL DEFAULT '' CHECK (category IN ('', 'base_oil', 'additive')),
+  general_formula TEXT NOT NULL DEFAULT '',
+  manufacturer TEXT NOT NULL DEFAULT '',
+  production_date TEXT NOT NULL DEFAULT '',
+  batch_number TEXT NOT NULL DEFAULT '',
+  product_number TEXT NOT NULL DEFAULT '',
+  material_properties_json TEXT NOT NULL DEFAULT '{}',
+  supplier TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_commercial_products_created_at
+  ON commercial_products(created_at DESC, id DESC);
+
+-- Batch identifiers remain visible wherever commercial materials are selected for a blend.
+CREATE VIEW IF NOT EXISTS commercial_product_labels AS
+SELECT id, name
+  || CASE WHEN manufacturer = '' THEN '' ELSE ' · ' || manufacturer END
+  || CASE WHEN product_number = '' THEN '' ELSE ' · ' || product_number END
+  || CASE WHEN batch_number = '' THEN '' ELSE ' · ' || batch_number END AS name
+FROM commercial_products;
+
 CREATE TABLE IF NOT EXISTS base_oils (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   base_oil_type TEXT,
   representative_molecule_id TEXT,
+  commercial_product_id TEXT UNIQUE REFERENCES commercial_products(id),
   viscosity_40c REAL,
   viscosity_100c REAL,
   viscosity_index REAL,
@@ -65,7 +92,8 @@ CREATE TABLE IF NOT EXISTS base_oils (
 
 CREATE TABLE IF NOT EXISTS additives (
   id TEXT PRIMARY KEY,
-  molecule_id TEXT NOT NULL,
+  molecule_id TEXT,
+  commercial_product_id TEXT UNIQUE REFERENCES commercial_products(id),
   function_types TEXT,
   active_elements TEXT,
   typical_concentration_min REAL,
@@ -75,6 +103,10 @@ CREATE TABLE IF NOT EXISTS additives (
   application_notes TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  CONSTRAINT additive_has_one_source CHECK (
+    (CASE WHEN molecule_id IS NOT NULL AND molecule_id <> '' THEN 1 ELSE 0 END)
+    + (CASE WHEN commercial_product_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+  ),
   -- A dosing range that runs backwards names no usable dose.
   CONSTRAINT additive_typical_range_is_ordered
     CHECK (

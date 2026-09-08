@@ -502,13 +502,14 @@ fn load_components_for(
         "SELECT c.id, c.formulation_id, c.component_role, c.molecule_id, c.base_oil_id,
                 c.additive_id, c.concentration_value, c.concentration_unit,
                 c.concentration_standard_value, c.concentration_standard_unit, c.notes,
-                COALESCE(m.name, ''), COALESCE(b.name, ''), COALESCE(am.name, ''),
-                COALESCE(b.name, sm.name, a.id, c.component_role)
+                COALESCE(m.name, ''), COALESCE(b.name, ''), COALESCE(am.name, ap.name, ''),
+                COALESCE(b.name, sm.name, ap.name, a.id, c.component_role)
          FROM formulation_components c
          LEFT JOIN molecules m ON m.id = c.molecule_id
          LEFT JOIN base_oils b ON b.id = c.base_oil_id
          LEFT JOIN additives a ON a.id = c.additive_id
          LEFT JOIN molecules am ON am.id = a.molecule_id
+         LEFT JOIN commercial_product_labels ap ON ap.id = a.commercial_product_id
          LEFT JOIN molecules sm ON sm.id = COALESCE(c.molecule_id, a.molecule_id)
          WHERE c.formulation_id IN ({placeholders})
          ORDER BY c.formulation_id, c.id"

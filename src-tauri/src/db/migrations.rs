@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tauri::AppHandle;
 
-const LATEST_SCHEMA_VERSION: i64 = 8;
+const LATEST_SCHEMA_VERSION: i64 = 10;
 
 pub fn initialize_database_file(app: &AppHandle) -> Result<(), String> {
     let workspace = default_workspace_dir(app)?;
@@ -49,7 +49,9 @@ fn workspace_holds_records(connection: &Connection) -> Result<bool, String> {
             "SELECT (SELECT COUNT(*) FROM molecules)
                   + (SELECT COUNT(*) FROM formulations)
                   + (SELECT COUNT(*) FROM experiments)
-                  + (SELECT COUNT(*) FROM base_oils)",
+                  + (SELECT COUNT(*) FROM base_oils)
+                  + (SELECT COUNT(*) FROM additives)
+                  + (SELECT COUNT(*) FROM commercial_products)",
             [],
             |row| row.get(0),
         )
@@ -116,12 +118,95 @@ fn apply_migrations(connection: &Connection) -> Result<(), String> {
         set_schema_version(connection, 8)?;
         version = 8;
     }
+    if version < 9 {
+        add_commercial_products(connection)?;
+        set_schema_version(connection, 9)?;
+        version = 9;
+    }
+    if version < 10 {
+        if !column_exists(
+            connection,
+            "commercial_products",
+            "material_properties_json",
+        )? {
+            connection.execute_batch("ALTER TABLE commercial_products ADD COLUMN material_properties_json TEXT NOT NULL DEFAULT '{}';")
+                .map_err(|err| format!("Failed to add commercial material properties: {err}"))?;
+        }
+        set_schema_version(connection, 10)?;
+        version = 10;
+    }
     if version > LATEST_SCHEMA_VERSION {
         return Err(format!(
             "Database schema version {version} is newer than this LMD build supports ({LATEST_SCHEMA_VERSION})."
         ));
     }
     Ok(())
+}
+
+/// Rebuild only the additive table to allow a commercial source without inventing a molecule.
+/// Foreign keys are suspended outside the transaction, checked before commit, then restored.
+fn add_commercial_products(connection: &Connection) -> Result<(), String> {
+    let start = INIT_SCHEMA_SQL
+        .find("CREATE TABLE IF NOT EXISTS commercial_products")
+        .ok_or("schema.rs no longer defines commercial_products")?;
+    let end = INIT_SCHEMA_SQL
+        .find("CREATE TABLE IF NOT EXISTS base_oils")
+        .ok_or("schema.rs no longer defines base_oils")?;
+    connection
+        .pragma_update(None, "foreign_keys", false)
+        .map_err(|err| err.to_string())?;
+    let result = (|| -> Result<(), String> {
+        let transaction = connection
+            .unchecked_transaction()
+            .map_err(|err| err.to_string())?;
+        transaction
+            .execute_batch(&INIT_SCHEMA_SQL[start..end])
+            .map_err(|err| err.to_string())?;
+        if !column_exists(&transaction, "base_oils", "commercial_product_id")? {
+            transaction.execute_batch("ALTER TABLE base_oils ADD COLUMN commercial_product_id TEXT REFERENCES commercial_products(id);")
+                .map_err(|err| err.to_string())?;
+        }
+        if !column_exists(&transaction, "additives", "commercial_product_id")? {
+            // Preserve legacy values, including values flagged by the existing quality audit.
+            // The audit's triggers continue enforcing those rules for subsequent writes.
+            transaction.execute_batch("CREATE TABLE additives_products_new (
+                id TEXT PRIMARY KEY, molecule_id TEXT,
+                commercial_product_id TEXT REFERENCES commercial_products(id),
+                function_types TEXT, active_elements TEXT, typical_concentration_min REAL,
+                typical_concentration_max REAL, concentration_unit TEXT, compatible_base_oils TEXT,
+                application_notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                FOREIGN KEY (molecule_id) REFERENCES molecules(id));
+                INSERT INTO additives_products_new (id, molecule_id, function_types, active_elements,
+                    typical_concentration_min, typical_concentration_max, concentration_unit,
+                    compatible_base_oils, application_notes, created_at, updated_at)
+                SELECT id, molecule_id, function_types, active_elements,
+                    typical_concentration_min, typical_concentration_max, concentration_unit,
+                    compatible_base_oils, application_notes, created_at, updated_at FROM additives;
+                DROP TABLE additives;
+                ALTER TABLE additives_products_new RENAME TO additives;")
+                .map_err(|err| err.to_string())?;
+        }
+        transaction.execute_batch("CREATE UNIQUE INDEX IF NOT EXISTS idx_base_oils_commercial_product ON base_oils(commercial_product_id);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_additives_commercial_product ON additives(commercial_product_id);")
+            .map_err(|err| err.to_string())?;
+        for event in ["INSERT", "UPDATE"] {
+            transaction.execute_batch(&format!("CREATE TRIGGER IF NOT EXISTS additive_source_{event}
+                BEFORE {event} ON additives
+                WHEN ((CASE WHEN NEW.molecule_id IS NOT NULL AND NEW.molecule_id <> '' THEN 1 ELSE 0 END)
+                    + (CASE WHEN NEW.commercial_product_id IS NOT NULL THEN 1 ELSE 0 END)) <> 1
+                BEGIN SELECT RAISE(ABORT, 'An additive needs exactly one molecule or commercial product source'); END;"))
+                .map_err(|err| err.to_string())?;
+        }
+        create_relationship_indexes(&transaction)?;
+        enforce_scientific_constraints(&transaction)?;
+        check_foreign_keys(&transaction)?;
+        transaction.commit().map_err(|err| err.to_string())
+    })();
+    let restore = connection
+        .pragma_update(None, "foreign_keys", true)
+        .map_err(|err| err.to_string());
+    result?;
+    restore
 }
 
 fn set_schema_version(connection: &Connection, version: i64) -> Result<(), String> {

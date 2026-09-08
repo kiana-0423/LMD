@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import PagedModal from "../../components/PagedModal";
 import { Button, Card, Descriptions, Form, Input, InputNumber, Modal, Select, Space, Tabs, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -38,6 +39,7 @@ export default function BaseAdditiveLibraryPage() {
   const [creating, setCreating] = useState(false);
   // Set while the modal edits an existing record; cleared for a new one.
   const [editingId, setEditingId] = useState<string>();
+  const [editingProductId, setEditingProductId] = useState<string>();
   const [selectedBaseOil, setSelectedBaseOil] = useState<BaseOil>();
   const [selectedAdditive, setSelectedAdditive] = useState<Additive>();
   /** The refused delete, with what it would take to force it through. */
@@ -69,6 +71,7 @@ export default function BaseAdditiveLibraryPage() {
   function openEditModal(tab: LibraryTab, record: BaseOil | Additive) {
     setActiveTab(tab);
     setEditingId(record.id);
+    setEditingProductId(record.commercialProductId);
     if (tab === "base-oils") {
       const baseOil = record as BaseOil;
       baseOilForm.setFieldsValue({
@@ -104,6 +107,7 @@ export default function BaseAdditiveLibraryPage() {
   function openCreateModal(tab: LibraryTab) {
     setActiveTab(tab);
     setEditingId(undefined);
+    setEditingProductId(undefined);
     if (tab === "base-oils") {
       // Deliberately blank. The form used to open with "Group III" already filled in, which
       // records an API classification nobody made — and one that is wrong for most of the oils a
@@ -177,7 +181,7 @@ export default function BaseAdditiveLibraryPage() {
         </Space>
       )
     },
-    { title: t("ui.representativeMolecule"), dataIndex: "representativeMoleculeId", render: (value) => value || "-" },
+    { title: t("product.sourceRecord"), render: (_, row) => row.commercialProductId ? <ProductSource id={row.commercialProductId} /> : row.representativeMoleculeId || "-" },
     {
       title: t("ui.actions"),
       width: 210,
@@ -204,7 +208,7 @@ export default function BaseAdditiveLibraryPage() {
         </Space>
       )
     },
-    { title: t("ui.representativeMolecule"), dataIndex: "moleculeId" },
+    { title: t("product.sourceRecord"), render: (_, row) => row.commercialProductId ? <ProductSource id={row.commercialProductId} /> : row.moleculeId },
     {
       title: t("ui.actions"),
       width: 210,
@@ -414,9 +418,11 @@ export default function BaseAdditiveLibraryPage() {
       >
         {activeTab === "base-oils" ? (
           <Form form={baseOilForm} layout="vertical" size="small" className="catalogue-editor-form">
-            <Form.Item className="catalogue-editor-wide" label={t("ui.representativeMolecule")} name="representativeMoleculeId">
-              <MoleculePicker allowClear placeholder={t("ui.selectABaseOilMoleculeFromTheLibrary")} />
-            </Form.Item>
+            {editingProductId ? <Form.Item className="catalogue-editor-wide" label={t("product.source")}><ProductSource id={editingProductId} /></Form.Item> : (
+              <Form.Item className="catalogue-editor-wide" label={t("ui.representativeMolecule")} name="representativeMoleculeId">
+                <MoleculePicker allowClear placeholder={t("ui.selectABaseOilMoleculeFromTheLibrary")} />
+              </Form.Item>
+            )}
             <Form.Item label={t("ui.name")} name="name" rules={[{ required: true, message: t("ui.enterABaseOilName") }]}>
               <Input placeholder={t("ui.examplePao6")} />
             </Form.Item>
@@ -455,9 +461,11 @@ export default function BaseAdditiveLibraryPage() {
           </Form>
         ) : (
           <Form form={additiveForm} layout="vertical" size="small" className="catalogue-editor-form">
-            <Form.Item className="catalogue-editor-wide" label={t("ui.representativeMolecule")} name="moleculeId" rules={[{ required: true, message: t("ui.selectARepresentativeMolecule") }]}>
-              <MoleculePicker placeholder={t("ui.selectAnAdditiveMoleculeFromTheLibrary")} />
-            </Form.Item>
+            {editingProductId ? <Form.Item className="catalogue-editor-wide" label={t("product.source")}><ProductSource id={editingProductId} /></Form.Item> : (
+              <Form.Item className="catalogue-editor-wide" label={t("ui.representativeMolecule")} name="moleculeId" rules={[{ required: true, message: t("ui.selectARepresentativeMolecule") }]}>
+                <MoleculePicker placeholder={t("ui.selectAnAdditiveMoleculeFromTheLibrary")} />
+              </Form.Item>
+            )}
             <Form.Item label={t("ui.functionTypes")} name="functionTypes">
               <Select maxTagCount="responsive" mode="multiple" options={additiveFunctionOptions} />
             </Form.Item>
@@ -513,7 +521,7 @@ function BaseOilDetails({ item }: { item: BaseOil }) {
       <Descriptions size="small" bordered column={2}>
         <Descriptions.Item label="ID">{item.id}</Descriptions.Item>
         <Descriptions.Item label={t("ui.nameType")}>{item.name} / {item.baseOilType}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.representativeMolecule")}>{item.representativeMoleculeId || "-"}</Descriptions.Item>
+        <Descriptions.Item label={t(item.commercialProductId ? "product.source" : "ui.representativeMolecule")}>{item.commercialProductId ? <ProductSource id={item.commercialProductId} /> : item.representativeMoleculeId || "-"}</Descriptions.Item>
         <Descriptions.Item label={t("ui.supplier")}><span translate="no">{item.supplier || "-"}</span></Descriptions.Item>
         <Descriptions.Item label={t("ui.viscosityAt40C")}>{item.viscosity40c ?? "-"}</Descriptions.Item>
         <Descriptions.Item label={t("ui.viscosityAt100C")}>{item.viscosity100c ?? "-"}</Descriptions.Item>
@@ -545,7 +553,7 @@ function AdditiveDetails({ item }: { item: Additive }) {
             ))}
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label={t("ui.representativeMolecule")}>{item.moleculeId}</Descriptions.Item>
+        <Descriptions.Item label={t(item.commercialProductId ? "product.source" : "ui.representativeMolecule")}>{item.commercialProductId ? <ProductSource id={item.commercialProductId} /> : item.moleculeId}</Descriptions.Item>
         <Descriptions.Item label={t("ui.activeElements")}>{item.activeElements.join(", ") || "-"}</Descriptions.Item>
         <Descriptions.Item label={t("ui.typicalConcentration")}>
           {item.typicalConcentrationMin}-{item.typicalConcentrationMax} {item.concentrationUnit}
@@ -560,4 +568,9 @@ function AdditiveDetails({ item }: { item: Additive }) {
       </Descriptions>
     </Card>
   );
+}
+
+function ProductSource({ id }: { id: string }) {
+  const { t } = useLanguage();
+  return <Link to={`/products?id=${encodeURIComponent(id)}`}>{t("product.openSource")}</Link>;
 }

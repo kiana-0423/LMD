@@ -49,6 +49,7 @@ const createMenuItems = (t: (key: MessageKey) => string) => [
     type: "group" as const,
     children: [
       { key: "/molecules", label: t("menu.molecules"), icon: <DatabaseOutlined /> },
+      { key: "/products", label: t("menu.products"), icon: <BuildOutlined /> },
       { key: "/descriptors", label: t("menu.descriptors"), icon: <BarChartOutlined /> },
       { key: "/base-additive", label: t("menu.baseAdditive"), icon: <BuildOutlined /> },
       { key: "/formulations", label: t("menu.formulations"), icon: <PartitionOutlined /> },

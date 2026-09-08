@@ -67,6 +67,11 @@ export function parseBackendError(error: unknown): BackendError {
  * the translation, because the detail is still shown.
  */
 const TRANSLATED_CODES: Record<string, MessageKey> = {
+  "product.invalidProperties": "product.invalidProperties",
+  "product.noDescriptors": "product.noDescriptors",
+  "product.inUse": "product.inUse",
+  "product.invalidDate": "product.invalidDate",
+  "product.invalidCategory": "product.invalidCategory",
   "model.basisMismatch": "error.modelBasisMismatch",
   "model.staleSchema": "error.modelStaleSchema",
   "model.wrongMode": "error.modelWrongMode",

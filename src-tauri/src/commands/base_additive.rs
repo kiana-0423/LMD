@@ -15,6 +15,7 @@ use uuid::Uuid;
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BaseOilDto {
+    pub commercial_product_id: Option<String>,
     pub id: String,
     pub name: String,
     pub base_oil_type: String,
@@ -36,6 +37,7 @@ pub struct BaseOilDto {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditiveDto {
+    pub commercial_product_id: Option<String>,
     pub id: String,
     pub molecule_id: String,
     pub molecule_name: String,
@@ -227,7 +229,7 @@ pub const BASE_OIL_SELECT: &str =
     "SELECT b.id, b.name, b.base_oil_type, b.representative_molecule_id,
             b.viscosity_40c, b.viscosity_100c, b.viscosity_index, b.density, b.pour_point,
             b.flash_point, b.supplier, b.batch_number, b.notes, b.created_at, b.updated_at,
-            COALESCE(usage.formulation_count, 0)
+            COALESCE(usage.formulation_count, 0), b.commercial_product_id
      FROM base_oils b
      LEFT JOIN (
        SELECT base_oil_id, COUNT(DISTINCT formulation_id) AS formulation_count
@@ -258,6 +260,7 @@ fn read_base_oil_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<BaseOilDto> {
         created_at: row.get(13)?,
         updated_at: row.get(14)?,
         formulation_count: row.get(15)?,
+        commercial_product_id: row.get(16)?,
     })
 }
 
@@ -483,7 +486,7 @@ pub fn update_additive(app: AppHandle, id: String, payload: Value) -> Result<Add
         }
     }
     let now = Utc::now().to_rfc3339();
-    // molecule_id is required by the schema, so it may be replaced but never cleared.
+    // Molecule-backed records may replace their molecule; commercial sources remain linked.
     let molecule_patch = match &molecule_id {
         Some(value) => patch::FieldPatch::Set(value.clone()),
         None => patch::FieldPatch::Unchanged,
@@ -733,13 +736,14 @@ pub fn create_additive(app: AppHandle, payload: Value) -> Result<AdditiveDto, St
 /// eighty-one queries, the last eighty of them each joining `experiments` and
 /// `performance_results`.
 pub const ADDITIVE_SELECT: &str =
-    "SELECT a.id, a.molecule_id, COALESCE(m.name, ''), a.function_types,
+    "SELECT a.id, a.molecule_id, COALESCE(m.name, p.name, ''), a.function_types,
             a.active_elements, a.typical_concentration_min, a.typical_concentration_max,
             a.concentration_unit, a.compatible_base_oils, a.application_notes, a.created_at,
             a.updated_at, COALESCE(usage.formulation_count, 0),
-            best.best_friction, best.best_wear
+            best.best_friction, best.best_wear, a.commercial_product_id
      FROM additives a
      LEFT JOIN molecules m ON m.id = a.molecule_id
+     LEFT JOIN commercial_product_labels p ON p.id = a.commercial_product_id
      LEFT JOIN (
        SELECT additive_id, COUNT(DISTINCT formulation_id) AS formulation_count
        FROM formulation_components
@@ -779,6 +783,7 @@ fn read_additive_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AdditiveDto> {
         formulation_count: row.get(12)?,
         best_friction_coefficient: row.get(13)?,
         best_wear_scar_diameter: row.get(14)?,
+        commercial_product_id: row.get(15)?,
     })
 }
 
@@ -809,7 +814,8 @@ pub fn list_additives_page(
     let total: i64 = match &pattern {
         Some(value) => connection.query_row(
             "SELECT COUNT(*) FROM additives a LEFT JOIN molecules m ON m.id = a.molecule_id
-             WHERE COALESCE(m.name, '') LIKE ?1 ESCAPE '\\'
+             LEFT JOIN commercial_product_labels p ON p.id = a.commercial_product_id
+             WHERE COALESCE(m.name, p.name, '') LIKE ?1 ESCAPE '\\'
                 OR COALESCE(a.function_types, '') LIKE ?1 ESCAPE '\\'",
             params![value],
             |row| row.get(0),
@@ -820,7 +826,7 @@ pub fn list_additives_page(
 
     let filter = match pattern {
         Some(_) => {
-            " WHERE COALESCE(m.name, '') LIKE ?3 ESCAPE '\\'               OR COALESCE(a.function_types, '') LIKE ?3 ESCAPE '\\'"
+            " WHERE COALESCE(m.name, p.name, '') LIKE ?3 ESCAPE '\\'               OR COALESCE(a.function_types, '') LIKE ?3 ESCAPE '\\'"
         }
         None => "",
     };
@@ -860,12 +866,13 @@ pub fn search_additives(
         .unwrap_or_else(|| "%".to_string());
     let mut statement = connection
         .prepare(
-            "SELECT a.id, COALESCE(m.name, a.id), COALESCE(a.function_types, '')
+            "SELECT a.id, COALESCE(m.name, p.name, a.id), COALESCE(a.function_types, '')
              FROM additives a
              LEFT JOIN molecules m ON m.id = a.molecule_id
-             WHERE COALESCE(m.name, '') LIKE ?1 ESCAPE '\\'
+             LEFT JOIN commercial_product_labels p ON p.id = a.commercial_product_id
+             WHERE COALESCE(m.name, p.name, '') LIKE ?1 ESCAPE '\\'
                 OR COALESCE(a.function_types, '') LIKE ?1 ESCAPE '\\'
-             ORDER BY COALESCE(m.name, a.id) COLLATE NOCASE, a.id
+             ORDER BY COALESCE(m.name, p.name, a.id) COLLATE NOCASE, a.id
              LIMIT ?2",
         )
         .map_err(|err| format!("Failed to prepare the additive search: {err}"))?;
@@ -986,12 +993,13 @@ fn get_base_oil(connection: &Connection, id: &str) -> Result<BaseOilDto, String>
         .query_row(
             "SELECT id, name, base_oil_type, representative_molecule_id, viscosity_40c,
                     viscosity_100c, viscosity_index, density, pour_point, flash_point,
-                    supplier, batch_number, notes, created_at, updated_at
+                    supplier, batch_number, notes, created_at, updated_at, commercial_product_id
              FROM base_oils
              WHERE id = ?1",
             params![id],
             |row| {
                 Ok(BaseOilDto {
+                    commercial_product_id: row.get(15)?,
                     id: row.get(0)?,
                     name: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
                     base_oil_type: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
@@ -1019,15 +1027,17 @@ fn get_base_oil(connection: &Connection, id: &str) -> Result<BaseOilDto, String>
 fn get_additive(connection: &Connection, id: &str) -> Result<AdditiveDto, String> {
     connection
         .query_row(
-            "SELECT a.id, a.molecule_id, COALESCE(m.name, ''), a.function_types, a.active_elements,
+            "SELECT a.id, a.molecule_id, COALESCE(m.name, p.name, ''), a.function_types, a.active_elements,
                     a.typical_concentration_min, a.typical_concentration_max, a.concentration_unit,
-                    a.compatible_base_oils, a.application_notes, a.created_at, a.updated_at
+                    a.compatible_base_oils, a.application_notes, a.created_at, a.updated_at, a.commercial_product_id
              FROM additives a
              LEFT JOIN molecules m ON m.id = a.molecule_id
+             LEFT JOIN commercial_product_labels p ON p.id = a.commercial_product_id
              WHERE a.id = ?1",
             params![id],
             |row| {
                 Ok(AdditiveDto {
+                    commercial_product_id: row.get(12)?,
                     id: row.get(0)?,
                     molecule_id: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
                     molecule_name: row.get::<_, Option<String>>(2)?.unwrap_or_default(),

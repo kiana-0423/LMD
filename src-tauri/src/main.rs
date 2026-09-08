@@ -58,6 +58,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commercial_product::list_commercial_products_page,
+            commercial_product::get_commercial_product,
+            commercial_product::save_commercial_product,
+            commercial_product::delete_commercial_product,
+            commercial_product::register_commercial_product,
             workspace::create_workspace,
             workspace::open_workspace,
             workspace::get_workspace_status,

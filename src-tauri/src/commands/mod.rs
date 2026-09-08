@@ -36,3 +36,5 @@ fn ok(command: &str, data: Value) -> Result<Value, String> {
         "warnings": []
     }))
 }
+
+pub mod commercial_product;

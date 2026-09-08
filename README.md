@@ -13,6 +13,32 @@ The project is currently an MVP. It provides a working Tauri desktop foundation,
 - Python provides SMILES standardization, RDKit and Mordred descriptors, 2D/3D structure generation and format conversion, Excel/CSV preprocessing, and scikit-learn model training and prediction.
 - SQLite stores local application data in the workspace database `lmd.sqlite`.
 
+## Commercial Product Library
+
+**Database → Commercial Product Library** manages commercial base oils and additives alongside
+Molecule Library. Record the product name/grade, manufacturer, production date, batch number,
+product/catalogue number, supplier, notes, and an optional general formula. Each batch has its
+own record; product and batch numbers retain leading zeros. Molecular structures and descriptors
+are not required or generated.
+
+In **New product / Edit product → Material properties**, manually enter kinematic viscosity at
+40/100 °C, viscosity index, density (g/cm³), pour point, flash point, appearance, and solubility.
+Record test conditions and the source of the values. Additional properties accept a name, a value
+or description (including ranges), a unit, and conditions/source. Unknown values remain empty;
+none of these properties are calculated as molecular descriptors. On first registration as a
+base oil, the six corresponding numerical properties are copied into the new base-oil record.
+Later edits in either library remain independent, with the source batch available through its link.
+
+Use **Add to base oils** or **Add to additives** to register a product for the existing formulation
+workflow. The registration retains a link to the source batch and can be completed with physical
+properties or application information in Base Oils / Additives. Referenced products cannot be
+deleted until their catalogue registrations are removed. Existing molecular records and workflows
+are preserved when the workspace upgrades to schema version 10.
+
+Formulations containing commercial additives without molecular descriptors remain available for
+recording experiments. Current descriptor-based models skip them and report missing descriptors;
+they never silently model only the remaining components.
+
 ## Formulation entry and prediction workflows
 
 Open **Formulation Library → New formulation** to enter a formulation on one page.

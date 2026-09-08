@@ -136,7 +136,7 @@ fn every_row_survives_the_migration_the_backup_was_taken_for() {
     let version: i64 = connection
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .expect("version should read");
-    assert_eq!(version, 8);
+    assert_eq!(version, 10);
     drop(connection);
     let _ = std::fs::remove_dir_all(&root);
 }

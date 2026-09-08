@@ -13,6 +13,7 @@ export const APP_NAME_CN = "LMD";
 export const formalRoutes = [
   { key: "/dashboard", labelKey: "menu.dashboard", group: "menu.dashboardGroup" },
   { key: "/molecules", labelKey: "menu.molecules", group: "menu.database" },
+  { key: "/products", labelKey: "menu.products", group: "menu.database" },
   { key: "/descriptors", labelKey: "menu.descriptors", group: "menu.database" },
   { key: "/base-additive", labelKey: "menu.baseAdditive", group: "menu.database" },
   { key: "/formulations", labelKey: "menu.formulations", group: "menu.database" },

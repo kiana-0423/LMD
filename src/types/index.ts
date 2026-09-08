@@ -74,6 +74,7 @@ export interface MoleculeDescriptor {
 }
 
 export interface BaseOil {
+  commercialProductId?: string;
   id: string;
   name: string;
   baseOilType: string;
@@ -93,6 +94,7 @@ export interface BaseOil {
 }
 
 export interface Additive {
+  commercialProductId?: string;
   id: string;
   moleculeId: string;
   moleculeName: string;

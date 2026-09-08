@@ -108,6 +108,7 @@ const demoDeletion = (id: string) => ({
 });
 
 const HANDLERS: Record<string, Handler> = {
+  list_commercial_products_page: (args) => paginate([], args),
   // --- workspace ------------------------------------------------------------------------------
   get_workspace_status: () => ({
     ok: true,
