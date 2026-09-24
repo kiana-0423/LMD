@@ -52,11 +52,47 @@ describe("MOL2 molecule entry", () => {
     fireEvent.click(screen.getByRole("button", { name: messages["ui.saveMoleculeAndCalculateDescriptors"] }));
     await waitFor(() => expect(within(output as HTMLElement).getByDisplayValue("LFQSCWFLJHTTHZ-UHFFFAOYSA-N")).toBeTruthy(), { timeout: 3000 });
     expect(panel.querySelector(".molecule-entry-output")).toBe(output);
-    expect(screen.getByLabelText("Name")).toBe(name);
-    expect(name).toHaveValue("Ethanol");
+    expect(screen.getByLabelText("Name")).toHaveValue("");
+    expect(screen.getByLabelText("SMILES")).toHaveValue("");
     expect(within(output as HTMLElement).getByAltText(messages["ui.generated2dStructure"])).toBeTruthy();
     expect(container.querySelector(".paged-content")).toBeNull();
     expect(screen.getByRole("button", { name: messages["ui.viewInMoleculeLibrary"] })).toBeEnabled();
+  });
+
+  it("clears imported input and review notices only after descriptor calculation succeeds", async () => {
+    let finish!: (value: unknown) => void;
+    api.saveMoleculeWithRequiredDescriptors.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    api.mol2ToSmiles.mockResolvedValue({ smiles: "c1ccccc1", inferredBondIds: ["1"], normalizedAtomTypes: [] });
+    renderWithLanguage(<MoleculeEntryPage />);
+    fireEvent.change(screen.getByLabelText("Aliases"), { target: { value: "Sample alias" } });
+    choose(mol2File("ring.mol2"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("inferred 1 aromatic bond orders");
+    fireEvent.click(screen.getByRole("button", { name: messagesForLanguage("en-US")["ui.saveMoleculeAndCalculateDescriptors"] }));
+    await waitFor(() => expect(api.saveMoleculeWithRequiredDescriptors).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    expect(screen.getByLabelText("Name")).toHaveValue("ring");
+    expect(screen.getByLabelText("SMILES")).toHaveValue("c1ccccc1");
+    finish({ name: "ring", smilesCanonical: "c1ccccc1", inchiKey: "saved-key" });
+    await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue(""));
+    expect(screen.getByLabelText("SMILES")).toHaveValue("");
+    expect(screen.getByLabelText("Aliases")).toHaveValue("");
+    expect(screen.getByLabelText("Notes")).toHaveValue("");
+    expect(screen.getByLabelText("Data Source")).toHaveValue("Manual entry");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByDisplayValue("saved-key")).toBeTruthy();
+  });
+
+  it("keeps entered fields when descriptor calculation fails", async () => {
+    api.saveMoleculeWithRequiredDescriptors.mockRejectedValueOnce(new Error("Descriptor calculation failed"));
+    renderWithLanguage(<MoleculeEntryPage />);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Retry sample" } });
+    fireEvent.change(screen.getByLabelText("SMILES"), { target: { value: "CCO" } });
+    fireEvent.change(screen.getByLabelText("Notes"), { target: { value: "Keep for retry" } });
+    fireEvent.click(screen.getByRole("button", { name: messagesForLanguage("en-US")["ui.saveMoleculeAndCalculateDescriptors"] }));
+    await waitFor(() => expect(api.saveMoleculeWithRequiredDescriptors).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    await waitFor(() => expect(screen.getByLabelText("Name")).toBeEnabled());
+    expect(screen.getByLabelText("Name")).toHaveValue("Retry sample");
+    expect(screen.getByLabelText("SMILES")).toHaveValue("CCO");
+    expect(screen.getByLabelText("Notes")).toHaveValue("Keep for retry");
   });
 
   for (const language of SUPPORTED_LANGUAGES) {

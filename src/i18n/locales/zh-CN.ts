@@ -55,6 +55,7 @@ export const zhCN: MessageCatalogue = {
   "product.deleteConfirm": "删除此成品批次？",
   "product.inUse": "此成品已被基础油／添加剂库引用，请先在对应库中解除引用后再删除此批次。",
   "product.source": "成品来源",
+  "product.chooseHelp": "选择成品批次并保存，即可加入当前库。加入后可编辑物性和应用信息。",
   "product.sourceRecord": "来源记录",
   "product.openSource": "查看成品批次",
   "product.invalidDate": "请输入有效的生产日期，格式为 YYYY-MM-DD。",
@@ -589,7 +590,7 @@ export const zhCN: MessageCatalogue = {
   "ui.loadFromSmiles": "从 SMILES 加载",
   "ui.loadingTheKetcherMoleculeEditor": "正在加载 Ketcher 分子绘画器……",
   "ui.lowerSpecimenMaterial": "下试样材料",
-  "ui.manageBaseOilsThatMayNotHaveSmiles": "管理可能没有 SMILES 的基础油，以及关联到分子库记录的添加剂。",
+  "ui.manageBaseOilsThatMayNotHaveSmiles": "管理基础油和添加剂，可从分子库或成品库选择来源。",
   "ui.manageDescriptorStatusCompleteRdkitAndMordre":
     "管理描述符状态；完整的 RDKit 与 Mordred 描述符可在详情和 CSV 导出中查看。",
   "ui.manualEntry": "手工录入",

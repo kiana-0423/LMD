@@ -1,19 +1,16 @@
-import { Button, Card, Empty, Tag, Typography } from "antd";
+import { Button, Card, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
 import LoadingBlock from "../../components/LoadingBlock";
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
-import { getDashboardSummary, listMoleculePage } from "../../lib/api";
-import type { DashboardSummary, Molecule } from "../../types";
+import { getDashboardSummary } from "../../lib/api";
+import type { DashboardSummary } from "../../types";
 import { useLanguage } from "../../i18n/LanguageContext";
 import { backendErrorText } from "../../lib/backendErrors";
-
-const RECENT_MOLECULE_COUNT = 8;
 
 export default function DashboardPage() {
   const { t } = useLanguage();
   const [summary, setSummary] = useState<DashboardSummary>();
-  const [molecules, setMolecules] = useState<Molecule[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
 
@@ -25,13 +22,8 @@ export default function DashboardPage() {
     setLoading(true);
     setErrorText("");
     try {
-      // Only the rows this card renders — the full library is never needed here.
-      const [nextSummary, nextMolecules] = await Promise.all([
-        getDashboardSummary(),
-        listMoleculePage({ page: 1, pageSize: RECENT_MOLECULE_COUNT })
-      ]);
+      const nextSummary = await getDashboardSummary();
       setSummary(nextSummary);
-      setMolecules(nextMolecules.items);
     } catch (error) {
       // Stored raw and translated at render, so a switch of language re-reads it.
       setErrorText(error instanceof Error ? error.message : String(error));
@@ -100,31 +92,6 @@ export default function DashboardPage() {
             {descriptorSummary.map((item) => (
               <MetricRow key={item.label} label={item.label} value={item.value} color={item.color} />
             ))}
-          </div>
-        </Card>
-        <Card size="small" title={t("ui.descriptorHealth")}>
-          {molecules.length === 0 ? (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t("ui.noMoleculeRecordsInTheDatabase")} />
-          ) : (
-            <div className="dashboard-molecule-grid">
-              {molecules.map((item) => (
-                <div className="dashboard-molecule-row" key={item.id}>
-                  <div>
-                    <div className="dashboard-row-label" translate="no">{item.name}</div>
-                    <div className="dashboard-row-subtitle" translate="no">{item.smilesCanonical}</div>
-                  </div>
-                  <Tag color={item.descriptorReady ? "green" : "red"}>{item.descriptorReady ? t("ui.ready"): t("ui.needsAttention")}</Tag>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-        <Card size="small" title={t("ui.jobStatus")}>
-          <div className="dashboard-summary-grid dashboard-summary-grid-single">
-            <MetricRow label={t("ui.totalJobs")} value={summary?.jobCount ?? 0} />
-            <MetricRow label={t("ui.runningOrWaiting")} value={summary?.runningJobCount ?? 0} />
-            <MetricRow label={t("ui.failedJobs")} value={summary?.failedJobCount ?? 0} color="red" />
-            <MetricRow label={t("ui.attachmentRecords")} value={summary?.attachmentCount ?? 0} />
           </div>
         </Card>
       </div>

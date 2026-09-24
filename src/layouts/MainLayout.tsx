@@ -164,7 +164,7 @@ export default function MainLayout() {
           ) : null}
         </Header>
         <Content className={styles.appContent}>
-          {["/experiments", "/formulations/new", "/molecule-entry", "/molecule-sketcher", "/data-mining/molecule-performance", "/data-mining/formulation-prediction"].includes(location.pathname) ? (
+          {["/dashboard", "/experiments", "/formulations/new", "/molecule-entry", "/molecule-sketcher", "/data-mining/molecule-performance", "/data-mining/formulation-prediction"].includes(location.pathname) ? (
             <div className="workspace-fixed-panel">
               <PageErrorBoundary><Outlet /></PageErrorBoundary>
             </div>

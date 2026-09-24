@@ -1215,6 +1215,12 @@ body {
   display: none;
 }
 
+.dashboard-page {
+  height: 100%;
+  align-content: start;
+  overflow-y: auto;
+}
+
 .dashboard-page .two-column-grid {
   align-items: stretch;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);

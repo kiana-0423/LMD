@@ -82,6 +82,10 @@ export default function MoleculeEntryPage() {
         ...values,
         additiveFunctionTags: values.additiveFunctionTags ?? []
       });
+      form.resetFields();
+      setImportError(undefined);
+      setImportReview(undefined);
+      if (fileInput.current) fileInput.current.value = "";
       setSaved(molecule);
       message.success(t("ui.moleculeSavedWithRdkitAndMordredDescriptorRe"));
     } catch (error) {

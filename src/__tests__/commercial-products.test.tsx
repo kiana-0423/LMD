@@ -143,6 +143,78 @@ it("shows batch metadata and the sibling library in Chinese", async () => {
   expect(dialog.getByLabelText("通式（可选）")).toBeTruthy();
 });
 
+it.each([
+  ["New Base Oil", "base_oil"],
+  ["New Additive", "additive"]
+] as const)("selects a product batch from %s without requiring a molecule", async (button, role) => {
+  api.registerCommercialProduct.mockResolvedValue(product);
+  renderWithLanguage(<BaseAdditiveLibraryPage />);
+  fireEvent.click(screen.getByRole("button", { name: button }));
+  const dialog = within(screen.getByRole("dialog"));
+  fireEvent.click(dialog.getByRole("radio", { name: "Commercial Product Library" }));
+  expect(dialog.getByRole("button", { name: "Save" })).toBeDisabled();
+  fireEvent.click(await dialog.findByRole("radio", { name: "Commercial AW-1 · 001" }));
+  expect(dialog.getByText("00042")).toBeTruthy();
+  expect(dialog.queryByRole("combobox", { name: "Representative Molecule" })).toBeNull();
+  fireEvent.click(dialog.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(api.registerCommercialProduct).toHaveBeenCalledWith(product.id, role));
+  await waitFor(() => expect(api.listBaseOilPage).toHaveBeenCalledTimes(2));
+  expect(api.listAdditivePage).toHaveBeenCalledTimes(2);
+  expect(api.createBaseOil).not.toHaveBeenCalled();
+  expect(api.createAdditive).not.toHaveBeenCalled();
+});
+
+it("disables batches already in the target library and keeps a failed selection available for retry", async () => {
+  api.listCommercialProductPage.mockResolvedValue(page([
+    { ...product, id: "registered", batchNumber: "002", additiveId: "a-1" },
+    { ...product, category: "", baseOilId: "b-1" }
+  ]));
+  api.registerCommercialProduct.mockRejectedValueOnce(new Error("Storage unavailable"));
+  renderWithLanguage(<BaseAdditiveLibraryPage />);
+  fireEvent.click(screen.getByRole("button", { name: "New Additive" }));
+  const dialog = within(screen.getByRole("dialog"));
+  fireEvent.click(dialog.getByRole("radio", { name: "Commercial Product Library" }));
+  expect(await dialog.findByRole("radio", { name: "Commercial AW-1 · 002" })).toBeDisabled();
+  fireEvent.click(dialog.getByRole("radio", { name: "Commercial AW-1 · 001" }));
+  fireEvent.click(dialog.getByRole("button", { name: "Save" }));
+  await screen.findByText(/Storage unavailable/);
+  expect(dialog.getByRole("radio", { name: "Commercial AW-1 · 001" })).toBeChecked();
+  await waitFor(() => expect(dialog.getByRole("radio", { name: "Commercial Product Library" })).toBeEnabled());
+  api.registerCommercialProduct.mockResolvedValueOnce(product);
+  fireEvent.click(dialog.getByRole("button", { name: /Save$/ }));
+  await waitFor(() => expect(api.registerCommercialProduct).toHaveBeenCalledTimes(2));
+});
+
+it("pages and searches product batches on the server and clears the previous selection", async () => {
+  api.listCommercialProductPage.mockResolvedValue({ ...page([product]), total: 6, pageSize: 5, hasMore: true });
+  renderWithLanguage(<BaseAdditiveLibraryPage />);
+  fireEvent.click(screen.getByRole("button", { name: "New Base Oil" }));
+  const dialog = within(screen.getByRole("dialog"));
+  fireEvent.click(dialog.getByRole("radio", { name: "Commercial Product Library" }));
+  fireEvent.click(await dialog.findByRole("radio", { name: "Commercial AW-1 · 001" }));
+  fireEvent.click(dialog.getByTitle("2"));
+  await waitFor(() => expect(api.listCommercialProductPage).toHaveBeenCalledWith({ search: "", page: 2, pageSize: 5 }));
+  expect(dialog.getByRole("button", { name: "Save" })).toBeDisabled();
+  const search = dialog.getByRole("searchbox", { name: "Search name, manufacturer, batch or product number" });
+  fireEvent.change(search, { target: { value: "00042" } });
+  fireEvent.keyDown(search, { key: "Enter", code: "Enter", keyCode: 13 });
+  await waitFor(() => expect(api.listCommercialProductPage).toHaveBeenCalledWith({ search: "00042", page: 1, pageSize: 5 }));
+});
+
+it("clears the product choice when switching sources and preserves molecule-based creation", async () => {
+  renderWithLanguage(<BaseAdditiveLibraryPage />);
+  fireEvent.click(screen.getByRole("button", { name: "New Base Oil" }));
+  const dialog = within(screen.getByRole("dialog"));
+  fireEvent.click(dialog.getByRole("radio", { name: "Commercial Product Library" }));
+  fireEvent.click(await dialog.findByRole("radio", { name: "Commercial AW-1 · 001" }));
+  fireEvent.click(dialog.getByRole("radio", { name: "Molecule Library" }));
+  expect(dialog.getByRole("combobox", { name: "Representative Molecule" })).toBeTruthy();
+  fireEvent.change(dialog.getByLabelText("Name"), { target: { value: "New oil" } });
+  fireEvent.click(dialog.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(api.createBaseOil).toHaveBeenCalledWith(expect.objectContaining({ name: "New oil" })));
+  expect(api.registerCommercialProduct).not.toHaveBeenCalled();
+});
+
 it("saves manual properties and custom values across the product and properties tabs", async () => {
   renderWithLanguage(<CommercialProductLibraryPage />);
   fireEvent.click(screen.getByRole("button", { name: "New product" }));

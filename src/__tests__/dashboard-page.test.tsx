@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import DashboardPage from "../features/dashboard/DashboardPage";
 import KetcherTranslationBridge from "../features/molecule-sketcher/KetcherTranslationBridge";
 import { LanguageProvider } from "../i18n/LanguageContext";
 import { renderWithLanguage } from "./renderWithLanguage";
+import MainLayout from "../layouts/MainLayout";
 
 // Built from the real API contract, so a component that calls a function this test never thought
 // about gets a working stub instead of an unhandled rejection.
@@ -66,25 +68,29 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Retry")).toBeTruthy();
   });
 
-  it("shows an empty molecule health state", async () => {
+  it("keeps summary cards without molecule health or job status", async () => {
     apiMock.getDashboardSummary.mockResolvedValueOnce(summary);
-    apiMock.listMoleculePage.mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 8 });
     renderWithLanguage(<DashboardPage />);
-    expect(await screen.findByText("No molecule records in the database.")).toBeTruthy();
+    expect(await screen.findByText("Database Records")).toBeTruthy();
+    expect(screen.getByText("Descriptor Status")).toBeTruthy();
+    expect(screen.queryByText("Descriptor Health")).toBeNull();
+    expect(screen.queryByText("Job Status")).toBeNull();
+    expect(apiMock.listMoleculePage).not.toHaveBeenCalled();
   });
 
-  it("renders loaded dashboard metrics and molecule health", async () => {
+  it("keeps the dashboard in a single workspace without pagination", async () => {
+    window.localStorage.setItem("lmd.language.v2", "en-US");
     apiMock.getDashboardSummary.mockResolvedValueOnce(summary);
-    apiMock.listMoleculePage.mockResolvedValueOnce({
-      items: [{ id: "mol-1", name: "Ethanol", smilesCanonical: "CCO", descriptorReady: true }],
-      total: 1,
-      page: 1,
-      pageSize: 8
-    });
-    renderWithLanguage(<DashboardPage />);
-    await waitFor(() => expect(screen.getByText("Ethanol")).toBeTruthy());
-    expect(screen.getByText("CCO")).toBeTruthy();
-    expect(screen.getByText("Ready")).toBeTruthy();
+    const { container } = render(
+      <LanguageProvider><MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes><Route element={<MainLayout />}><Route path="/dashboard" element={<DashboardPage />} /></Route></Routes>
+      </MemoryRouter></LanguageProvider>
+    );
+    await waitFor(() => expect(screen.getByText("Database Records")).toBeTruthy());
+    expect(container.querySelector(".workspace-fixed-panel .dashboard-page")).toBeTruthy();
+    expect(container.querySelector(".paged-content")).toBeNull();
+    expect(container.querySelector(".stats-grid")?.children).toHaveLength(8);
+    expect(container.querySelector(".dashboard-page .two-column-grid")?.children).toHaveLength(2);
   });
 
   it("renders the dashboard in the saved Chinese language", async () => {

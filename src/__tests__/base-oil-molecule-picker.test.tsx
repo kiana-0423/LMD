@@ -29,7 +29,7 @@ it("offers library selection first and saves the selected molecule association",
   fireEvent.click(screen.getByRole("button", { name: messages["ui.newBaseOil"] }));
   const dialog = await screen.findByRole("dialog");
   const picker = within(dialog).getByRole("combobox", { name: messages["ui.representativeMolecule"] });
-  expect(dialog.querySelector(".ant-form-item")?.contains(picker)).toBe(true);
+  expect(dialog.querySelector(".catalogue-editor-form .ant-form-item")?.contains(picker)).toBe(true);
   fireEvent.mouseDown(picker);
   fireEvent.click(await screen.findByText("Squalane (mol-base)"));
   fireEvent.change(within(dialog).getByLabelText(messages["ui.name"]), { target: { value: "Squalane oil" } });

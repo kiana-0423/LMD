@@ -49,6 +49,7 @@ export const jaJP: MessageCatalogue = {
   "product.deleteConfirm": "この製品ロットを削除しますか？",
   "product.inUse": "この市販品は基油／添加剤ライブラリで参照されています。先に参照先の登録を削除してください。",
   "product.source": "市販品の登録元",
+  "product.chooseHelp": "製品ロットを選択して保存すると、このライブラリに追加されます。追加後に物性や用途情報を編集できます。",
   "product.sourceRecord": "登録元",
   "product.openSource": "製品ロットを表示",
   "product.invalidDate": "有効な製造日を YYYY-MM-DD 形式で入力してください。",
@@ -591,7 +592,7 @@ export const jaJP: MessageCatalogue = {
   "ui.loadingTheKetcherMoleculeEditor": "Ketcher 分子エディターを読み込み中…",
   "ui.lowerSpecimenMaterial": "下部試験片材料",
   "ui.manageBaseOilsThatMayNotHaveSmiles":
-    "SMILES を持たない場合がある基油と、分子ライブラリのレコードに関連付けられた添加剤を管理します。",
+    "分子ライブラリまたは市販製品ライブラリを参照する基油・添加剤を管理します。",
   "ui.manageDescriptorStatusCompleteRdkitAndMordre":
     "記述子の状態を管理します。完全な RDKit および Mordred 記述子は詳細と CSV エクスポートで確認できます。",
   "ui.manualEntry": "手動入力",

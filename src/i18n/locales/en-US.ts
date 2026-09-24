@@ -57,6 +57,7 @@ export const enUS = {
   "product.deleteConfirm": "Delete this product batch?",
   "product.inUse": "This product is referenced by Base Oils / Additives. Remove those references there before deleting this batch.",
   "product.source": "Commercial product source",
+  "product.chooseHelp": "Select a product batch and save to add it to this library. You can then edit its physical properties and application details.",
   "product.sourceRecord": "Source record",
   "product.openSource": "View product batch",
   "product.invalidDate": "Enter a valid production date in YYYY-MM-DD format.",
@@ -602,7 +603,7 @@ export const enUS = {
   "ui.loadingTheKetcherMoleculeEditor": "Loading the Ketcher molecule editor...",
   "ui.lowerSpecimenMaterial": "Lower Specimen Material",
   "ui.manageBaseOilsThatMayNotHaveSmiles":
-    "Manage base oils that may not have SMILES and additives linked to Molecule Library records.",
+    "Manage base oils and additives sourced from the molecule or commercial product library.",
   "ui.manageDescriptorStatusCompleteRdkitAndMordre":
     "Manage descriptor status. Complete RDKit and Mordred descriptors are available in details and CSV exports.",
   "ui.manualEntry": "Manual entry",

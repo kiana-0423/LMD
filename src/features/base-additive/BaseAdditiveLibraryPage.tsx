@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import PagedModal from "../../components/PagedModal";
-import { Button, Card, Descriptions, Form, Input, InputNumber, Modal, Select, Space, Tabs, Table, Tag, message } from "antd";
+import { Button, Card, Descriptions, Form, Input, InputNumber, Modal, Radio, Select, Space, Tabs, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import AsyncBoundary from "../../components/AsyncBoundary";
 import BlockedDeletionDialog from "../../components/BlockedDeletionDialog";
 import MoleculePicker from "../../components/MoleculePicker";
+import CommercialProductPicker from "../../components/CommercialProductPicker";
 import PageHeader from "../../components/PageHeader";
 import {
   createAdditive,
@@ -16,6 +17,7 @@ import {
   deleteBaseOilWithComponents,
   listAdditivePage,
   listBaseOilPage,
+  registerCommercialProduct,
   updateAdditive,
   updateBaseOil
 } from "../../lib/api";
@@ -37,6 +39,8 @@ export default function BaseAdditiveLibraryPage() {
   const [activeTab, setActiveTab] = useState<LibraryTab>("base-oils");
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createSource, setCreateSource] = useState<"molecule" | "product">("molecule");
+  const [selectedProductId, setSelectedProductId] = useState<string>();
   // Set while the modal edits an existing record; cleared for a new one.
   const [editingId, setEditingId] = useState<string>();
   const [editingProductId, setEditingProductId] = useState<string>();
@@ -106,6 +110,8 @@ export default function BaseAdditiveLibraryPage() {
 
   function openCreateModal(tab: LibraryTab) {
     setActiveTab(tab);
+    setCreateSource("molecule");
+    setSelectedProductId(undefined);
     setEditingId(undefined);
     setEditingProductId(undefined);
     if (tab === "base-oils") {
@@ -128,9 +134,14 @@ export default function BaseAdditiveLibraryPage() {
   }
 
   async function handleCreate() {
+    if (creating) return;
     setCreating(true);
     try {
-      if (activeTab === "base-oils") {
+      if (!editingId && createSource === "product") {
+        if (!selectedProductId) return;
+        await registerCommercialProduct(selectedProductId, activeTab === "base-oils" ? "base_oil" : "additive");
+        message.success(t("product.registered"));
+      } else if (activeTab === "base-oils") {
         const values = await baseOilForm.validateFields();
         if (editingId) {
           // Undefined is omitted by JSON; send an explicit clear when the picker is cleared.
@@ -413,10 +424,39 @@ export default function BaseAdditiveLibraryPage() {
         }}
         onOk={handleCreate}
         confirmLoading={creating}
+        okButtonProps={{ disabled: !editingId && createSource === "product" && !selectedProductId }}
         okText={t("ui.save")}
         cancelText={t("ui.cancel")}
       >
-        {activeTab === "base-oils" ? (
+        {!editingId && (
+          <Form layout="vertical" size="small">
+            <Form.Item label={t("product.sourceRecord")}>
+              <Radio.Group
+                value={createSource}
+                disabled={creating}
+                onChange={(event) => {
+                  setCreateSource(event.target.value);
+                  setSelectedProductId(undefined);
+                }}
+                options={[
+                  { value: "molecule", label: t("menu.molecules") },
+                  { value: "product", label: t("menu.products") }
+                ]}
+                optionType="button"
+                buttonStyle="solid"
+              />
+            </Form.Item>
+          </Form>
+        )}
+        {!editingId && createSource === "product" ? (
+          createOpen && <CommercialProductPicker
+            key={activeTab}
+            role={activeTab === "base-oils" ? "base_oil" : "additive"}
+            value={selectedProductId}
+            onChange={setSelectedProductId}
+            disabled={creating}
+          />
+        ) : activeTab === "base-oils" ? (
           <Form form={baseOilForm} layout="vertical" size="small" className="catalogue-editor-form">
             {editingProductId ? <Form.Item className="catalogue-editor-wide" label={t("product.source")}><ProductSource id={editingProductId} /></Form.Item> : (
               <Form.Item className="catalogue-editor-wide" label={t("ui.representativeMolecule")} name="representativeMoleculeId">
