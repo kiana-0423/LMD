@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import ExperimentFields from "../experiments/ExperimentFields";
-import { experimentPayload, performanceFields } from "../../lib/experimentProtocol";
+import ExperimentDetailModal from "../experiments/ExperimentDetailModal";
+import AsyncBoundary from "../../components/AsyncBoundary";
 import PagedModal from "../../components/PagedModal";
 import {
   Alert,
@@ -30,7 +30,6 @@ import {
   deleteFormulation,
   listFormulationExperiments,
   listFormulationPage,
-  updateExperimentRecord,
   updateFormulation
 } from "../../lib/api";
 import { useAsyncResource } from "../../lib/useAsyncResource";
@@ -39,7 +38,7 @@ import { useAsyncResource } from "../../lib/useAsyncResource";
 const PAGE_SIZE = 10;
 import { reportDeletion } from "../../components/DeletionResultNotice";
 import type { MessageKey } from "../../i18n/LanguageContext";
-import type { Experiment, Formulation, PerformanceResult } from "../../types";
+import type { Experiment, Formulation } from "../../types";
 import { backendErrorText } from "../../lib/backendErrors";
 
 export default function FormulationLibraryPage() {
@@ -49,8 +48,7 @@ export default function FormulationLibraryPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Formulation>();
   const [experimentDataFor, setExperimentDataFor] = useState<Formulation>();
-  const [selectedExperiment, setSelectedExperiment] = useState<Experiment>();
-  const [editingExperiment, setEditingExperiment] = useState(false);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string>();
   const [editing, setEditing] = useState<Formulation>();
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm] = Form.useForm();
@@ -235,26 +233,9 @@ export default function FormulationLibraryPage() {
     reportDeletion(result, t, "deletion.experimentDeleted");
   }
 
-  async function saveExperimentCorrection(values: Record<string, unknown>) {
-    if (!selectedExperiment) return;
-    try {
-      const updated = await updateExperimentRecord(selectedExperiment.id, { ...experimentPayload(values), performanceResultId: selectedExperimentResult?.id });
-      // The database is authoritative: re-read rather than trusting local state.
-      await refresh();
-      setSelectedExperiment(updated);
-      setEditingExperiment(false);
-      message.success(t("ui.experimentalDataCorrected"));
-    } catch (error) {
-      message.error(backendErrorText(error, t));
-    }
-  }
-
   // The experiments belonging to the selected blend, read for that blend rather than filtered out
   // of every experiment in the workspace.
   const formulationExperiments = experimentData.data?.experiments ?? [];
-  const selectedExperimentResult = selectedExperiment
-    ? (experimentData.data?.results ?? []).find((item) => item.experimentId === selectedExperiment.id)
-    : undefined;
 
   return (
     <div className="page-grid table-page">
@@ -334,57 +315,42 @@ export default function FormulationLibraryPage() {
           </Button>
         }
       >
-        <Table
-          size="small"
-          rowKey="id"
-          columns={[
-            { title: t("ui.testId"), dataIndex: "id" },
-            { title: t("ui.enteredAt"), dataIndex: "createdAt" },
-            {
-              title: t("ui.actions"),
-              width: 150,
-              render: (_, row: Experiment) => (
-                <Space size={6}>
-                  <Button size="small" onClick={() => setSelectedExperiment(row)}>
-                    {t("ui.view")}
-                  </Button>
-                  <Button size="small" danger onClick={() => deleteExperiment(row.id)}>
-                    {t("ui.delete")}
-                  </Button>
-                </Space>
-              )
-            }
-          ]}
-          loading={experimentData.loading}
-          dataSource={formulationExperiments}
-          pagination={{ pageSize: 5, showSizeChanger: false }}
-        />
-      </PagedModal>
-      <PagedModal
-        width={780}
-        title={t("ui.enteredExperimentalData")}
-        open={Boolean(selectedExperiment)}
-        onCancel={() => {
-          setSelectedExperiment(undefined);
-          setEditingExperiment(false);
-        }}
-        footer={null}
-      >
-        {selectedExperiment && (
-          <ExperimentRecordedDetails
-            item={selectedExperiment}
-            result={selectedExperimentResult}
-            editing={editingExperiment}
-            onEdit={() => setEditingExperiment(true)}
-            onCancelEdit={() => setEditingExperiment(false)}
-            onClose={() => {
-              setSelectedExperiment(undefined);
-              setEditingExperiment(false);
-            }}
-            onSave={saveExperimentCorrection}
+        <AsyncBoundary loading={experimentData.loading} error={experimentData.error} onRetry={experimentData.reload}>
+          <Table
+            size="small"
+            rowKey="id"
+            columns={[
+              { title: t("ui.testId"), dataIndex: "id" },
+              { title: t("ui.enteredAt"), dataIndex: "createdAt" },
+              {
+                title: t("ui.actions"),
+                width: 150,
+                render: (_, row: Experiment) => (
+                  <Space size={6}>
+                    <Button size="small" onClick={() => setSelectedExperimentId(row.id)}>
+                      {t("ui.view")}
+                    </Button>
+                    <Button size="small" danger onClick={() => deleteExperiment(row.id)}>
+                      {t("ui.delete")}
+                    </Button>
+                  </Space>
+                )
+              }
+            ]}
+            loading={experimentData.loading}
+            dataSource={formulationExperiments}
+            pagination={{ pageSize: 5, showSizeChanger: false }}
           />
-        )}
+        </AsyncBoundary>
       </PagedModal>
+      {selectedExperimentId && (
+        <ExperimentDetailModal
+          key={selectedExperimentId}
+          experimentId={selectedExperimentId}
+          onClose={() => setSelectedExperimentId(undefined)}
+          onUpdated={refresh}
+        />
+      )}
       <PagedModal
         width={640}
         title={t("ui.editFormulation")}
@@ -520,124 +486,6 @@ function FormulationDetails({ item }: { item: Formulation }) {
         <Descriptions.Item label={t("ui.created")}>{item.createdAt}</Descriptions.Item>
         <Descriptions.Item label={t("ui.updated")}>{item.updatedAt}</Descriptions.Item>
       </Descriptions>
-    </Card>
-  );
-}
-
-function ExperimentRecordedDetails({
-  item,
-  result,
-  editing,
-  onEdit,
-  onCancelEdit,
-  onClose,
-  onSave
-}: {
-  item: Experiment;
-  result?: PerformanceResult;
-  editing: boolean;
-  onEdit: () => void;
-  onCancelEdit: () => void;
-  onClose: () => void;
-  onSave: (values: Record<string, unknown>) => Promise<void>;
-}) {
-  const { t } = useLanguage();
-  const initialValues = {
-    ...result,
-    ...item,
-    testParameters: {
-      ...item.testParameters,
-      ambientTemperatureC: item.testParameters?.environmentProvenance?.ambientTemperatureC?.source === "mean" ? null : item.testParameters?.ambientTemperatureC,
-      humidityPercent: item.testParameters?.environmentProvenance?.humidityPercent?.source === "mean" ? null : item.testParameters?.humidityPercent
-    },
-    testType: item.testType,
-    testStandard: item.testStandard,
-    instrument: item.instrument,
-    upperMaterial: item.upperMaterial,
-    lowerMaterial: item.lowerMaterial,
-    loadValue: item.loadValue,
-    temperatureValue: item.temperatureValue,
-    durationValue: item.durationValue,
-    averageFrictionCoefficient: result?.averageFrictionCoefficient,
-    stableFrictionCoefficient: result?.stableFrictionCoefficient,
-    wearScarDiameterValue: result?.wearScarDiameterValue,
-    initialOxidationTemperatureValue: result?.initialOxidationTemperatureValue,
-    extremePressureValue: result?.extremePressureValue
-  };
-
-  if (editing) {
-    return (
-      <Card size="small" title={`${item.id} · ${t("ui.correctExperimentalData")}`} className="detail-data-card">
-        <Form layout="vertical" initialValues={initialValues} onFinish={onSave}>
-          <ExperimentFields legacyType={item.testType} />
-          <Space className="modal-action-row">
-            <Button onClick={onCancelEdit}>{t("ui.cancel")}</Button>
-            <Button type="primary" htmlType="submit">
-              {t("ui.saveCorrection")}
-            </Button>
-          </Space>
-        </Form>
-      </Card>
-    );
-  }
-
-  return (
-    <Card size="small" title={`${item.id} · ${item.formulationName}`} className="detail-data-card">
-      <Descriptions size="small" bordered column={2}>
-        <Descriptions.Item label={t("ui.testId")}>{item.id}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.enteredAt")}>{item.createdAt}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.formulationId")}>{item.formulationId}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.formulationName")}>{item.formulationName}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.testType")}>{item.testType}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.testStandard")}>{item.testStandard || "-"}</Descriptions.Item>
-        {item.testParameters?.mode && <Descriptions.Item label={t("test.mode")}>{t(item.testParameters.mode === "reciprocating" ? "test.reciprocating" : "ui.ballOnDiskTest")}</Descriptions.Item>}
-        {([
-          ["strokeMm", "test.stroke", "mm"], ["frequencyHz", "test.frequency", "Hz"], ["radiusMm", "test.radius", "mm"], ["speedRpm", "test.speed", "rpm"],
-          ["ambientTemperatureC", "test.ambientTemperature", "°C"], ["humidityPercent", "test.humidity", "%"]
-        ] as const).map(([key, label, unit]) => item.testParameters?.[key] != null ? <Descriptions.Item key={key} label={t(label)}>
-          {item.testParameters[key]} {unit} {item.testParameters.environmentProvenance?.[key]?.source === "mean" ? t("test.meanValue", { count: item.testParameters.environmentProvenance[key].sampleCount ?? 0 }) : ""}
-        </Descriptions.Item> : null)}
-        {result?.initialDecompositionTemperatureValue != null && <Descriptions.Item label={t("test.decompositionTemperature")}>{result.initialDecompositionTemperatureValue} °C</Descriptions.Item>}
-        {result?.viscosity40c != null && <Descriptions.Item label={t("test.viscosity40")}>{result.viscosity40c} mm²/s</Descriptions.Item>}
-        {result?.viscosity100c != null && <Descriptions.Item label={t("test.viscosity100")}>{result.viscosity100c} mm²/s</Descriptions.Item>}
-
-        <Descriptions.Item label={t("ui.instrument")}>{item.instrument || "-"}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.upperSpecimenMaterial")}>{item.upperMaterial || "-"}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.lowerSpecimenMaterial")}>{item.lowerMaterial || "-"}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.load")}>
-          {item.loadValue ?? "-"} {item.loadUnit ?? ""}
-        </Descriptions.Item>
-        <Descriptions.Item label={t("ui.temperature")}>
-          {item.temperatureValue ?? "-"} {item.temperatureUnit ?? ""}
-        </Descriptions.Item>
-        <Descriptions.Item label={t("ui.duration")}>
-          {item.durationValue ?? "-"} {item.durationUnit ?? ""}
-        </Descriptions.Item>
-        <Descriptions.Item label={t("ui.experimentDate")}>{item.experimentDate || "-"}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.operator")}>{item.operator || "-"}</Descriptions.Item>
-        {([
-          ["averageFrictionCoefficient", "ui.averageFrictionCoefficient", ""],
-          ["stableFrictionCoefficient", "ui.stableFrictionCoefficient", ""],
-          ["wearScarDiameterValue", "ui.wearScarDiameter", "µm"],
-          ["wearScarWidthValue", "metric.wearScarWidth", "µm"],
-          ["initialOxidationTemperatureValue", "ui.initialOxidationTemperature", "°C"],
-          ["extremePressureValue", "ui.extremePressureValue", "N"],
-          ["pbValue", "metric.pbValue", "N"], ["pdValue", "metric.pdValue", "N"]
-        ] as const).filter(([key]) => performanceFields(item.testType, item.temperatureValue).includes(key) || result?.[key] != null)
-          .map(([key, label, unit]) => <Descriptions.Item key={key} label={t(label)}>{result?.[key] ?? "-"} {unit}</Descriptions.Item>)}
-        <Descriptions.Item label={t("ui.repeatCount")}>{result?.repeatCount ?? "-"}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.notes")} span={2}>
-          {item.notes || result?.notes || "-"}
-        </Descriptions.Item>
-        <Descriptions.Item label={t("ui.updated")}>{item.updatedAt}</Descriptions.Item>
-        <Descriptions.Item label={t("ui.performanceUpdated")}>{result?.updatedAt ?? "-"}</Descriptions.Item>
-      </Descriptions>
-      <Space className="modal-action-row">
-        <Button onClick={onClose}>{t("ui.close")}</Button>
-        <Button type="primary" onClick={onEdit}>
-          {t("ui.correct")}
-        </Button>
-      </Space>
     </Card>
   );
 }

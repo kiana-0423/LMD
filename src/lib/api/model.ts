@@ -4,9 +4,21 @@ import { unwrapExport } from "./export";
 import { coded } from "../backendErrors";
 import type { BackendMessage } from "../backendMessages";
 
+export type TrainingDiagnostics = {
+  version: number;
+  cohort: "validation" | "training_only";
+  sample_count: number;
+  points: { id: string; label: string; actual: number; predicted: number; residual: number }[];
+  points_sampled: boolean;
+  residual_mean: number;
+  residual_histogram: { start: number; end: number; count: number }[];
+  provenance: { synthetic_count: number; total_count: number; unmarked_count: number; batch_ids: string[] };
+};
+
 export type ModelMetrics = {
   validation?: { sampleCount?: number; sample_count?: number; r2: number; mae: number; rmse: number };
   training_only?: { sampleCount?: number; sample_count?: number; r2: number; mae: number; rmse: number };
+  diagnostics?: TrainingDiagnostics;
 };
 
 /**

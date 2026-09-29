@@ -1,5 +1,7 @@
 import { openModelExplanation, openModelExample } from "../../lib/modelExplanationApi";
 import WorkspaceTabs from "../../components/WorkspaceTabs";
+import ModelEvaluation from "./ModelEvaluation";
+import { DotChartOutlined } from "@ant-design/icons";
 import {
   Alert,
   Button,
@@ -8,9 +10,9 @@ import {
   Empty,
   Input,
   InputNumber,
+  Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tabs,
   Tooltip,
@@ -147,6 +149,7 @@ export default function ModelWorkbench({
   const [predicting, setPredicting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<TrainingSummary>();
+  const [evaluationModel, setEvaluationModel] = useState<TrainedModel>();
   const [prediction, setPrediction] = useState<PredictionResult>();
   // What the displayed prediction was produced from. When the current inputs no longer match it,
   // the numbers on screen describe something the user is no longer looking at — and rendering
@@ -248,6 +251,7 @@ export default function ModelWorkbench({
     setTraining(false);
     setPredicting(false);
     setSummary(undefined);
+    setEvaluationModel(undefined);
     setTrainingError(undefined);
     setPredictionError(undefined);
   }, [target, datasetMode]);
@@ -525,6 +529,13 @@ export default function ModelWorkbench({
     }
   ];
 
+  modelColumns.push({
+    title: t("model.evaluationTitle"),
+    key: "evaluation",
+    width: 150,
+    render: (_, row) => <Button size="small" aria-label={t("model.evaluationView")} icon={<DotChartOutlined />} onClick={() => setEvaluationModel(row)}>{t("model.evaluationView")}</Button>
+  });
+
   const predictionColumns: ColumnsType<{ id: string; label: string; value: number }> = [
     {
       title: aggregate ? t("model.predictionTarget") : t("model.molecule"),
@@ -722,14 +733,7 @@ export default function ModelWorkbench({
                           <span>{t("model.samples")}: <strong>{summary.sampleCount}</strong></span>
                           <span>{t("model.independentMolecules")}: <strong>{summary.moleculeCount ?? 0}</strong></span>
                         </div>
-                        {trainingScores?.scored ? (
-                          <div className="model-training-metrics">
-                            <Statistic title={trainingScores.heldOut ? t("model.r2HeldOut") : t("model.r2InSample")} value={trainingScores.scored.r2.toFixed(4)} />
-                            <Statistic title={t("model.meanAbsoluteError")} value={trainingScores.scored.mae.toFixed(5)} />
-                            <Statistic title={t("model.rootMeanSquaredError")} value={trainingScores.scored.rmse.toFixed(5)} />
-                            <Statistic title={t("model.scoredOn")} value={trainingScores.scored.sampleCount ?? trainingScores.scored.sample_count ?? 0} />
-                          </div>
-                        ) : <Alert type="info" showIcon message={t("model.trainingNoMetrics")} />}
+                        <ModelEvaluation metrics={summary.metrics ?? {}} unit={metricLabels[target]?.unit} />
                         <Typography.Paragraph type="secondary" ellipsis={{ rows: 1, tooltip: true }}>
                           {t("model.splitPrefix")} {translateMessage(summary.splitMethodMessage, t) || summary.splitMethod}
                           {summary.groupCount > 0 ? ` — ${summary.groupCount} ${t("model.groupSuffix")}` : ""}
@@ -1082,6 +1086,13 @@ export default function ModelWorkbench({
           ) : null}
         </Card>
       </WorkspaceTabs>
+      <Modal open={Boolean(evaluationModel)} onCancel={() => setEvaluationModel(undefined)} footer={null}
+        width={900} title={t("model.evaluationTitle")} destroyOnHidden>
+        {evaluationModel ? <div className="model-evaluation-dialog">
+          <Typography.Paragraph><span translate="no">{evaluationModel.name}</span> · {metricLabel(evaluationModel.target)}</Typography.Paragraph>
+          <ModelEvaluation key={evaluationModel.id} metrics={evaluationModel.metrics ?? {}} unit={metricLabels[evaluationModel.target]?.unit} />
+        </div> : null}
+      </Modal>
     </div>
   );
 }

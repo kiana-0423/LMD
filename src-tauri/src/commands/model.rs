@@ -139,6 +139,7 @@ struct RawJoinRow {
     target: Option<f64>,
     formulation_id: String,
     conditions: ConditionInput,
+    provenance: Value,
 }
 
 /// One training row handed to the sidecar.
@@ -161,6 +162,7 @@ struct TrainingRow {
     basis: ConcentrationBasis,
     /// The experimental context, recorded with the model as its condition coverage.
     conditions: Value,
+    provenance: Value,
 }
 
 /// Which measured results a training dataset is built from.
@@ -291,7 +293,7 @@ fn load_raw_join(
                 c.concentration_value, COALESCE(c.concentration_unit, ''), r.{target_column},
                 e.formulation_id, COALESCE(m.smiles_canonical, ''), COALESCE(e.test_type, ''),
                 e.temperature_value, COALESCE(e.temperature_unit, ''), e.load_value,
-                COALESCE(e.load_unit, '')
+                COALESCE(e.load_unit, ''), COALESCE(r.raw_result_json, '{{}}')
          FROM performance_results r
          JOIN experiments e ON e.id = r.experiment_id
          JOIN formulation_components c ON c.formulation_id = e.formulation_id
@@ -330,11 +332,35 @@ fn load_raw_join(
                     load: row.get(14)?,
                     load_unit: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
                 },
+                provenance: result_provenance(&row.get::<_, String>(16)?),
             })
         })
         .map_err(|err| format!("Failed to query training data: {err}"))?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|err| format!("Failed to read a training row: {err}"))
+}
+
+fn result_provenance(raw: &str) -> Value {
+    let source: Value = serde_json::from_str(raw).unwrap_or(Value::Null);
+    let synthetic = source.get("data_origin").and_then(Value::as_str) == Some("synthetic")
+        || source.get("is_real").and_then(Value::as_bool) == Some(false);
+    json!({
+        "data_origin": if synthetic { "synthetic" } else { "unmarked" },
+        "batch_id": if synthetic { source.get("batch_id").cloned().unwrap_or(Value::Null) } else { Value::Null }
+    })
+}
+
+fn training_provenance(rows: &[TrainingRow]) -> Value {
+    let generated: Vec<_> = rows
+        .iter()
+        .filter(|row| row.provenance["data_origin"] == "synthetic")
+        .collect();
+    let batches: std::collections::BTreeSet<_> = generated
+        .iter()
+        .filter_map(|row| row.provenance["batch_id"].as_str())
+        .collect();
+    json!({ "synthetic_count": generated.len(), "total_count": rows.len(),
+        "unmarked_count": rows.len() - generated.len(), "batch_ids": batches })
 }
 
 /// One measured result: its formulation, its target, its conditions, and the components that
@@ -343,6 +369,7 @@ struct ResultBundle {
     formulation_id: String,
     target: Option<f64>,
     conditions: ConditionInput,
+    provenance: Value,
     components: BTreeMap<String, ComponentInput>,
 }
 
@@ -358,6 +385,7 @@ fn collect_components(raw: Vec<RawJoinRow>) -> (BTreeMap<String, ResultBundle>, 
                 formulation_id: row.formulation_id,
                 target: row.target,
                 conditions: row.conditions,
+                provenance: row.provenance,
                 components: BTreeMap::new(),
             });
         let component = entry
@@ -537,6 +565,7 @@ fn build_training_rows_scoped(
             formulation_id,
             target,
             conditions,
+            provenance,
             components,
         } = bundle;
         if components.len() > 1 {
@@ -624,6 +653,7 @@ fn build_training_rows_scoped(
                         target,
                         basis,
                         conditions: context.clone(),
+                        provenance: provenance.clone(),
                     });
                 }
                 if !produced {
@@ -671,6 +701,7 @@ fn build_training_rows_scoped(
                     target,
                     basis,
                     conditions: context.clone(),
+                    provenance: provenance.clone(),
                 });
             }
         }
@@ -869,6 +900,7 @@ pub fn dataset_summary_scoped(
         "featureOrder": select_feature_order(&rows),
         "datasetMode": mode.as_str(),
         "featureSchemaVersion": FEATURE_SCHEMA_VERSION,
+        "provenance": training_provenance(&rows),
         "report": report.to_json()
     }))
 }
@@ -1071,7 +1103,8 @@ pub async fn train_model(
                 "smiles": row.smiles,
                 "features": row.features,
                 "target": row.target,
-                "conditions": row.conditions
+                "conditions": row.conditions,
+                "provenance": row.provenance
             }))
             .collect::<Vec<_>>()
     });

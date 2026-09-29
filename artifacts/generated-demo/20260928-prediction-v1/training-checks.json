@@ -1,0 +1,66 @@
+[
+  {
+    "data_origin": "synthetic",
+    "is_real": false,
+    "batch_id": "SYNTH-DEMO-20260928-01",
+    "dataset_mode": "additive_component",
+    "target": "extreme_pressure_value",
+    "training_samples": 84,
+    "feature_count": 1474,
+    "independent_groups": 21,
+    "split_method": "GroupShuffleSplit(test_size=0.25, random_state=42) grouped by linked molecules and formulations",
+    "software_training_and_prediction_passed": true,
+    "notice": "This checks software execution on generated data, not real-world predictive validity.",
+    "models_saved_only_in_temporary_directory": "/tmp/lmd-generated-demo-pipeline/SYNTHETIC-NOT-REAL-additive_component.joblib",
+    "example_predictions": [
+      {
+        "id": "SYNTH-DEMO-20260928-01-F001-E2-R",
+        "label": "[生成演示·非真实] D001 | mPAO150 · 先进润滑材料实验室 + L115",
+        "value": 1884.2407955450035
+      },
+      {
+        "id": "SYNTH-DEMO-20260928-01-F002-E2-R",
+        "label": "[生成演示·非真实] D002 | PAO40 · 先进润滑材料实验室 + Dodec-EG-CC",
+        "value": 1912.6933276600057
+      },
+      {
+        "id": "SYNTH-DEMO-20260928-01-F003-E2-R",
+        "label": "[生成演示·非真实] D003 | MF mPAO300 · Mobil + L57",
+        "value": 1955.687987295005
+      }
+    ],
+    "warnings": []
+  },
+  {
+    "data_origin": "synthetic",
+    "is_real": false,
+    "batch_id": "SYNTH-DEMO-20260928-01",
+    "dataset_mode": "formulation_aggregate",
+    "target": "average_friction_coefficient",
+    "training_samples": 126,
+    "feature_count": 1489,
+    "independent_groups": 7,
+    "split_method": "GroupShuffleSplit(test_size=0.25, random_state=42) grouped by linked molecules and formulations",
+    "software_training_and_prediction_passed": true,
+    "notice": "This checks software execution on generated data, not real-world predictive validity.",
+    "models_saved_only_in_temporary_directory": "/tmp/lmd-generated-demo-pipeline/SYNTHETIC-NOT-REAL-formulation_aggregate.joblib",
+    "example_predictions": [
+      {
+        "id": "SYNTH-DEMO-20260928-01-F007-E1-R",
+        "label": "[生成演示·非真实] D007 | PAO20 · 先进润滑材料实验室 + EG2-DBDTC / L115 / EG3-DBDTC",
+        "value": 0.09963519000000026
+      },
+      {
+        "id": "SYNTH-DEMO-20260928-01-F009-E1-R",
+        "label": "[生成演示·非真实] D009 | PAO4 · 先进润滑材料实验室 + NCSA-SC / n-Bu-Ph-BZTA / n-Dodec-CA",
+        "value": 0.09578351500000014
+      },
+      {
+        "id": "SYNTH-DEMO-20260928-01-F010-E1-R",
+        "label": "[生成演示·非真实] D010 | PAO8 · 先进润滑材料实验室 + L115 / EG3-DBDTC / EG2-DBDTC",
+        "value": 0.09458451999999991
+      }
+    ],
+    "warnings": []
+  }
+]

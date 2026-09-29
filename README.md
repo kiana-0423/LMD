@@ -77,9 +77,14 @@ Both import screens use one MOL2 normalization and validation pipeline. It check
 record counts, atom references, duplicate bonds, coordinates and bond types before
 RDKit parsing. Comments, blank record lines, sparse/reordered atom IDs, different
 line endings and missing final newlines are normalized without changing connectivity.
-For Materials Studio exports, `un` bonds are interpreted only in isolated six-member
-sp2 carbon/pyridine-like nitrogen rings: carbon needs one explicit external single
-bond; nitrogen must have only its two ring neighbours. O.co2 labels are reconciled
+For Materials Studio exports, `un` bonds are interpreted only in complete isolated
+or fused six-member sp2 carbon/pyridine-like nitrogen rings. Peripheral carbon needs
+one explicit external single bond; fused carbon has three ring neighbours and no
+external bond; nitrogen must have only its two ring neighbours. The ring system
+must sanitize as neutral and aromatic without radicals; unknown bridges and other
+ring sizes are rejected. An isolated six-member ring with five unknown bonds and
+one explicit closing single bond is also supported; that single bond is retained.
+O.co2 labels are reconciled
 with explicit neutral oxygen valence (two single bonds or one double bond); actual
 terminal carboxylate pairs retain their original typing and charge interpretation.
 Known bond orders are preserved. RDKit must still parse and sanitize the result.
@@ -100,6 +105,12 @@ multi-model PDB files must be split before import. PDB connectivity and bond
 orders may be incomplete, so the canvas includes a review reminder.
 
 ## Test-specific experiment entry
+
+The Experiments & Performance page opens the stored details after a successful
+save. Its Experiment Records button lists previous entries with pagination and
+search by formulation name or test type. Both this list and the formulation
+library open the same detail/correction view, which re-reads the experiment and
+its performance results from the workspace and offers a retry if loading fails.
 
 Experiment entry and correction share a test-type driven form with condition,
 result and environment/record tabs. New entries offer UMT (reciprocating or
@@ -125,6 +136,24 @@ repurposed as ambient temperatures. Schema migration 8 preserves existing rows,
 adds test-parameter provenance and the distinct TGA result, and uses the existing
 pre-migration backup workflow. Corrections to conditions and their selected
 performance result commit or roll back together.
+
+## Training evaluation charts
+
+Both prediction workbenches show R², MAE, RMSE and the evaluated sample count after
+training. Switch between predicted-versus-target, residual and error-distribution
+plots. Residuals mean predicted minus target; errors retain the target's unit.
+R² may be negative and is not a classification accuracy percentage.
+
+Charts use the exact predictions used for scoring, saved before the final refit on
+all training rows. Small datasets show training-only evaluation explicitly. Up to
+1,000 deterministic scatter points are stored; scores and histogram counts use
+every evaluated row. The model registry and saved bundle retain these diagnostics.
+Open **Trained models → View evaluation** to see them again. Earlier models retain
+their existing scores and need retraining to gain charts.
+
+Generated-data markers from performance records travel into the training dataset
+and diagnostics. Evaluations involving generated records show their count and a
+demonstration-only notice. Unmarked records are not automatically labelled as real.
 
 ## Explain molecular predictions with SHAP
 

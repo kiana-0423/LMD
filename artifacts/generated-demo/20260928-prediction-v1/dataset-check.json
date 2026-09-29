@@ -1,0 +1,1854 @@
+[
+  {
+    "mode": "additive_component",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 42,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": true,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 84,
+    "target": "extreme_pressure_value"
+  },
+  {
+    "mode": "additive_component",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 42,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": true,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 84,
+    "target": "pb_value"
+  },
+  {
+    "mode": "additive_component",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 42,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": true,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 84,
+    "target": "pd_value"
+  },
+  {
+    "mode": "additive_component",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 42,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": true,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 84,
+    "target": "initial_oxidation_temperature_value"
+  },
+  {
+    "mode": "additive_component",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 42,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": true,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 84,
+    "target": "initial_decomposition_temperature_value"
+  },
+  {
+    "mode": "formulation_aggregate",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 0,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": false,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 126,
+    "target": "average_friction_coefficient"
+  },
+  {
+    "mode": "formulation_aggregate",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 0,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": false,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 126,
+    "target": "stable_friction_coefficient"
+  },
+  {
+    "mode": "formulation_aggregate",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 0,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": false,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 126,
+    "target": "wear_scar_diameter_value"
+  },
+  {
+    "mode": "formulation_aggregate",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 0,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": false,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 126,
+    "target": "wear_scar_width_value"
+  },
+  {
+    "mode": "formulation_aggregate",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 0,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": false,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 126,
+    "target": "viscosity_40c"
+  },
+  {
+    "mode": "formulation_aggregate",
+    "molecules": 21,
+    "report": {
+      "concentrationBasis": "wt%",
+      "consideredJoins": 1134,
+      "excludedForUnits": 0,
+      "excludedIncompatibleUnits": 0,
+      "excludedMissingConditions": 0,
+      "excludedMissingTarget": 630,
+      "excludedMixedUnits": 0,
+      "excludedMultiAdditive": 0,
+      "excludedNoDescriptors": 0,
+      "excludedNonphysical": 0,
+      "excludedOtherBasis": 0,
+      "excludedOtherTestType": 0,
+      "excludedPartialConcentration": 0,
+      "moleculeCount": 21,
+      "multiAdditiveResultCount": 252,
+      "resultCount": 756,
+      "scope": {
+        "includeConditionFeatures": false,
+        "singleAdditiveOnly": false,
+        "testType": ""
+      },
+      "singleAdditiveResultCount": 504,
+      "warnings": []
+    },
+    "rows": 126,
+    "target": "viscosity_100c"
+  },
+  {
+    "existing_missing_values": [
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "IPPP",
+        "row": "SYNTH-DEMO-20260928-01-F004-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "KY445",
+        "row": "SYNTH-DEMO-20260928-01-F008-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_AXp-7d",
+          "mordred_AXp-7dv",
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "DL-Methionine",
+        "row": "SYNTH-DEMO-20260928-01-F012-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "IPPP",
+        "row": "SYNTH-DEMO-20260928-01-F013-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MDEC-33",
+          "mordred_MINaasC"
+        ],
+        "molecule": "NCSA-SC",
+        "row": "SYNTH-DEMO-20260928-01-F018-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MDEC-33",
+          "mordred_MINaasC"
+        ],
+        "molecule": "NCSA-SC",
+        "row": "SYNTH-DEMO-20260928-01-F021-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "L06",
+        "row": "SYNTH-DEMO-20260928-01-F033-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "n-Bu-Ph-BZTA",
+        "row": "SYNTH-DEMO-20260928-01-F038-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "LK1081",
+        "row": "SYNTH-DEMO-20260928-01-F039-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "IPPP",
+        "row": "SYNTH-DEMO-20260928-01-F041-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "n-Bu-Ph-BZTA",
+        "row": "SYNTH-DEMO-20260928-01-F042-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG2-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F044-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_AXp-7d",
+          "mordred_AXp-7dv",
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "DL-Methionine",
+        "row": "SYNTH-DEMO-20260928-01-F046-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "LK1081",
+        "row": "SYNTH-DEMO-20260928-01-F048-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG3-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F051-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "LK1081",
+        "row": "SYNTH-DEMO-20260928-01-F053-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "n-Bu-Ph-BZTA",
+        "row": "SYNTH-DEMO-20260928-01-F055-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MDEC-33",
+          "mordred_MINaasC"
+        ],
+        "molecule": "NCSA-SC",
+        "row": "SYNTH-DEMO-20260928-01-F058-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "n-Bu-Ph-BZTA",
+        "row": "SYNTH-DEMO-20260928-01-F059-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "D-Sorbitol Monostearate",
+        "row": "SYNTH-DEMO-20260928-01-F060-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "L06",
+        "row": "SYNTH-DEMO-20260928-01-F064-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG2-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F065-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "KY445",
+        "row": "SYNTH-DEMO-20260928-01-F067-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "L06",
+        "row": "SYNTH-DEMO-20260928-01-F068-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG3-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F070-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "D-Sorbitol Monostearate",
+        "row": "SYNTH-DEMO-20260928-01-F072-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MDEC-11"
+        ],
+        "molecule": "L06",
+        "row": "SYNTH-DEMO-20260928-01-F075-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "m-TCP",
+        "row": "SYNTH-DEMO-20260928-01-F076-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "LK1081",
+        "row": "SYNTH-DEMO-20260928-01-F078-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG2-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F080-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG3-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F084-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_AXp-7d",
+          "mordred_AXp-7dv",
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "DL-Methionine",
+        "row": "SYNTH-DEMO-20260928-01-F086-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "KY445",
+        "row": "SYNTH-DEMO-20260928-01-F089-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "D-Sorbitol Monostearate",
+        "row": "SYNTH-DEMO-20260928-01-F092-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "m-TCP",
+        "row": "SYNTH-DEMO-20260928-01-F093-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "IPPP",
+        "row": "SYNTH-DEMO-20260928-01-F095-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MDEC-33",
+          "mordred_MINaasC"
+        ],
+        "molecule": "NCSA-SC",
+        "row": "SYNTH-DEMO-20260928-01-F097-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_AXp-7d",
+          "mordred_AXp-7dv",
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "DL-Methionine",
+        "row": "SYNTH-DEMO-20260928-01-F098-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG3-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F099-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "m-TCP",
+        "row": "SYNTH-DEMO-20260928-01-F101-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "KY445",
+        "row": "SYNTH-DEMO-20260928-01-F110-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MDEC-11",
+          "mordred_MINaasC"
+        ],
+        "molecule": "D-Sorbitol Monostearate",
+        "row": "SYNTH-DEMO-20260928-01-F111-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXaasC",
+          "mordred_MINaasC"
+        ],
+        "molecule": "EG2-DBDTC",
+        "row": "SYNTH-DEMO-20260928-01-F112-E2-R"
+      },
+      {
+        "missing": [
+          "mordred_MAXssCH2",
+          "mordred_MINssCH2"
+        ],
+        "molecule": "m-TCP",
+        "row": "SYNTH-DEMO-20260928-01-F123-E2-R"
+      }
+    ],
+    "features": 1474,
+    "pipeline_export": "additive_component",
+    "prediction_ready_count": 40,
+    "rows": 84,
+    "training_prediction_features_agree": true
+  },
+  {
+    "existing_missing_values": [
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F001",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F001-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F002",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F002-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F003",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F003-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F004",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F004-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F005",
+        "missing": [
+          "base_oil_viscosity_index"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F005-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F006",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F006-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F008",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F008-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F011",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F011-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F012",
+        "missing": [
+          "wavg_mordred_AXp-7d",
+          "wavg_mordred_AXp-7dv",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F012-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F013",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F013-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F014",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MDEO-11"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F014-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F015",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F015-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F016",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F016-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F017",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F017-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F018",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEC-33",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F018-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F019",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F019-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F020",
+        "missing": [
+          "base_oil_viscosity_index"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F020-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F021",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEC-33",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F021-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F022",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F022-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F023",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F023-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F024",
+        "missing": [
+          "base_oil_flash_point"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F024-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F025",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F025-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F026",
+        "missing": [
+          "base_oil_flash_point"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F026-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F028",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F028-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F029",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F029-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F030",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F030-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F031",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F031-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F032",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F032-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F033",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F033-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F034",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F034-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F035",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F035-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F036",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F036-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F037",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F037-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F038",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F038-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F039",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F039-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F040",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F040-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F041",
+        "missing": [
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F041-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F042",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F042-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F043",
+        "missing": [
+          "base_oil_flash_point"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F043-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F044",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F044-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F045",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F045-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F046",
+        "missing": [
+          "wavg_mordred_AXp-7d",
+          "wavg_mordred_AXp-7dv",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F046-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F047",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F047-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F048",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F048-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F049",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F049-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F050",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F050-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F051",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F051-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F052",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F052-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F053",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F053-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F054",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F054-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F055",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F055-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F058",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEC-33",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F058-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F059",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F059-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F060",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F060-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F061",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F061-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F062",
+        "missing": [
+          "base_oil_viscosity_index"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F062-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F063",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F063-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F064",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F064-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F065",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F065-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F066",
+        "missing": [
+          "base_oil_viscosity_index"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F066-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F067",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F067-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F068",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F068-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F070",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F070-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F071",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F071-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F072",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F072-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F074",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F074-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F075",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F075-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F076",
+        "missing": [
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F076-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F077",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F077-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F078",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F078-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F079",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F079-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F080",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F080-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F081",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F081-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F082",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F082-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F084",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F084-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F086",
+        "missing": [
+          "wavg_mordred_AXp-7d",
+          "wavg_mordred_AXp-7dv",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F086-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F088",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F088-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F089",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F089-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F090",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F090-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F091",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F091-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F092",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F092-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F093",
+        "missing": [
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F093-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F094",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F094-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F095",
+        "missing": [
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F095-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F096",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F096-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F097",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MDEC-33",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F097-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F098",
+        "missing": [
+          "wavg_mordred_AXp-7d",
+          "wavg_mordred_AXp-7dv",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F098-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F099",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F099-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F100",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F100-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F101",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F101-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F102",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F102-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F103",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F103-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F104",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F104-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F105",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F105-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F106",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F106-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F107",
+        "missing": [
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F107-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F108",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F108-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F110",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO",
+          "wavg_mordred_MINssCH2"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F110-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F111",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEC-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F111-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F112",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXaasC",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINaasC"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F112-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F113",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F113-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F114",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F114-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F115",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F115-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F117",
+        "missing": [
+          "base_oil_viscosity_index",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F117-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F118",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F118-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F120",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F120-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F121",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MINaaCH",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F121-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F122",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F122-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F123",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXssCH2",
+          "wavg_mordred_MAXssNH",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINssCH2",
+          "wavg_mordred_MINssNH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F123-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F124",
+        "missing": [
+          "wavg_mordred_MAXaaCH",
+          "wavg_mordred_MINaaCH"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F124-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F125",
+        "missing": [
+          "base_oil_flash_point",
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F125-E1-R"
+      },
+      {
+        "formulation": "SYNTH-DEMO-20260928-01-F126",
+        "missing": [
+          "wavg_mordred_MAXdO",
+          "wavg_mordred_MDEO-11",
+          "wavg_mordred_MINdO"
+        ],
+        "row": "SYNTH-DEMO-20260928-01-F126-E1-R"
+      }
+    ],
+    "features": 1489,
+    "pipeline_export": "formulation_aggregate",
+    "prediction_ready_count": 14,
+    "rows": 126,
+    "training_prediction_features_agree": true
+  }
+]

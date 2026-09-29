@@ -79,6 +79,46 @@ def test_training_produces_a_loadable_model_on_a_synthetic_fixture(tmp_path):
     assert result["split_method"].startswith("train_test_split")
 
 
+def test_evaluation_plots_use_the_scored_holdout_before_refitting_and_are_saved(tmp_path):
+    import joblib
+    import numpy as np
+    from sklearn.model_selection import GroupShuffleSplit
+
+    path = build_dataset(tmp_path, 48, group_size=4)
+    dataset = json.loads(path.read_text())
+    # Noise makes the holdout predictions different from the final fit on all rows.
+    for i, row in enumerate(dataset["rows"]):
+        row["target"] += float(np.random.default_rng(i).normal(0, 0.4))
+        row["label"] = f"Sample {i}"
+        row["provenance"] = {"data_origin": "synthetic", "batch_id": "demo"} if i < 12 else {}
+    path.write_text(json.dumps(dataset))
+    model_path = tmp_path / "evaluation.joblib"
+    result, _ = train_model({"dataset_path": str(path), "model_path": str(model_path), "algorithm": "random_forest"})
+    diagnostics = result["metrics"]["diagnostics"]
+    scores = result["metrics"]["validation"]
+    points = diagnostics["points"]
+    assert diagnostics["cohort"] == "validation"
+    assert diagnostics["sample_count"] == scores["sample_count"] == len(points)
+    residuals = np.array([point["residual"] for point in points])
+    actual = np.array([point["actual"] for point in points])
+    assert np.mean(np.abs(residuals)) == pytest.approx(scores["mae"])
+    assert np.sqrt(np.mean(residuals ** 2)) == pytest.approx(scores["rmse"])
+    assert 1 - sum(residuals ** 2) / sum((actual - actual.mean()) ** 2) == pytest.approx(scores["r2"])
+    assert sum(bin["count"] for bin in diagnostics["residual_histogram"]) == len(points)
+    assert all(point["predicted"] - point["actual"] == pytest.approx(point["residual"]) for point in points)
+    _, heldout = next(GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=42).split(
+        np.zeros((48, 1)), groups=[row["group_id"] for row in dataset["rows"]]))
+    assert {point["id"] for point in points} == {dataset["rows"][i]["id"] for i in heldout}
+    bundle = joblib.load(model_path)
+    assert bundle["metrics"] == result["metrics"]
+    assert bundle["data_provenance"] == {"synthetic_count": 12, "total_count": 48, "unmarked_count": 36, "batch_ids": ["demo"]}
+    final_fit, _ = predict_with_model({"model_path": str(model_path), "items": [
+        {"id": row["id"], "features": row["features"]} for row in dataset["rows"] if row["id"] in {point["id"] for point in points}
+    ]})
+    saved = {point["id"]: point["predicted"] for point in points}
+    assert any(abs(pred["value"] - saved[pred["id"]]) > 1e-5 for pred in final_fit["predictions"])
+
+
 def test_small_dataset_reports_in_sample_metrics_and_warns(tmp_path):
     dataset = build_dataset(tmp_path, 14)
     model_path = tmp_path / "small.joblib"
@@ -86,6 +126,8 @@ def test_small_dataset_reports_in_sample_metrics_and_warns(tmp_path):
     result, warnings = train_model({"dataset_path": str(dataset), "model_path": str(model_path)})
 
     assert "training_only" in result["metrics"]
+    assert result["metrics"]["diagnostics"]["cohort"] == "training_only"
+    assert result["metrics"]["diagnostics"]["sample_count"] == 14
     assert any(warning["code"] == "training.smallSample" for warning in warnings)
     assert any("in-sample" in warning["detail"] for warning in warnings)
 
@@ -277,7 +319,10 @@ def test_a_constant_target_does_not_produce_nan_metrics(tmp_path):
     # Whatever is reported must survive a JSON round trip, which NaN does not.
     encoded = json.dumps(result, allow_nan=False)
     assert "NaN" not in encoded
-    for block in result["metrics"].values():
+    for name in ("validation", "training_only"):
+        block = result["metrics"].get(name)
+        if block is None:
+            continue
         for key in ("r2", "mae", "rmse"):
             assert block[key] == block[key]  # not NaN
     assert (

@@ -1,0 +1,282 @@
+{
+  "workspace": "/Users/can/Library/Application Support/com.lmd.desktop/LMD_Workspace",
+  "backup": "/Users/can/Library/Application Support/com.lmd.desktop/LMD_Workspace/backups/before-mol2-import-20260928T092602531578Z.sqlite",
+  "imported_at": "2026-09-28T09:26:02.531578+00:00",
+  "records": [
+    {
+      "name": "L57",
+      "id": "64384483-9b28-44f2-bd80-453813955fee",
+      "status": "imported",
+      "formula": "C24H35N",
+      "smiles": "CCCCCCCCc1ccc(Nc2ccc(CCCC)cc2)cc1",
+      "inferred_bond_ids": [
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16"
+      ],
+      "normalized_atom_types": [],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "07bbd69b36d368fa583cde7226946b9de0db4c4df6e4d3aed76d7d9709b6a810",
+      "original_attachment": "files/attachments/014fb9ad-9f4f-417e-b31a-e34821f35db6.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 11 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16). Review the structure before saving."
+      ]
+    },
+    {
+      "name": "L67",
+      "id": "a1b22b7e-e280-4a18-bf02-5c3f98d415bf",
+      "status": "imported",
+      "formula": "C30H47N",
+      "smiles": "CCCCCCCCCc1ccc(Nc2ccc(CCCCCCCCC)cc2)cc1",
+      "inferred_bond_ids": [
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22"
+      ],
+      "normalized_atom_types": [],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "0842a3acaa87a751f3a549cfe6d9c8d05b912277852090e8d4e173cd4ffd9711",
+      "original_attachment": "files/attachments/01fa840b-d030-4bc6-822b-ba03192bcc34.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 12 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22). Review the structure before saving."
+      ]
+    },
+    {
+      "name": "L115",
+      "id": "dfd11a72-9e79-4742-a627-1e726f4e17e2",
+      "status": "imported",
+      "formula": "C38H58O6S",
+      "smiles": "CC(C)(C)c1cc(CCC(=O)OCCSCCOC(=O)CCc2cc(C(C)(C)C)c(O)c(C(C)(C)C)c2)cc(C(C)(C)C)c1O",
+      "inferred_bond_ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45"
+      ],
+      "normalized_atom_types": [
+        "13:O.co2->O.3",
+        "14:O.co2->O.2",
+        "32:O.co2->O.2",
+        "33:O.co2->O.3"
+      ],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "4051786a4bfc78ea8bcf7710d00f2964bc20ddf74af753f0339c23742d8524c7",
+      "original_attachment": "files/attachments/d1a53aaa-b3c7-4925-8bd4-962e53d83fe1.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 12 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 1, 2, 3, 4, 5, 6, 40, 41, 42, 43, 44, 45). Review the structure before saving.",
+        "MOL2: normalized oxygen atom types from explicit bond orders (atom IDs and changes: 13:O.co2->O.3, 14:O.co2->O.2, 32:O.co2->O.2, 33:O.co2->O.3). Review the structure before saving."
+      ]
+    },
+    {
+      "name": "L135",
+      "id": "cb9f5b8a-a831-4675-a94d-8be8ac695155",
+      "status": "imported",
+      "formula": "C25H42O3",
+      "smiles": "CCCCCCCCOC(=O)CCc1cc(C(C)(C)C)c(O)c(C(C)(C)C)c1",
+      "inferred_bond_ids": [
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13"
+      ],
+      "normalized_atom_types": [
+        "13:O.co2->O.3",
+        "14:O.co2->O.2"
+      ],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "e1365072a6c68bb514e7b8fffb6018e4d9426b54cc5e2eb7d12ccc9d53becfd5",
+      "original_attachment": "files/attachments/f6b637c0-9262-41e4-b83c-ecf9b3fffb55.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 6 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 8, 9, 10, 11, 12, 13). Review the structure before saving.",
+        "MOL2: normalized oxygen atom types from explicit bond orders (atom IDs and changes: 13:O.co2->O.3, 14:O.co2->O.2). Review the structure before saving."
+      ]
+    },
+    {
+      "name": "LK1081",
+      "id": "017ce9e6-c923-4747-939a-87a7ee73144b",
+      "status": "imported",
+      "formula": "C22H30O2S",
+      "smiles": "Cc1cc(Sc2cc(C)cc(C(C)(C)C)c2O)c(O)c(C(C)(C)C)c1",
+      "inferred_bond_ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20"
+      ],
+      "normalized_atom_types": [],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "acb59bdae25b1ee1712041106b85f3575a180ca9bd4a2fded7fe967e3b07aaf8",
+      "original_attachment": "files/attachments/de1065e3-eca9-4b67-8a85-6846d406c4b9.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 12 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 1, 2, 3, 4, 5, 6, 15, 16, 17, 18, 19, 20). Review the structure before saving."
+      ]
+    },
+    {
+      "name": "m-TCP",
+      "id": "1abbeb3e-ae16-4d79-8e7e-034f7e80446c",
+      "status": "imported",
+      "formula": "C21H21O4P",
+      "smiles": "Cc1cccc(OP(=O)(Oc2cccc(C)c2)Oc2cccc(C)c2)c1",
+      "inferred_bond_ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25"
+      ],
+      "normalized_atom_types": [
+        "7:O.co2->O.3",
+        "9:O.co2->O.3",
+        "10:O.co2->O.3",
+        "11:O.co2->O.2"
+      ],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "5a73dd56605f4c09af2728475f511a96aa7017a1bcabf107579fb5a534029702",
+      "original_attachment": "files/attachments/393ab46c-5ea3-4858-850f-64a1f31176a9.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 18 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 1, 2, 3, 4, 5, 6, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25). Review the structure before saving.",
+        "MOL2: normalized oxygen atom types from explicit bond orders (atom IDs and changes: 7:O.co2->O.3, 9:O.co2->O.3, 10:O.co2->O.3, 11:O.co2->O.2). Review the structure before saving."
+      ]
+    },
+    {
+      "name": "n-Bu-Ph-BZTA",
+      "id": "72a3d1bc-69a9-4ce7-9815-415c09039c27",
+      "status": "imported",
+      "formula": "C17H18N2S",
+      "smiles": "CCCCc1ccc(Nc2nc3ccccc3s2)cc1",
+      "inferred_bond_ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18"
+      ],
+      "normalized_atom_types": [],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "e9c3cd15f0a552602baf62b881b3c926b9abbb9ea137b54a534ffea26e9bf600",
+      "original_attachment": "files/attachments/ef8bc8c5-d422-4b03-b093-a4922ad203f3.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 12 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18). Review the structure before saving."
+      ]
+    },
+    {
+      "name": "n-Dodec-CA",
+      "id": "3a7e2c30-6ef0-4c58-87a1-be26441131bb",
+      "status": "imported",
+      "formula": "C45H81N3O9",
+      "smiles": "CCCCCCCCCCCCOC(=O)COc1nc(OCC(=O)OCCCCCCCCCCCC)nc(OCC(=O)OCCCCCCCCCCCC)n1",
+      "inferred_bond_ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "normalized_atom_types": [
+        "15:O.co2->O.3",
+        "16:O.co2->O.3",
+        "18:O.co2->O.3",
+        "19:O.co2->O.2",
+        "20:O.co2->O.2",
+        "21:O.co2->O.2"
+      ],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "253273f2a0d71e240f9ce0e8632152fd338b86871aff60164c392ce792d603c3",
+      "original_attachment": "files/attachments/3ba5204d-de89-424f-8e7d-1365029309cc.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": [
+        "MOL2: inferred aromatic bond orders for 6 unknown bonds in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: 1, 2, 3, 4, 5, 6). Review the structure before saving.",
+        "MOL2: normalized oxygen atom types from explicit bond orders (atom IDs and changes: 15:O.co2->O.3, 16:O.co2->O.3, 18:O.co2->O.3, 19:O.co2->O.2, 20:O.co2->O.2, 21:O.co2->O.2). Review the structure before saving.",
+        "Automatic 3D generation did not converge; validated source MOL2 coordinates were retained instead."
+      ]
+    },
+    {
+      "name": "NCSA-SC",
+      "id": "db6ba94c-2aee-43fb-b4a5-5161101d01f4",
+      "status": "imported",
+      "formula": "C16H33NO2S2",
+      "smiles": "CCCCCCCCSCCS(=O)(=O)NC1CCCCC1",
+      "inferred_bond_ids": [],
+      "normalized_atom_types": [],
+      "rdkit_count": 27,
+      "mordred_count": 1613,
+      "source_sha256": "0b5507ede390544c44844e10816cafd8d190a5f38fe3391986ec3b0b115db7b8",
+      "original_attachment": "files/attachments/7641d010-2218-4eca-92b8-89f2fef79a8f.mol2",
+      "three_d_source": "Original MOL2 coordinates, with inferred bond orders disclosed in notes.",
+      "warnings": []
+    }
+  ],
+  "count_before": 12,
+  "count_after": 21
+}

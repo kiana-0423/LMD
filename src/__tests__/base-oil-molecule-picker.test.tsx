@@ -6,7 +6,7 @@ import { renderWithLanguage } from "./renderWithLanguage";
 import { messagesForLanguage } from "../i18n/catalogues";
 
 const api = vi.hoisted(() => ({
-  listMoleculePage: vi.fn(), listBaseOilPage: vi.fn(), createBaseOil: vi.fn(), updateBaseOil: vi.fn()
+  listMoleculePage: vi.fn(), listBaseOils: vi.fn(), createBaseOil: vi.fn(), updateBaseOil: vi.fn()
 }));
 vi.mock("../lib/api", async () => {
   const { createApiMock } = await import("./apiMock");
@@ -18,7 +18,7 @@ const messages = messagesForLanguage("en-US");
 beforeEach(() => {
   vi.clearAllMocks();
   api.listMoleculePage.mockResolvedValue({ items: [{ id: "mol-base", name: "Squalane" }], total: 1 });
-  api.listBaseOilPage.mockResolvedValue({ items: [], total: 0 });
+  api.listBaseOils.mockResolvedValue([]);
   api.createBaseOil.mockResolvedValue({});
   api.updateBaseOil.mockResolvedValue({});
 });
@@ -40,7 +40,7 @@ it("offers library selection first and saves the selected molecule association",
 });
 
 it("retains the linked molecule during editing and explicitly clears it when requested", async () => {
-  api.listBaseOilPage.mockResolvedValue({ items: [{ id: "oil-1", name: "Squalane oil", representativeMoleculeId: "mol-base" }], total: 1 });
+  api.listBaseOils.mockResolvedValue([{ id: "oil-1", name: "Squalane oil", representativeMoleculeId: "mol-base" }]);
   renderWithLanguage(<BaseAdditiveLibraryPage />);
   fireEvent.click(await screen.findByRole("button", { name: messages["ui.edit"] }));
   const dialog = await screen.findByRole("dialog");

@@ -8,6 +8,7 @@ import { messagesForLanguage } from "../i18n/catalogues";
 
 const explanationMock = vi.hoisted(() => ({ openModelExplanation: vi.fn(), openModelExample: vi.fn() }));
 vi.mock("../lib/modelExplanationApi", () => explanationMock);
+vi.mock("../components/EChartCanvas", () => ({ default: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
 
 const apiMock = vi.hoisted(() => ({}) as Record<string, ReturnType<typeof vi.fn>>);
 vi.mock("../lib/api", async () => {
@@ -109,6 +110,26 @@ async function predictOnce() {
 }
 
 describe("a prediction is never shown for inputs that changed", () => {
+  it("reopens saved evaluation plots from the model library without retraining", async () => {
+    seed();
+    apiMock.listModels.mockResolvedValue([{ ...MODEL, metrics: {
+      validation: { r2: 0.5, mae: 0.1, rmse: 0.1, sample_count: 2 },
+      diagnostics: { version: 1, cohort: "validation", sample_count: 2, points_sampled: false, residual_mean: 0,
+        points: [{ id: "a", label: "A", actual: 0.1, predicted: 0.2, residual: 0.1 },
+          { id: "b", label: "B", actual: 0.3, predicted: 0.2, residual: -0.1 }],
+        residual_histogram: [{ start: -0.1, end: 0.1, count: 2 }],
+        provenance: { synthetic_count: 24, total_count: 24, unmarked_count: 0, batch_ids: ["demo"] }
+      }
+    } }]);
+    renderWithLanguage(<MoleculePerformancePredictionPage />);
+    fireEvent.click(screen.getByRole("tab", { name: en["model.modelsTitle"] }));
+    fireEvent.click(await screen.findByRole("button", { name: en["model.evaluationView"] }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("img", { name: en["model.evaluationParity"] })).toBeTruthy();
+    expect(within(dialog).getByText(/24\/24 training rows are generated/)).toBeTruthy();
+    expect(apiMock.trainModel).not.toHaveBeenCalled();
+  });
+
   it("opens the teaching case with no registered model or selected molecules", async () => {
     seed();
     apiMock.listModels.mockResolvedValue([]);

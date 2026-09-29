@@ -179,6 +179,35 @@ fn warning_details(summary: &serde_json::Value) -> String {
 }
 
 #[test]
+fn generated_data_provenance_survives_joins_and_counts_only_included_results() {
+    let workspace = Workspace::new("synthetic-provenance");
+    let connection = workspace.open();
+    seed_blends(&connection, "wt%");
+    connection.execute(
+        "UPDATE performance_results SET raw_result_json = ?1 WHERE id = 'res-00'",
+        [r#"{"data_origin":"synthetic","is_real":false,"batch_id":"demo"}"#],
+    ).unwrap();
+    connection.execute(
+        "UPDATE performance_results SET raw_result_json = 'invalid old json' WHERE id = 'res-01'", [],
+    ).unwrap();
+    for (mode, total, generated) in [("formulation_aggregate", 12, 1), ("additive_component", 24, 2)] {
+        let summary = dataset_summary(&connection, TARGET, "rdkit", mode).unwrap();
+        assert_eq!(summary["provenance"]["total_count"], total);
+        assert_eq!(summary["provenance"]["synthetic_count"], generated);
+        assert_eq!(summary["provenance"]["unmarked_count"], total - generated);
+        assert_eq!(summary["provenance"]["batch_ids"], serde_json::json!(["demo"]));
+    }
+    connection.execute(
+        "UPDATE performance_results SET average_friction_coefficient = NULL WHERE id = 'res-00'", [],
+    ).unwrap();
+    let summary = dataset_summary(&connection, TARGET, "rdkit", "formulation_aggregate").unwrap();
+    assert_eq!(summary["provenance"]["synthetic_count"], 0);
+    assert_eq!(summary["provenance"]["total_count"], 11);
+    drop(connection);
+    workspace.cleanup();
+}
+
+#[test]
 fn an_aggregate_model_can_predict_a_formulation_without_missing_every_wavg_feature() {
     let workspace = Workspace::new("aggregate");
     let connection = workspace.open();

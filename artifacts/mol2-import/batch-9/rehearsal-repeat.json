@@ -1,0 +1,63 @@
+{
+  "workspace": "/private/tmp/lmd-mol2-batch-9-staging",
+  "backup": "/private/tmp/lmd-mol2-batch-9-staging/backups/before-mol2-import-20260928T092513426762Z.sqlite",
+  "imported_at": "2026-09-28T09:25:13.426762+00:00",
+  "records": [
+    {
+      "name": "L57",
+      "status": "already_present",
+      "id": "46efbe02-ef73-4012-8771-f439ba9384e1",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "L67",
+      "status": "already_present",
+      "id": "dcd726c1-746c-41e0-81b1-8820031c1d27",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "L115",
+      "status": "already_present",
+      "id": "ebf300ee-8ea8-485a-99f5-dbf68dab1dfa",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "L135",
+      "status": "already_present",
+      "id": "86b3629e-98cd-4016-b49a-7f990d924ad3",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "LK1081",
+      "status": "already_present",
+      "id": "5142f823-e014-48cc-8ab8-e5b7386d1d2e",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "m-TCP",
+      "status": "already_present",
+      "id": "a09f798a-6a7f-4a0a-88fd-87baef16fca0",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "n-Bu-Ph-BZTA",
+      "status": "already_present",
+      "id": "97932e12-5fef-42a8-84a7-a7339d271507",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "n-Dodec-CA",
+      "status": "already_present",
+      "id": "51e69a2c-cbce-4a23-aa55-3cdd112dbc52",
+      "descriptor_ready": 1
+    },
+    {
+      "name": "NCSA-SC",
+      "status": "already_present",
+      "id": "a2b2e79a-0bac-4f63-9c76-a71fb4da09f7",
+      "descriptor_ready": 1
+    }
+  ],
+  "count_before": 21,
+  "count_after": 21
+}

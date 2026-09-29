@@ -348,7 +348,10 @@ def train_model(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     molecule_ids = {molecule for row in kept_rows for molecule in _row_molecule_ids(row)}
     split_method = "none"
 
+    from .training_diagnostics import evaluation_diagnostics, training_provenance
+
     metrics: dict[str, Any] = {}
+    provenance = training_provenance(dataset, kept_rows)
     validation_unavailable_reason = ""
     if len(targets) >= MIN_SAMPLES_FOR_VALIDATION and has_groups and distinct_groups < MIN_GROUPS_FOR_VALIDATION:
         validation_unavailable_reason = "too_few_groups"
@@ -413,6 +416,7 @@ def train_model(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
             fitted = pipeline.predict(features)
             in_sample = _score(tools, np, targets, fitted)
             metrics = {"training_only": in_sample} if in_sample else {}
+            diagnostics = evaluation_diagnostics(np, kept_rows, targets, fitted, "training_only", provenance)
             split_method += " (not scoreable; fell back to in-sample metrics)"
         else:
             held_out_rows = [kept_rows[index] for index in valid_index]
@@ -422,6 +426,8 @@ def train_model(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
             scored["group_count"] = len({groups[index] for index in valid_index})
             scored["grouping"] = grouping
             metrics = {"validation": scored}
+            # Preserve held-out predictions before the saved pipeline is fitted on all rows.
+            diagnostics = evaluation_diagnostics(np, held_out_rows, y_valid, predicted, "validation", provenance)
             # Refit on everything so the saved model uses all available evidence.
             pipeline.fit(features, targets)
     else:
@@ -430,6 +436,7 @@ def train_model(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         fitted = pipeline.predict(features)
         in_sample = _score(tools, np, targets, fitted)
         metrics = {"training_only": in_sample} if in_sample else {}
+        diagnostics = evaluation_diagnostics(np, kept_rows, targets, fitted, "training_only", provenance)
         if not validation_unavailable_reason:
             warnings.append(
                 message(
@@ -442,6 +449,7 @@ def train_model(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
                 )
             )
 
+    metrics["diagnostics"] = diagnostics
     domain = _domain_summary(np, kept_rows, feature_order, features, targets)
     domain["split_grouping"] = grouping
     domain["leakage_group_count"] = distinct_groups
@@ -466,6 +474,8 @@ def train_model(payload: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         "sklearn_version": tools["sklearn_version"],
         "python_version": platform.python_version(),
         "domain": domain,
+        "metrics": metrics,
+        "data_provenance": provenance,
     }
     # A bounded, reproducible reference from the exact rows/columns fitted here.
     # Never reconstruct an explanation background from a subsequently edited database.

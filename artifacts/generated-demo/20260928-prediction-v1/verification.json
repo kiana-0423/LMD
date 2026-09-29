@@ -1,0 +1,49 @@
+{
+  "batch_id": "SYNTH-DEMO-20260928-01",
+  "counts": {
+    "formulations": 126,
+    "formulation_components": 315,
+    "experiments": 756,
+    "performance_results": 756,
+    "data_sources": 1
+  },
+  "integrity": "ok",
+  "all_records_marked_synthetic": true,
+  "all_formulation_totals_wt_percent": 100,
+  "original_database_rows_match_backup": true,
+  "record_counts": {
+    "base_oils": 17,
+    "additives": 21,
+    "molecules": 21,
+    "formulations": 126,
+    "formulation_components": 315,
+    "experiments": 756,
+    "performance_results": 756,
+    "models": 0
+  },
+  "experiment_types": {
+    "PDSC": 126,
+    "TE77": 126,
+    "TGA": 126,
+    "four-ball": 126,
+    "kinematic-viscosity": 252
+  },
+  "all_sources_covered": {
+    "base_oils": 17,
+    "additives": 21
+  },
+  "single_additive_formulations": 84,
+  "synthetic_result_flags": 756,
+  "synthetic_environment_excluded_from_measured_defaults": true,
+  "cleanup_preview": {
+    "status": "preview_only",
+    "batch_id": "SYNTH-DEMO-20260928-01",
+    "would_delete": {
+      "formulations": 126,
+      "formulation_components": 315,
+      "experiments": 756,
+      "performance_results": 756,
+      "data_sources": 1
+    }
+  }
+}

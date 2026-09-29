@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import PagedModal from "../../components/PagedModal";
 import { Button, Card, Descriptions, Form, Input, InputNumber, Modal, Radio, Select, Space, Tabs, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import AsyncBoundary from "../../components/AsyncBoundary";
 import BlockedDeletionDialog from "../../components/BlockedDeletionDialog";
 import MoleculePicker from "../../components/MoleculePicker";
@@ -15,8 +15,8 @@ import {
   deleteAdditiveWithComponents,
   deleteBaseOil,
   deleteBaseOilWithComponents,
-  listAdditivePage,
-  listBaseOilPage,
+  listAdditives,
+  listBaseOils,
   registerCommercialProduct,
   updateAdditive,
   updateBaseOil
@@ -25,10 +25,7 @@ import { additiveFunctionLabelKeys, additiveFunctionTags } from "../../lib/const
 import type { Additive, BaseOil, DeletionOutcome } from "../../types";
 import { useLanguage, type MessageKey } from "../../i18n/LanguageContext";
 import { backendErrorText } from "../../lib/backendErrors";
-import { useAsyncAction, useAsyncResource } from "../../lib/useAsyncResource";
-
-/** How many rows one page of either table holds. */
-const PAGE_SIZE = 25;
+import { useAsyncAction, useAsyncResource, type AsyncResource } from "../../lib/useAsyncResource";
 
 type LibraryTab = "base-oils" | "additives";
 
@@ -54,18 +51,9 @@ export default function BaseAdditiveLibraryPage() {
     kind: LibraryTab;
   }>();
 
-  // Server-side paging. The tables used to load every base oil and every additive on mount, and
-  // then render twenty-five of them.
-  const [baseOilPage, setBaseOilPage] = useState(1);
-  const [additivePage, setAdditivePage] = useState(1);
-  const baseOils = useAsyncResource(
-    () => listBaseOilPage({ page: baseOilPage, pageSize: PAGE_SIZE }),
-    [baseOilPage]
-  );
-  const additives = useAsyncResource(
-    () => listAdditivePage({ page: additivePage, pageSize: PAGE_SIZE }),
-    [additivePage]
-  );
+  // The scrollable lists show every record; counts and row numbers use the same complete data.
+  const baseOils = useAsyncResource(listBaseOils);
+  const additives = useAsyncResource(listAdditives);
 
   async function refresh() {
     baseOils.reload();
@@ -172,7 +160,7 @@ export default function BaseAdditiveLibraryPage() {
     }
   }
 
-  const baseOilOptions = (baseOils.data?.items ?? []).map((baseOil: BaseOil) => ({
+  const baseOilOptions = (baseOils.data ?? []).map((baseOil: BaseOil) => ({
     value: baseOil.name,
     label: baseOil.name
   }));
@@ -182,14 +170,15 @@ export default function BaseAdditiveLibraryPage() {
   }));
 
   const baseOilColumns: ColumnsType<BaseOil> = [
+    { title: t("baseAdditive.rowNumber"), key: "number", width: 64, render: (_, _row, index) => index + 1 },
     { title: "ID", dataIndex: "id", width: 140 },
     {
       title: t("ui.nameType"),
       render: (_, row) => (
-        <Space size={6} wrap>
+        <div className="base-additive-name" title={[row.name, row.baseOilType].filter(Boolean).join(" · ")}>
           <span translate="no">{row.name}</span>
           <Tag>{row.baseOilType}</Tag>
-        </Space>
+        </div>
       )
     },
     { title: t("product.sourceRecord"), render: (_, row) => row.commercialProductId ? <ProductSource id={row.commercialProductId} /> : row.representativeMoleculeId || "-" },
@@ -207,16 +196,17 @@ export default function BaseAdditiveLibraryPage() {
   ];
 
   const additiveColumns: ColumnsType<Additive> = [
+    { title: t("baseAdditive.rowNumber"), key: "number", width: 64, render: (_, _row, index) => index + 1 },
     { title: "ID", dataIndex: "id", width: 140 },
     {
       title: t("ui.nameType"),
       render: (_, row) => (
-        <Space size={6} wrap>
+        <div className="base-additive-name" title={[row.moleculeName, ...row.functionTypes.map((value) => additiveFunctionLabelKeys[value] ? t(additiveFunctionLabelKeys[value]) : value)].join(" · ")}>
           <span>{row.moleculeName}</span>
           {row.functionTypes.map((value) => (
             <Tag key={value}>{additiveFunctionLabelKeys[value] ? t(additiveFunctionLabelKeys[value]) : value}</Tag>
           ))}
-        </Space>
+        </div>
       )
     },
     { title: t("product.sourceRecord"), render: (_, row) => row.commercialProductId ? <ProductSource id={row.commercialProductId} /> : row.moleculeId },
@@ -326,7 +316,7 @@ export default function BaseAdditiveLibraryPage() {
   }, { onError: (error) => message.error(backendErrorText(error, t)) });
 
   return (
-    <div className="page-grid table-page">
+    <div className="page-grid table-page base-additive-page">
       <PageHeader
         title={t("ui.baseOilsAdditives")}
         description={t("ui.manageBaseOilsThatMayNotHaveSmiles")}
@@ -339,63 +329,32 @@ export default function BaseAdditiveLibraryPage() {
       />
       <Card>
         <Tabs
+          className="workspace-tabs"
           activeKey={activeTab}
           onChange={(key) => setActiveTab(key as LibraryTab)}
           items={[
             {
               key: "base-oils",
-              label: t("ui.baseOils"),
+              label: baseOils.data
+                ? `${t("ui.baseOils")} (${t("baseAdditive.recordCount", { count: baseOils.data.length })})`
+                : t("ui.baseOils"),
               children: (
-                <AsyncBoundary
-                  loading={baseOils.loading && !baseOils.data}
-                  error={baseOils.error}
-                  onRetry={baseOils.reload}
-                >
-                  <Table
-                    size="small"
-                    rowKey="id"
-                    columns={baseOilColumns}
-                    dataSource={baseOils.data?.items ?? []}
-                    tableLayout="fixed"
-                    loading={baseOils.loading}
-                    // `total` is the count SQLite reported, not the length of this page: the pager
-                    // has to know how many rows exist, and only one page of them is here.
-                    pagination={{
-                      current: baseOilPage,
-                      pageSize: PAGE_SIZE,
-                      total: baseOils.data?.total ?? 0,
-                      showSizeChanger: false,
-                      onChange: setBaseOilPage
-                    }}
-                  />
-                </AsyncBoundary>
+                <LibraryTable
+                  resource={baseOils}
+                  columns={baseOilColumns}
+                />
               )
             },
             {
               key: "additives",
-              label: t("ui.additives"),
+              label: additives.data
+                ? `${t("ui.additives")} (${t("baseAdditive.recordCount", { count: additives.data.length })})`
+                : t("ui.additives"),
               children: (
-                <AsyncBoundary
-                  loading={additives.loading && !additives.data}
-                  error={additives.error}
-                  onRetry={additives.reload}
-                >
-                  <Table
-                    size="small"
-                    rowKey="id"
-                    columns={additiveColumns}
-                    dataSource={additives.data?.items ?? []}
-                    tableLayout="fixed"
-                    loading={additives.loading}
-                    pagination={{
-                      current: additivePage,
-                      pageSize: PAGE_SIZE,
-                      total: additives.data?.total ?? 0,
-                      showSizeChanger: false,
-                      onChange: setAdditivePage
-                    }}
-                  />
-                </AsyncBoundary>
+                <LibraryTable
+                  resource={additives}
+                  columns={additiveColumns}
+                />
               )
             }
           ]}
@@ -550,6 +509,33 @@ export default function BaseAdditiveLibraryPage() {
       >
         {selectedAdditive && <AdditiveDetails item={selectedAdditive} />}
       </PagedModal>
+    </div>
+  );
+}
+
+function LibraryTable<T extends { id: string }>({ resource, columns }: {
+  resource: AsyncResource<T[]>;
+  columns: ColumnsType<T>;
+}) {
+  const viewport = useRef<HTMLDivElement>(null);
+
+  return (
+    <div className="base-additive-list">
+      <div className="base-additive-table-viewport" ref={viewport}>
+        <AsyncBoundary loading={resource.loading && !resource.data} error={resource.error} onRetry={resource.reload}>
+          <Table<T>
+            size="small"
+            rowKey="id"
+            columns={columns}
+            dataSource={resource.data ?? []}
+            tableLayout="fixed"
+            loading={resource.loading}
+            sticky={{ getContainer: () => viewport.current ?? window }}
+            scroll={{ x: 800 }}
+            pagination={false}
+          />
+        </AsyncBoundary>
+      </div>
     </div>
   );
 }

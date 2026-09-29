@@ -1,0 +1,7 @@
+{
+  "repeat_import_does_not_duplicate": true,
+  "cleanup_defaults_to_preview": true,
+  "cleanup_restores_original_records_exactly": true,
+  "failed_import_rolls_back_all_inserts": true,
+  "cleanup_refuses_later_unmarked_dependents": true
+}

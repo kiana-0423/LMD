@@ -138,12 +138,19 @@ def _normalize_oxygen_types(atom_rows, bond_rows) -> list[str]:
 
 
 def _infer_six_rings(atom_rows, bond_rows) -> list[str]:
-    """Infer isolated six-member sp2 C / pyridine-like N cycles.
+    """Infer isolated or fused six-member sp2 C / pyridine-like N rings.
 
-    Carbon must have one explicit external single bond; nitrogen must have no
-    external bond or hydrogen. Fused/incomplete cycles and other types are refused.
-    No geometry or filename is used to guess bonds; RDKit must still sanitize.
+    Peripheral carbon needs an explicit external single bond; fused carbon has
+    three ring neighbours and no external bond. Nitrogen must have two ring
+    neighbours and no external bond or hydrogen. Only complete six-member ring
+    systems that sanitize as neutral, closed-shell aromatic graphs are accepted.
+    An isolated six-member ring may also have one explicit single bond closing a
+    five-unknown-bond path. That known bond is retained in the normalized file.
+    No geometry or filename is used to guess bonds; the full molecule must still
+    pass the MOL2 reader's sanitization afterwards.
     """
+    from rdkit import Chem
+
     atoms = {row[0]: row[5] for _, row in atom_rows}
     neighbours: dict[str, list[tuple[str, str]]] = {atom: [] for atom in atoms}
     unknown: dict[str, set[str]] = {}
@@ -157,7 +164,7 @@ def _infer_six_rings(atom_rows, bond_rows) -> list[str]:
     ids = [row[0] for _, row in bond_rows if row[3] == "un"]
     error = (
         "MOL2 contains unknown bond orders ('un') outside fully specified six-membered "
-        "sp2 carbon/pyridine-like nitrogen rings. Export explicit single/double/aromatic "
+        "sp2 carbon/pyridine-like nitrogen rings (isolated or fused). Export explicit single/double/aromatic "
         f"bond orders; these bonds cannot be inferred safely (bond IDs: {', '.join(ids)})."
     )
     remaining = set(unknown)
@@ -169,14 +176,66 @@ def _infer_six_rings(atom_rows, bond_rows) -> list[str]:
             if atom not in ring:
                 ring.add(atom)
                 pending.extend(unknown[atom] - ring)
-        if len(ring) != 6 or any(len(unknown[atom]) != 2 for atom in ring):
-            raise ValueError(error)
+        ring_edges = {
+            atom: set(unknown[atom]) for atom in ring
+        }
+        explicit = [row for _, row in bond_rows
+                    if row[1] in ring and row[2] in ring and row[3] != "un"]
+        if explicit:
+            # Materials Studio can export five unknown bonds and one single bond
+            # for a benzene ring. A single fixed single bond always has a valid
+            # alternating completion; do not generalize to conflicting/multiple
+            # fixed bonds or silently turn an explicit double bond into aromatic.
+            if len(ring) != 6 or len(explicit) != 1 or explicit[0][3] != "1":
+                raise ValueError(error)
+            _, first, second, _ = explicit[0][:4]
+            if len(unknown[first]) != 1 or len(unknown[second]) != 1:
+                raise ValueError(error)
+            ring_edges[first].add(second)
+            ring_edges[second].add(first)
+            if any(len(edges) != 2 for edges in ring_edges.values()):
+                raise ValueError(error)
         for atom in ring:
             outside = [(other, kind) for other, kind in neighbours[atom] if other not in ring]
+            ring_degree = len(ring_edges[atom])
             carbon = (atoms[atom] in {"C.2", "C.ar"} and len(neighbours[atom]) == 3
-                      and len(outside) == 1 and outside[0][1] == "1")
-            nitrogen = atoms[atom] in {"N.2", "N.ar"} and len(neighbours[atom]) == 2
+                      and ((ring_degree == 2 and len(outside) == 1 and outside[0][1] == "1")
+                           or (ring_degree == 3 and not outside)))
+            nitrogen = (atoms[atom] in {"N.2", "N.ar"} and len(neighbours[atom]) == 2
+                        and ring_degree == 2)
             if not (carbon or nitrogen):
                 raise ValueError(error)
+
+        # Test topology rather than assuming that every sp2 cycle is aromatic.
+        # A known external single bond can be capped with H for this local check;
+        # the actual substituent, atom types and coordinates are left untouched.
+        graph = Chem.RWMol()
+        indices = {}
+        for atom_id in sorted(ring, key=int):
+            atom = Chem.Atom("C" if atoms[atom_id].startswith("C.") else "N")
+            atom.SetIsAromatic(True)
+            atom.SetNoImplicit(True)
+            if atom.GetAtomicNum() == 6 and len(ring_edges[atom_id]) == 2:
+                atom.SetNumExplicitHs(1)
+            indices[atom_id] = graph.AddAtom(atom)
+        for atom_id in indices:
+            for other in ring_edges[atom_id]:
+                if indices[atom_id] < indices[other]:
+                    graph.AddBond(indices[atom_id], indices[other], Chem.BondType.AROMATIC)
+        candidate = graph.GetMol()
+        cycles = Chem.GetSymmSSSR(candidate)
+        if not cycles or any(len(cycle) != 6 for cycle in cycles):
+            raise ValueError(error)
+        # Reject unknown bridges even if all the surrounding rings have six atoms.
+        if any(not bond.IsInRing() for bond in candidate.GetBonds()):
+            raise ValueError(error)
+        try:
+            Chem.SanitizeMol(candidate)
+        except (ValueError, RuntimeError) as exc:
+            raise ValueError(error) from exc
+        if (any(not bond.GetIsAromatic() for bond in candidate.GetBonds())
+                or any(atom.GetFormalCharge() or atom.GetNumRadicalElectrons()
+                       for atom in candidate.GetAtoms())):
+            raise ValueError(error)
         remaining -= ring
     return ids

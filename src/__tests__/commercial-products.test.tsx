@@ -33,8 +33,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.listCommercialProductPage.mockResolvedValue(page([product]));
   api.saveCommercialProduct.mockResolvedValue(product);
-  api.listBaseOilPage.mockResolvedValue(page([]));
-  api.listAdditivePage.mockResolvedValue(page([]));
+  api.listBaseOils.mockResolvedValue([]);
+  api.listAdditives.mockResolvedValue([]);
 });
 afterEach(() => {
   cleanup();
@@ -96,8 +96,8 @@ it("keeps entered data available when saving fails", async () => {
 });
 
 it("edits a commercial additive's application fields without requiring a molecule", async () => {
-  api.listAdditivePage.mockResolvedValue(
-    page([
+  api.listAdditives.mockResolvedValue(
+    [
       {
         id: "a-1",
         moleculeId: "",
@@ -114,7 +114,7 @@ it("edits a commercial additive's application fields without requiring a molecul
         createdAt: "2026-09-08",
         updatedAt: "2026-09-08"
       }
-    ])
+    ]
   );
   renderWithLanguage(<BaseAdditiveLibraryPage />);
   fireEvent.click(await screen.findByRole("tab", { name: /Additives/ }));
@@ -158,8 +158,8 @@ it.each([
   expect(dialog.queryByRole("combobox", { name: "Representative Molecule" })).toBeNull();
   fireEvent.click(dialog.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(api.registerCommercialProduct).toHaveBeenCalledWith(product.id, role));
-  await waitFor(() => expect(api.listBaseOilPage).toHaveBeenCalledTimes(2));
-  expect(api.listAdditivePage).toHaveBeenCalledTimes(2);
+  await waitFor(() => expect(api.listBaseOils).toHaveBeenCalledTimes(2));
+  expect(api.listAdditives).toHaveBeenCalledTimes(2);
   expect(api.createBaseOil).not.toHaveBeenCalled();
   expect(api.createAdditive).not.toHaveBeenCalled();
 });

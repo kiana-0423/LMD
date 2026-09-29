@@ -1,4 +1,5 @@
 import { Alert, Button, Card, Form, Select, message } from "antd";
+import { useState } from "react";
 import PageHeader from "../../components/PageHeader";
 import AsyncBoundary from "../../components/AsyncBoundary";
 import { saveExperimentWithPerformance, searchFormulations } from "../../lib/api";
@@ -8,69 +9,101 @@ import { backendErrorText } from "../../lib/backendErrors";
 import { useAsyncAction, useAsyncResource } from "../../lib/useAsyncResource";
 
 import ExperimentFields from "./ExperimentFields";
+import ExperimentDetailModal from "./ExperimentDetailModal";
+import ExperimentRecordsModal from "./ExperimentRecordsModal";
 import { experimentPayload } from "../../lib/experimentProtocol";
 
 export default function ExperimentPerformancePage() {
   const { t } = useLanguage();
   const [form] = Form.useForm<ExperimentPerformancePayload>();
+  const [showRecords, setShowRecords] = useState(false);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string>();
+  const [revision, setRevision] = useState(0);
 
   // A search endpoint rather than the whole table: a workspace with a thousand blends should not
   // download all of them to populate one dropdown.
   const formulations = useAsyncResource(() => searchFormulations("", 50), []);
 
-  const save = useAsyncAction(async () => {
-    const values = await form.validateFields();
-    const { experiment } = await saveExperimentWithPerformance(experimentPayload(values as unknown as Record<string, unknown>) as unknown as ExperimentPerformancePayload);
-    message.success(`${t("ui.experimentSavedTo")} ${experiment.id}`);
-    form.resetFields();
-  }, {
-    onError: (error) => {
-      // A validation rejection from Ant Design has no backend code; it is already shown against
-      // the offending field, so only a real failure is worth a toast.
-      if (error && typeof error === "object" && "errorFields" in error) return;
-      message.error(backendErrorText(error, t));
+  const save = useAsyncAction(
+    async () => {
+      const values = await form.validateFields();
+      const { experiment } = await saveExperimentWithPerformance(
+        experimentPayload(values as unknown as Record<string, unknown>) as unknown as ExperimentPerformancePayload
+      );
+      message.success(`${t("ui.experimentSavedTo")} ${experiment.id}`);
+      form.resetFields();
+      setRevision((value) => value + 1);
+      setSelectedExperimentId(experiment.id);
+    },
+    {
+      onError: (error) => {
+        // A validation rejection from Ant Design has no backend code; it is already shown against
+        // the offending field, so only a real failure is worth a toast.
+        if (error && typeof error === "object" && "errorFields" in error) return;
+        message.error(backendErrorText(error, t));
+      }
     }
-  });
+  );
 
   return (
     <div className="page-grid experiment-page experiment-entry-only-page">
       <PageHeader
         title={t("ui.experimentsPerformance")}
         description={t("ui.recordTestConditionsPerformanceResultsAndAtt")}
+        extra={<Button onClick={() => setShowRecords(true)}>{t("test.records")}</Button>}
       />
-      <Card title={t("ui.experimentEntry")} extra={<Button type="primary" loading={save.running} onClick={() => void save.run()}>{t("ui.saveExperimentAndPerformance")}</Button>}>
+      <Card
+        title={t("ui.experimentEntry")}
+        extra={
+          <Button type="primary" loading={save.running} onClick={() => void save.run()}>
+            {t("ui.saveExperimentAndPerformance")}
+          </Button>
+        }
+      >
         <Alert type="info" showIcon message={t("test.entryHelp")} style={{ marginBottom: 16 }} />
-        <AsyncBoundary
-          loading={formulations.loading}
-          error={formulations.error}
-          onRetry={formulations.reload}
-          rows={2}
-        >
+        <AsyncBoundary loading={formulations.loading} error={formulations.error} onRetry={formulations.reload} rows={2}>
           <Form
             form={form}
             layout="vertical"
             // No `initialValues`. Every field here is a measurement or a choice, and the units are
             // shown as fixed adornments beside the number rather than as pre-filled values.
           >
-            <ExperimentFields leading={
-              <Form.Item
-                label={t("ui.formulation")}
-                name="formulationId"
-                rules={[{ required: true, message: t("ui.selectAFormulation") }]}
-              >
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  options={(formulations.data ?? []).map((item) => ({
-                    value: item.id,
-                    label: item.label
-                  }))}
-                />
-              </Form.Item>
-            } />
+            <ExperimentFields
+              leading={
+                <Form.Item
+                  label={t("ui.formulation")}
+                  name="formulationId"
+                  rules={[{ required: true, message: t("ui.selectAFormulation") }]}
+                >
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    options={(formulations.data ?? []).map((item) => ({
+                      value: item.id,
+                      label: item.label
+                    }))}
+                  />
+                </Form.Item>
+              }
+            />
           </Form>
         </AsyncBoundary>
       </Card>
+      {showRecords && (
+        <ExperimentRecordsModal
+          onClose={() => setShowRecords(false)}
+          onView={setSelectedExperimentId}
+          revision={revision}
+        />
+      )}
+      {selectedExperimentId && (
+        <ExperimentDetailModal
+          key={selectedExperimentId}
+          experimentId={selectedExperimentId}
+          onClose={() => setSelectedExperimentId(undefined)}
+          onUpdated={() => setRevision((value) => value + 1)}
+        />
+      )}
     </div>
   );
 }

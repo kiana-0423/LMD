@@ -14,8 +14,6 @@ import { LanguageProvider } from "../i18n/LanguageContext";
  * the formulations are named on screen, and removing them anyway takes a second, explicit decision.
  */
 
-const page = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 25, hasMore: false });
-
 const BASE_OIL = {
   id: "bo-1",
   name: "PAO 6",
@@ -54,8 +52,8 @@ const deleteBaseOilWithComponents = vi.fn();
 vi.mock("../lib/api", async () => {
   const { createApiMock: build } = await import("./apiMock");
   return build({
-    listBaseOilPage: () => Promise.resolve(page([BASE_OIL])),
-    listAdditivePage: () => Promise.resolve(page([])),
+    listBaseOils: () => Promise.resolve([BASE_OIL]),
+    listAdditives: () => Promise.resolve([]),
     deleteBaseOil: (...args: unknown[]) => deleteBaseOil(...args),
     deleteBaseOilWithComponents: (...args: unknown[]) => deleteBaseOilWithComponents(...args)
   });
@@ -70,7 +68,7 @@ async function openPage() {
       <BaseAdditiveLibraryPage />
     </LanguageProvider>
   );
-  // Waiting for the row itself: the page is ready once the paged read has resolved and the table
+  // Waiting for the row itself: the page is ready once the read has resolved and the table
   // has rendered a record, whichever column happens to show its name.
   await waitFor(() => expect(document.querySelector('[data-row-key="bo-1"]')).toBeTruthy());
 }

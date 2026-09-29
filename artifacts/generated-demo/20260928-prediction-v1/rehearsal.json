@@ -1,0 +1,18 @@
+{
+  "batch_id": "SYNTH-DEMO-20260928-01",
+  "counts": {
+    "formulations": 126,
+    "formulation_components": 315,
+    "experiments": 756,
+    "performance_results": 756,
+    "data_sources": 1
+  },
+  "integrity": "ok",
+  "all_records_marked_synthetic": true,
+  "all_formulation_totals_wt_percent": 100,
+  "status": "inserted",
+  "database": "/tmp/lmd-generated-demo-staging/lmd.sqlite",
+  "backup": "/tmp/lmd-generated-demo-staging/backups/before-generated-demo-SYNTH-DEMO-20260928-01-20260928T102208258223Z.sqlite",
+  "original_records_unchanged": true,
+  "manifest_sha256": "717c0a65692014982dd40f7ec8052fb44ab72d2ac8fc57652ac96b0ae30b7712"
+}

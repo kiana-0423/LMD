@@ -109,7 +109,7 @@ body {
 
 .model-training-columns {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
   flex: 1 1 0;
   min-height: 0;
   gap: 10px;
@@ -202,6 +202,38 @@ body {
 .model-training-result-tabs > .ant-tabs-nav {
   flex: 0 0 auto;
   margin-bottom: 8px;
+}
+
+.model-training-result-tabs > .ant-tabs-content-holder {
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.model-evaluation {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 8px;
+}
+
+.model-evaluation .ant-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.model-evaluation .ant-alert,
+.model-evaluation-help {
+  font-size: 12px;
+}
+
+.model-evaluation .ant-statistic-content-suffix {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.model-evaluation-dialog {
+  max-height: 75vh;
+  overflow: auto;
 }
 
 .model-training-overview {
@@ -908,6 +940,46 @@ body {
   gap: 8px;
   margin-bottom: 8px;
   min-height: 32px;
+}
+
+/* The library scrolls within one fixed workspace without whole-page pagination. */
+.base-additive-page {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.base-additive-page > [data-page-header] {
+  margin-bottom: 0;
+}
+
+.base-additive-page > .ant-card {
+  overflow: hidden;
+}
+
+.base-additive-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.base-additive-table-viewport {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.base-additive-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.base-additive-name > span:first-child {
+  margin-inline-end: 6px;
 }
 
 .table-toolbar .left,

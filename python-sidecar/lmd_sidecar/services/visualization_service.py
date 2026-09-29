@@ -111,7 +111,7 @@ def convert_molecule_format(
     if inferred:
         warnings.append(
             f"MOL2: inferred aromatic bond orders for {len(inferred)} unknown bonds "
-            f"in six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: {', '.join(inferred)}). "
+            f"in isolated or fused six-membered sp2 carbon/pyridine-like nitrogen rings (bond IDs: {', '.join(inferred)}). "
             "Review the structure before saving."
         )
 

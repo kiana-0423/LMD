@@ -9,6 +9,7 @@ from rdkit.Chem import AllChem
 from rdkit.Chem import rdMolDescriptors
 
 from lmd_sidecar.services.visualization_service import convert_molecule_format
+from lmd_sidecar.services.mol2_service import prepare_mol2
 
 
 ETHANOL = (Path(__file__).parent / "fixtures" / "ethanol.mol2").read_text()
@@ -153,7 +154,8 @@ def test_materials_studio_2246_bond_convention_with_disclosed_inference():
 @pytest.mark.parametrize("block", [
     ETHANOL.replace("1 1 2 1", "1 1 2 un"),
     materials_studio_fixture("c1ccccc1").replace("C.2", "C.3"),
-    materials_studio_fixture("c1ccc2ccccc2c1"),
+    # Aromatic five-membered rings remain outside inference.
+    materials_studio_fixture("c1ccc2[nH]ccc2c1"),
     materials_studio_fixture("c1ccccc1").replace("C.2", "N.2", 1),
 ])
 def test_other_unknown_bond_patterns_are_not_guessed(block):
@@ -161,9 +163,100 @@ def test_other_unknown_bond_patterns_are_not_guessed(block):
         convert_molecule_format(block, "mol2", "smiles")
 
 
+@pytest.mark.parametrize("smiles", [
+    "c1ccc2ccccc2c1",  # naphthalene
+    "c1ccc2ncccc2c1",  # quinoline (pyridine-like nitrogen)
+    "c1ccc2cc3ccccc3cc2c1",  # anthracene
+    "c1ccc2c(c1)ccc1ccccc12",  # phenanthrene
+])
+def test_fused_six_member_rings_preserve_identity_and_disclose_every_inferred_bond(smiles):
+    expected = Chem.MolFromSmiles(smiles)
+    data, warnings = convert_molecule_format(materials_studio_fixture(smiles), "mol2", "smiles")
+    restored = Chem.MolFromSmiles(data["content"])
+    assert data["content"] == Chem.MolToSmiles(expected)
+    assert rdMolDescriptors.CalcMolFormula(restored) == rdMolDescriptors.CalcMolFormula(expected)
+    assert Chem.GetFormalCharge(restored) == 0
+    assert not any(atom.GetNumRadicalElectrons() for atom in restored.GetAtoms())
+    assert len(data["inferred_bond_ids"]) == sum(bond.GetIsAromatic() for bond in expected.GetBonds())
+    assert "isolated or fused six-membered" in warnings[0]
+
+
+@pytest.mark.parametrize("output_format,generate_2d", [("smiles", False), ("mol", True)])
+def test_materials_studio_l06_connectivity_imports_into_entry_and_sketcher(output_format, generate_2d):
+    # Same graph/export conventions as L06; synthetic coordinates avoid depending
+    # on a file outside the repository. The exocyclic N.2 has explicit single bonds.
+    smiles = "CCCCCCCCc1ccc(Nc2cccc3ccccc23)cc1"
+    block = materials_studio_fixture(smiles).replace("N.3", "N.2")
+    data, warnings = convert_molecule_format(block, "mol2", output_format, generate_2d=generate_2d)
+    restored = Chem.MolFromMolBlock(data["content"]) if generate_2d else Chem.MolFromSmiles(data["content"])
+    assert Chem.MolToSmiles(restored) == Chem.MolToSmiles(Chem.MolFromSmiles(smiles))
+    assert rdMolDescriptors.CalcMolFormula(restored) == "C24H29N"
+    assert Chem.GetFormalCharge(restored) == 0
+    assert not any(atom.GetNumRadicalElectrons() for atom in restored.GetAtoms())
+    assert len(data["inferred_bond_ids"]) == 17
+    assert data["normalized_atom_types"] == []
+    assert "Review the structure before saving" in warnings[0]
+    if generate_2d:
+        assert data["formula"] == "C24H29N"
+        assert not restored.GetConformer().Is3D()
+
+
+@pytest.mark.parametrize("smiles", [
+    "c1ccccc1-c1ccccc1",  # unknown inter-ring bridge
+    "C1=CC=CC=CC=C1",  # eight-membered sp2 ring, not six
+    "C1=CC=C2C=CC=C2C=C1",  # fused five/seven-membered rings
+    "C1=CC=C1",  # four-membered sp2 ring
+])
+def test_unknown_carbon_bonds_need_six_member_rings_and_no_bridges(smiles):
+    mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
+    unknown_ids = {
+        str(bond.GetIdx() + 1) for bond in mol.GetBonds()
+        if bond.GetBeginAtom().GetAtomicNum() == bond.GetEndAtom().GetAtomicNum() == 6
+    }
+    head, bonds = mol2_fixture(smiles).split("@<TRIPOS>BOND\n")
+    rows = []
+    for line in bonds.split("@<TRIPOS>SUBSTRUCTURE")[0].splitlines():
+        row = line.split()
+        if row and row[0] in unknown_ids:
+            row[3] = "un"
+        rows.append(" ".join(row))
+    block = head + "@<TRIPOS>BOND\n" + "\n".join(rows)
+    with pytest.raises(ValueError, match="cannot be inferred safely"):
+        convert_molecule_format(block, "mol2", "smiles")
+
+
 def test_inference_refuses_mismatched_counts():
     block = materials_studio_fixture("c1ccccc1").replace("12 12 1 0 0", "13 12 1 0 0")
     with pytest.raises(ValueError, match="counts do not match"):
+        convert_molecule_format(block, "mol2", "smiles")
+
+
+def test_materials_studio_six_ring_with_one_explicit_single_bond():
+    smiles = "CCCCc1ccc(Nc2ccc(CCCCCCCC)cc2)cc1"
+    block = materials_studio_fixture(smiles)
+    first_unknown = next(line for line in block.splitlines() if line.endswith(" un"))
+    bond_id = first_unknown.split()[0]
+    block = block.replace(first_unknown, first_unknown[:-2] + "1")
+    normalized, inferred, _ = prepare_mol2(block)
+    normalized_bonds = normalized.split("@<TRIPOS>BOND\n")[1].splitlines()
+    assert next(line.split()[3] for line in normalized_bonds if line.split()[0] == bond_id) == "1"
+    assert bond_id not in inferred
+    data, warnings = convert_molecule_format(block, "mol2", "smiles")
+    assert data["content"] == Chem.MolToSmiles(Chem.MolFromSmiles(smiles))
+    mol = Chem.MolFromSmiles(data["content"])
+    assert rdMolDescriptors.CalcMolFormula(mol) == "C24H35N"
+    assert len(data["inferred_bond_ids"]) == 11
+    assert Chem.GetFormalCharge(mol) == 0
+    assert not any(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms())
+    assert warnings
+
+
+@pytest.mark.parametrize("kind", ["2", "3"])
+def test_partial_unknown_ring_does_not_override_explicit_multiple_bonds(kind):
+    block = materials_studio_fixture("c1ccccc1")
+    first_unknown = next(line for line in block.splitlines() if line.endswith(" un"))
+    block = block.replace(first_unknown, first_unknown[:-2] + kind)
+    with pytest.raises(ValueError, match="cannot be inferred safely"):
         convert_molecule_format(block, "mol2", "smiles")
 
 
