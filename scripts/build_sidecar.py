@@ -23,9 +23,15 @@ SIDECAR_ROOT = REPOSITORY_ROOT / "python-sidecar"
 TAURI_BINARIES = REPOSITORY_ROOT / "src-tauri" / "binaries"
 
 
-def target_triple() -> str:
-    system = platform.system()
-    machine = platform.machine().lower()
+def target_triple(system: str | None = None, machine: str | None = None) -> str:
+    """Return the native Tauri target for the interpreter running this build.
+
+    PyInstaller is not a cross-compiler.  Accepting a requested target that does not match the
+    Python process would create a correctly named but incorrectly compiled sidecar, so callers may
+    inspect this value but may not override it.
+    """
+    system = system or platform.system()
+    machine = (machine or platform.machine()).lower()
 
     aliases = {
         ("Darwin", "arm64"): "aarch64-apple-darwin",
@@ -34,6 +40,7 @@ def target_triple() -> str:
         ("Windows", "amd64"): "x86_64-pc-windows-msvc",
         ("Windows", "x86_64"): "x86_64-pc-windows-msvc",
         ("Windows", "arm64"): "aarch64-pc-windows-msvc",
+        ("Windows", "aarch64"): "aarch64-pc-windows-msvc",
         ("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
         ("Linux", "aarch64"): "aarch64-unknown-linux-gnu",
         ("Linux", "arm64"): "aarch64-unknown-linux-gnu",
@@ -148,6 +155,10 @@ def build(skip_verify: bool) -> Path:
     built_executable = dist_path / f"lmd-sidecar{executable_suffix}"
     if not built_executable.is_file():
         raise RuntimeError(f"PyInstaller did not create {built_executable}")
+    if platform.system() == "Windows":
+        from verify_windows_pe_arch import expected_machine_for_target, verify_pe_machine
+
+        verify_pe_machine(built_executable, expected_machine_for_target(triple))
     if not skip_verify:
         print("Verifying every packaged sidecar command...")
         verify_sidecar(built_executable)
@@ -188,6 +199,10 @@ def write_build_metadata(dist_path: Path, triple: str) -> Path:
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--print-target", action="store_true", help="Print this machine's Tauri target triple and exit.")
+    parser.add_argument(
+        "--expect-target",
+        help="Refuse to build unless the native Python process matches this Tauri target.",
+    )
     parser.add_argument("--skip-verify", action="store_true", help="Skip the bundled executable smoke test.")
     return parser.parse_args()
 
@@ -195,8 +210,15 @@ def parse_arguments() -> argparse.Namespace:
 def main() -> int:
     args = parse_arguments()
     try:
+        native_target = target_triple()
+        if args.expect_target and args.expect_target != native_target:
+            raise RuntimeError(
+                f"Requested {args.expect_target}, but this Python process is {native_target}. "
+                "Use a native interpreter for the requested architecture; PyInstaller cannot "
+                "cross-compile the scientific sidecar."
+            )
         if args.print_target:
-            print(target_triple())
+            print(native_target)
             return 0
         build(args.skip_verify)
         return 0

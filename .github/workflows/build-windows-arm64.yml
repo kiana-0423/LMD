@@ -1,0 +1,83 @@
+name: Build Windows ARM64 installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Windows 11 ARM64 native build
+    runs-on: windows-11-arm
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up native ARM64 Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          architecture: arm64
+          cache: pip
+          cache-dependency-path: python-sidecar/requirements.lock
+
+      - name: Set up Rust ARM64 toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      - name: Verify every locked package has a native wheel
+        id: wheel_audit
+        continue-on-error: true
+        run: python scripts/check_windows_arm64_wheels.py --python 3.12 --report artifacts/windows-arm64-wheel-audit.json
+
+      - name: Upload ARM64 compatibility report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LMD-Windows-ARM64-compatibility
+          path: artifacts/windows-arm64-wheel-audit.json
+          if-no-files-found: error
+
+      - name: Stop before packaging when native dependencies are unavailable
+        if: steps.wheel_audit.outcome != 'success'
+        shell: pwsh
+        run: |
+          throw "The locked scientific stack is not yet complete for Windows ARM64. Download the compatibility artifact for the exact missing wheels."
+
+      - name: Install frontend dependencies
+        if: steps.wheel_audit.outcome == 'success'
+        run: npm ci
+
+      - name: Install native sidecar dependencies
+        if: steps.wheel_audit.outcome == 'success'
+        run: python -m pip install -r python-sidecar/requirements.lock
+
+      - name: Verify native build environment
+        if: steps.wheel_audit.outcome == 'success'
+        run: |
+          python scripts/build_sidecar.py --print-target
+          python scripts/check_python_lock.py
+          python scripts/test_windows_arm64_support.py
+
+      - name: Build and verify ARM64 installers
+        if: steps.wheel_audit.outcome == 'success'
+        run: npm run desktop:build:windows-arm64
+
+      - name: Upload ARM64 installers
+        if: steps.wheel_audit.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LMD-Windows-ARM64
+          path: |
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+            src-tauri/target/aarch64-pc-windows-msvc/release/bundle/msi/*.msi
+          if-no-files-found: error

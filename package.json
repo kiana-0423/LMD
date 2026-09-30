@@ -16,10 +16,12 @@
     "sidecar:prepare-dev": "node scripts/resolve-python.mjs scripts/prepare_sidecar_dev.py",
     "sidecar:verify-release": "node scripts/resolve-python.mjs scripts/verify_release_sidecar.py",
     "sidecar:check-lock": "node scripts/resolve-python.mjs scripts/check_python_lock.py",
+    "sidecar:check-windows-arm64": "node scripts/resolve-python.mjs scripts/check_windows_arm64_wheels.py --python 3.12",
     "sidecar:test": "node scripts/resolve-python.mjs -m pytest -q python-sidecar",
     "desktop:build": "npm run sidecar:build && tauri build",
     "desktop:build:mac": "npm run sidecar:build && CI=true tauri build --bundles app,dmg",
     "desktop:build:windows": "npm run sidecar:build && tauri build --bundles nsis,msi",
+    "desktop:build:windows-arm64": "npm run sidecar:build -- --expect-target aarch64-pc-windows-msvc && tauri build --target aarch64-pc-windows-msvc --bundles nsis,msi",
     "tauri": "tauri",
     "test": "vitest",
     "analyze:bundle": "node scripts/analyze-bundle.mjs",
@@ -28,7 +30,7 @@
     "audit:python-requirements": "node scripts/resolve-python.mjs scripts/check_python_requirements.py",
     "audit:node-requirements": "node scripts/check-node-requirements.mjs",
     "audit:commands": "node scripts/check-command-surface.mjs",
-    "audit": "npm run audit:placeholders && npm run audit:i18n && npm run audit:python-requirements && npm run audit:node-requirements && npm run audit:commands && node scripts/resolve-python.mjs scripts/test_check_no_placeholders.py"
+    "audit": "npm run audit:placeholders && npm run audit:i18n && npm run audit:python-requirements && npm run audit:node-requirements && npm run audit:commands && node scripts/resolve-python.mjs scripts/test_check_no_placeholders.py && node scripts/resolve-python.mjs scripts/test_windows_arm64_support.py"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",

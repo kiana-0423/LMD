@@ -325,6 +325,30 @@ npm run desktop:build:windows
 
 The NSIS EXE and MSI are written under `src-tauri\target\release\bundle\nsis\` and `src-tauri\target\release\bundle\msi\`. The Windows configuration uses Tauri's offline WebView2 installer, so installing and launching LMD does not require an internet connection. This increases the installer size.
 
+### Windows ARM64
+
+Windows ARM64 is a native target, not a renamed x64 package. The repository has a guarded build
+entry point and a manually triggered **Build Windows ARM64 installer** workflow that runs on
+GitHub's `windows-11-arm` runner:
+
+```powershell
+npm run sidecar:check-windows-arm64
+npm run desktop:build:windows-arm64
+```
+
+The build command refuses to run unless Python itself is native ARM64, and it verifies the PE
+machine field of the packaged sidecar before Tauri bundles it. The workflow first checks every
+exact version in `python-sidecar/requirements.lock` for a CPython 3.12 `win_arm64` wheel and uploads
+the complete report. Pure-Python source archives must be explicitly allow-listed; packages with
+native code require an ARM64 wheel. Silently compiling an undeclared native dependency or bundling
+an AMD64 extension would produce an installer that cannot be trusted on Windows 10 ARM64.
+
+At present the complete scientific stack is not yet available as Windows ARM64 wheels (notably the
+locked NumPy 1.26 build, RDKit, and the SHAP/Numba chain). The workflow is therefore a
+release-readiness gate, not permission to publish a reduced-function build. Once the upstream
+wheels exist, the same workflow proceeds through the full packaged-sidecar verification matrix and
+emits native NSIS and MSI artifacts.
+
 ### Build Windows without a Local Windows PC
 
 The workflow at `.github/workflows/build-desktop.yml` builds both targets on native GitHub-hosted runners:
