@@ -1,7 +1,6 @@
 import { Alert, Button, Card, Select, Table, Tabs, Tooltip, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
-import EChart from "../../components/EChartCanvas";
-import type { LmdChartOption } from "../../components/EChartCanvas";
+import EChart, { type LmdChartOption } from "../../components/EChart";
 import { useLanguage, type MessageKey } from "../../i18n/LanguageContext";
 import { translateMessage } from "../../lib/backendMessages";
 import { backendErrorText } from "../../lib/backendErrors";

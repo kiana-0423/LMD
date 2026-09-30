@@ -41,10 +41,11 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it("shows negative R² and plots saved predictions with equal target and prediction ranges", () => {
+it("shows negative R² and plots saved predictions with equal target and prediction ranges", async () => {
   renderWithLanguage(<ModelEvaluation metrics={fixture} unit="mm" />);
   expect(metricValues()).toContain("-0.2500");
   expect(screen.getByText(en["model.heldOut"])).toBeTruthy();
+  await screen.findByTestId("evaluation-chart");
   expect(chart().series[0].data.map((point: { value: number[] }) => point.value)).toEqual([
     [1, 1.5],
     [2, 1.5]
@@ -85,6 +86,7 @@ it("labels generated data and sampled points while using the complete histogram"
   );
   expect(await screen.findByText(/4\/8 条为生成数据/)).toBeTruthy();
   expect(screen.getByText(/2\/1500 条/)).toBeTruthy();
+  await screen.findByTestId("evaluation-chart");
   fireEvent.click(screen.getByRole("radio", { name: "误差分布" }));
   expect(chart().series[0].data).toEqual([700, 800]);
 });

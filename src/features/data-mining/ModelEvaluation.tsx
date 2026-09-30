@@ -1,6 +1,6 @@
 import { Alert, Radio, Statistic, Tag, Typography } from "antd";
 import { useState } from "react";
-import EChart, { type LmdChartOption } from "../../components/EChartCanvas";
+import EChart, { type LmdChartOption } from "../../components/EChart";
 import { useLanguage } from "../../i18n/LanguageContext";
 import type { ModelMetrics } from "../../lib/api";
 
