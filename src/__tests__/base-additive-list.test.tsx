@@ -41,7 +41,7 @@ it("shows every record with consecutive numbers and per-library totals, includin
   api.listAdditives.mockResolvedValue(additives);
   const { container } = renderLibrary();
 
-  await screen.findByRole("tab", { name: "基础油 (共 26 个)" });
+  await screen.findByRole("tab", { name: "基础油 (共 26 个)" }, { timeout: 5_000 });
   expect(screen.getByRole("tab", { name: "添加剂 (共 31 个)" })).toBeTruthy();
   expect(container.querySelector(".workspace-fixed-panel .base-additive-page")).toBeTruthy();
   expect(container.querySelector(".paged-content")).toBeNull();
@@ -67,7 +67,7 @@ it("shows every record with consecutive numbers and per-library totals, includin
   const dialog = within(await screen.findByRole("dialog"));
   fireEvent.change(dialog.getByLabelText("名称"), { target: { value: "新增基础油" } });
   fireEvent.click(dialog.getByRole("button", { name: /保\s*存/ }));
-  await screen.findByRole("tab", { name: "基础油 (共 27 个)" });
+  await screen.findByRole("tab", { name: "基础油 (共 27 个)" }, { timeout: 5_000 });
   await waitFor(() => expect(api.createBaseOil).toHaveBeenCalledWith(expect.objectContaining({ name: "新增基础油" })));
   const lastRow = screen.getByRole("tabpanel").querySelector('[data-row-key="new-oil"]')!;
   expect(lastRow.querySelector("td")?.textContent).toBe("27");

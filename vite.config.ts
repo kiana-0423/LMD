@@ -17,7 +17,11 @@ export default defineConfig(({ mode }) => {
     },
     envPrefix: ["VITE_", "TAURI_"],
     test: {
-      setupFiles: ["./src/__tests__/setup.ts"]
+      setupFiles: ["./src/__tests__/setup.ts"],
+      // The larger page-level tests exercise Ant Design forms and tables in jsdom. They complete
+      // comfortably on a developer machine, but can exceed Vitest's 5 s default when many test
+      // files share a GitHub-hosted runner. Keep a finite ceiling while allowing for CI variance.
+      testTimeout: 15_000
     },
     build: {
       target: "es2020",
