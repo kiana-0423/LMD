@@ -14,9 +14,10 @@
  *   3. `CONDA_PREFIX`        — the environment that is already active, which is where RDKit
  *                              usually lives on a scientific machine.
  *   4. A project-local venv  — `.venv` or `python-sidecar/.venv`.
- *   5. `py -3.11` on Windows — the launcher, asked for a version this project supports.
- *   6. `python3.12` / `python3.11` / `python3.10` — a specific version, newest first.
- *   7. `python3`, then `python` — whatever they happen to be, accepted only if compatible.
+ *   5. `python`, then `python3` — the interpreter selected on PATH by setup-python, an activated
+ *                                toolchain, or the operating system, accepted only if compatible.
+ *   6. `py -3.11` on Windows — the launcher, asked for a version this project supports.
+ *   7. `python3.12` / `python3.11` / `python3.10` — a specific version, newest first.
  *
  * Every candidate is *executed* to read its version. A name on PATH proves nothing: `python3` is
  * 3.9 on a stock macOS, and RDKit does not support it.
@@ -105,6 +106,11 @@ export function candidates(environment = process.env) {
     push(interpreterInPrefix(join(REPOSITORY_ROOT, relative)), [], `${relative}`);
   }
 
+  // Tools such as GitHub's setup-python select an interpreter by prepending it to PATH. Honour
+  // that selection before probing system-wide versioned commands that may have no dependencies.
+  push(`python${EXECUTABLE_SUFFIX}`, [], "python");
+  push(`python3${EXECUTABLE_SUFFIX}`, [], "python3");
+
   if (IS_WINDOWS) {
     // Newest supported first: the launcher will happily give 3.13 for a bare `py -3`.
     for (const version of ["3.12", "3.11", "3.10"]) {
@@ -114,16 +120,14 @@ export function candidates(environment = process.env) {
   for (const version of ["3.12", "3.11", "3.10"]) {
     push(`python${version}${EXECUTABLE_SUFFIX}`, [], `python${version}`);
   }
-  push(`python3${EXECUTABLE_SUFFIX}`, [], "python3");
-  push(`python${EXECUTABLE_SUFFIX}`, [], "python");
   return list;
 }
 
 /** The first candidate that runs and reports a supported version. */
-export function resolvePython(environment = process.env) {
+export function resolvePython(environment = process.env, probe = probeInterpreter) {
   const rejected = [];
   for (const candidate of candidates(environment)) {
-    const probed = probeInterpreter(candidate.command, candidate.args);
+    const probed = probe(candidate.command, candidate.args);
     if (!probed) continue;
     if (!isSupported(probed.version)) {
       rejected.push(`${candidate.source || candidate.command}: Python ${probed.versionText}`);

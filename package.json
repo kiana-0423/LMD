@@ -30,7 +30,7 @@
     "audit:python-requirements": "node scripts/resolve-python.mjs scripts/check_python_requirements.py",
     "audit:node-requirements": "node scripts/check-node-requirements.mjs",
     "audit:commands": "node scripts/check-command-surface.mjs",
-    "audit": "npm run audit:placeholders && npm run audit:i18n && npm run audit:python-requirements && npm run audit:node-requirements && npm run audit:commands && node scripts/resolve-python.mjs scripts/test_check_no_placeholders.py && node scripts/resolve-python.mjs scripts/test_windows_arm64_support.py"
+    "audit": "npm run audit:placeholders && npm run audit:i18n && npm run audit:python-requirements && npm run audit:node-requirements && npm run audit:commands && node scripts/test_resolve_python.mjs && node scripts/resolve-python.mjs scripts/test_check_no_placeholders.py && node scripts/resolve-python.mjs scripts/test_windows_arm64_support.py"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",

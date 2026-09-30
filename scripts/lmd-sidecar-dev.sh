@@ -77,7 +77,9 @@ resolve_python_bin() {
     done
   done
 
-  for candidate in python3.12 python3.11 python3.10 python3 python; do
+  # Honour the interpreter selected on PATH before unrelated system-wide installations. This is
+  # also what setup-python configures on CI and must match scripts/resolve-python.mjs.
+  for candidate in python python3 python3.12 python3.11 python3.10; do
     if command -v "$candidate" >/dev/null 2>&1; then
       local candidate_path
       candidate_path="$(command -v "$candidate")"
