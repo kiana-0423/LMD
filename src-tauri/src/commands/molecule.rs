@@ -4,13 +4,16 @@ use crate::commands::sidecar::prepare_molecule_with_sidecar;
 use crate::db::open_database;
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::fs;
 use tauri::AppHandle;
 use uuid::Uuid;
 
-const MOLECULE_LIST_ORDER: &str = "ORDER BY datetime(created_at) DESC, created_at DESC, id DESC";
+// The listing use case and the shapes it returns live in the host-independent `lmd-core` crate.
+// They are re-exported so existing `commands::molecule::*` paths keep working.
+use lmd_core::molecules::{molecule_from_row, MOLECULE_COLUMNS};
+pub use lmd_core::molecules::{MoleculeDto, MoleculeListFilter, MoleculePageDto};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,65 +25,6 @@ pub struct SaveMoleculePayload {
     pub data_source: Option<String>,
     pub notes: Option<String>,
     pub additive_function_tags: Option<Vec<String>>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MoleculeDto {
-    pub id: String,
-    pub name: String,
-    pub aliases: String,
-    pub smiles_raw: String,
-    pub smiles_canonical: String,
-    pub inchi: String,
-    pub inchi_key: String,
-    pub formula: String,
-    pub molecular_weight: f64,
-    pub category: String,
-    pub additive_function_tags: Vec<String>,
-    pub tags: Vec<String>,
-    pub molfile: String,
-    pub duplicate_of: String,
-    pub import_mode: String,
-    pub source: String,
-    pub structure_svg_path: String,
-    pub structure_svg: String,
-    pub mol_file_path: String,
-    pub sdf_file_path: String,
-    pub pdb_file_path: String,
-    pub mol_block: String,
-    pub sdf_block: String,
-    pub pdb_block: String,
-    pub rdkit_descriptor_status: String,
-    pub mordred_descriptor_status: String,
-    pub descriptor_ready: bool,
-    pub source_id: String,
-    pub data_source: String,
-    pub notes: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase", default)]
-pub struct MoleculeListFilter {
-    pub search: String,
-    pub category: String,
-    pub source: String,
-    pub import_mode: String,
-    pub duplicate_status: String,
-    pub element: String,
-    pub page: i64,
-    pub page_size: i64,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MoleculePageDto {
-    pub items: Vec<MoleculeDto>,
-    pub total: i64,
-    pub page: i64,
-    pub page_size: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -119,102 +63,17 @@ pub async fn list_molecules(
         .map_err(|err| format!("Molecule list task failed: {err}"))?
 }
 
+/// Resolves the active local workspace and hands its database to the listing service.
+///
+/// The filter is read before the database is opened, so a malformed filter is reported as such
+/// even when the workspace cannot be opened.
 fn list_molecules_blocking(
     app: &AppHandle,
     filter: Option<Value>,
 ) -> Result<MoleculePageDto, String> {
-    let mut filter = filter
-        .map(serde_json::from_value::<MoleculeListFilter>)
-        .transpose()
-        .map_err(|err| format!("Invalid molecule list filter: {err}"))?
-        .unwrap_or_default();
-    filter.page = filter.page.max(1);
-    filter.page_size = if filter.page_size <= 0 {
-        50
-    } else {
-        filter.page_size.min(200)
-    };
-    let search = if filter.search.trim().is_empty() {
-        String::new()
-    } else {
-        format!("%{}%", filter.search.trim().to_ascii_lowercase())
-    };
-    let offset = (filter.page - 1) * filter.page_size;
+    let filter = MoleculeListFilter::from_json(filter)?;
     let conn = open_connection(app)?;
-    // `datetime()` truncates to whole seconds, so a bulk import writes hundreds of rows that
-    // share a sort key. The raw timestamp and then the id give LIMIT/OFFSET a total order,
-    // without which pages can repeat or drop rows.
-    //
-    // The element filter must not match a longer symbol that merely starts with the same letter:
-    // a plain substring test reports boron for C20H42BrNO2 and sulfur for C10H22SiO. An element
-    // occurrence ends at a digit, at the next capital, or at the end of the formula.
-    let where_sql =
-        "WHERE (?1 = '' OR lower(name) LIKE ?1 OR lower(smiles_canonical) LIKE ?1 OR lower(inchi_key) LIKE ?1)
-           AND (?2 = '' OR category = ?2)
-           AND (?3 = '' OR source = ?3 OR source_id = ?3)
-           AND (?4 = '' OR import_mode = ?4)
-           AND (
-             ?5 = ''
-             OR (?5 = 'duplicate' AND COALESCE(duplicate_of, '') <> '')
-             OR (?5 = 'original' AND COALESCE(duplicate_of, '') = '')
-           )
-           AND (
-             ?6 = ''
-             OR formula GLOB ('*' || ?6 || '[0-9A-Z]*')
-             OR substr(formula, -length(?6)) = ?6
-           )";
-    let total: i64 = conn
-        .query_row(
-            &format!("SELECT COUNT(*) FROM molecules {where_sql}"),
-            params![
-                &search,
-                &filter.category,
-                &filter.source,
-                &filter.import_mode,
-                &filter.duplicate_status,
-                &filter.element
-            ],
-            |row| row.get(0),
-        )
-        .map_err(|err| format!("Failed to count filtered molecules: {err}"))?;
-    let mut statement = conn
-        .prepare(&format!(
-            "SELECT id, name, aliases, smiles_raw, smiles_canonical, inchi, inchi_key, formula,
-                    molecular_weight, category, tags, molfile, duplicate_of, import_mode, source,
-                    structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
-                    rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, source_id, notes,
-                    created_at, updated_at
-             FROM molecules
-             {where_sql}
-             {MOLECULE_LIST_ORDER}
-             LIMIT ?7 OFFSET ?8"
-        ))
-        .map_err(|err| format!("Failed to prepare molecule list query: {err}"))?;
-    let rows = statement
-        .query_map(
-            params![
-                &search,
-                &filter.category,
-                &filter.source,
-                &filter.import_mode,
-                &filter.duplicate_status,
-                &filter.element,
-                filter.page_size,
-                offset
-            ],
-            |row| row_to_molecule(row, None),
-        )
-        .map_err(|err| format!("Failed to query molecules: {err}"))?;
-    let mut molecules = Vec::new();
-    for row in rows {
-        molecules.push(row.map_err(|err| format!("Failed to read molecule row: {err}"))?);
-    }
-    Ok(MoleculePageDto {
-        items: molecules,
-        total,
-        page: filter.page,
-        page_size: filter.page_size,
-    })
+    lmd_core::molecules::list_molecules(&conn, filter)
 }
 
 #[tauri::command]
@@ -222,13 +81,7 @@ pub fn get_molecule(app: AppHandle, id: String) -> Result<Option<MoleculeDto>, S
     let conn = open_connection(&app)?;
     let workspace = default_workspace_dir(&app)?;
     conn.query_row(
-        "SELECT id, name, aliases, smiles_raw, smiles_canonical, inchi, inchi_key, formula,
-                molecular_weight, category, tags, molfile, duplicate_of, import_mode, source,
-                structure_svg_path, mol_file_path, sdf_file_path, pdb_file_path,
-                rdkit_descriptor_status, mordred_descriptor_status, descriptor_ready, source_id, notes,
-                created_at, updated_at
-         FROM molecules
-         WHERE id = ?1",
+        &format!("SELECT {MOLECULE_COLUMNS} FROM molecules WHERE id = ?1"),
         params![id],
         |row| row_to_molecule(row, Some(&workspace)),
     )
@@ -875,85 +728,25 @@ fn read_structure_file(workspace: &std::path::Path, relative: &str) -> String {
         .unwrap_or_default()
 }
 
+/// Maps a row selected with `MOLECULE_COLUMNS` and, when a workspace is given, attaches the
+/// structure blocks stored as files in it. Reading workspace files is the desktop host's job, so
+/// it happens here rather than in the service.
 fn row_to_molecule(
     row: &rusqlite::Row<'_>,
     workspace: Option<&std::path::Path>,
 ) -> rusqlite::Result<MoleculeDto> {
-    let tags_text: String = row.get::<_, Option<String>>(10)?.unwrap_or_default();
-    let tags: Vec<String> = serde_json::from_str(&tags_text).unwrap_or_default();
-    let molfile: String = row.get::<_, Option<String>>(11)?.unwrap_or_default();
-    let duplicate_of: String = row.get::<_, Option<String>>(12)?.unwrap_or_default();
-    let import_mode: String = row
-        .get::<_, Option<String>>(13)?
-        .unwrap_or_else(|| "manual_save".to_string());
-    let source: String = row.get::<_, Option<String>>(14)?.unwrap_or_default();
-    let structure_svg_path: String = row.get::<_, Option<String>>(15)?.unwrap_or_default();
-    let mol_file_path: String = row.get::<_, Option<String>>(16)?.unwrap_or_default();
-    let sdf_file_path: String = row.get::<_, Option<String>>(17)?.unwrap_or_default();
-    let pdb_file_path: String = row.get::<_, Option<String>>(18)?.unwrap_or_default();
-    let source_id: String = row.get::<_, Option<String>>(22)?.unwrap_or_default();
-    let structure_svg = workspace
-        .map(|path| read_structure_file(path, &structure_svg_path))
-        .unwrap_or_default();
-    let mol_block = workspace
-        .map(|path| {
-            if molfile.trim().is_empty() {
-                read_structure_file(path, &mol_file_path)
-            } else {
-                molfile.clone()
-            }
-        })
-        .unwrap_or_default();
-    let sdf_block = workspace
-        .map(|path| read_structure_file(path, &sdf_file_path))
-        .unwrap_or_default();
-    let pdb_block = workspace
-        .map(|path| read_structure_file(path, &pdb_file_path))
-        .unwrap_or_default();
-    Ok(MoleculeDto {
-        id: row.get(0)?,
-        name: row.get(1)?,
-        aliases: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-        smiles_raw: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
-        smiles_canonical: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
-        inchi: row.get::<_, Option<String>>(5)?.unwrap_or_default(),
-        inchi_key: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
-        formula: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
-        molecular_weight: row.get::<_, Option<f64>>(8)?.unwrap_or_default(),
-        category: row
-            .get::<_, Option<String>>(9)?
-            .unwrap_or_else(|| "candidate".to_string()),
-        additive_function_tags: tags.clone(),
-        tags,
-        molfile,
-        duplicate_of,
-        import_mode,
-        source: if source.is_empty() {
-            source_id.clone()
+    let mut molecule = molecule_from_row(row)?;
+    if let Some(path) = workspace {
+        molecule.structure_svg = read_structure_file(path, &molecule.structure_svg_path);
+        molecule.mol_block = if molecule.molfile.trim().is_empty() {
+            read_structure_file(path, &molecule.mol_file_path)
         } else {
-            source
-        },
-        structure_svg_path,
-        structure_svg,
-        mol_file_path,
-        sdf_file_path,
-        pdb_file_path,
-        mol_block,
-        sdf_block,
-        pdb_block,
-        rdkit_descriptor_status: row
-            .get::<_, Option<String>>(19)?
-            .unwrap_or_else(|| "pending".to_string()),
-        mordred_descriptor_status: row
-            .get::<_, Option<String>>(20)?
-            .unwrap_or_else(|| "pending".to_string()),
-        descriptor_ready: row.get::<_, Option<i64>>(21)?.unwrap_or_default() == 1,
-        source_id: source_id.clone(),
-        data_source: source_id,
-        notes: row.get::<_, Option<String>>(23)?.unwrap_or_default(),
-        created_at: row.get(24)?,
-        updated_at: row.get(25)?,
-    })
+            molecule.molfile.clone()
+        };
+        molecule.sdf_block = read_structure_file(path, &molecule.sdf_file_path);
+        molecule.pdb_block = read_structure_file(path, &molecule.pdb_file_path);
+    }
+    Ok(molecule)
 }
 
 fn descriptor_mode(descriptor: &Value) -> String {
@@ -1032,72 +825,6 @@ fn insert_descriptor(
 mod tests {
     use super::*;
     use crate::db::schema::INIT_SCHEMA_SQL;
-    use std::collections::HashSet;
-
-    fn seed_molecules_in_one_second(connection: &Connection, count: usize) {
-        for index in 0..count {
-            // Distinct sub-second timestamps that all collapse to the same `datetime()` value,
-            // exactly what a bulk import produces.
-            let created_at = format!("2026-08-20T09:00:00.{:09}+00:00", index);
-            connection
-                .execute(
-                    "INSERT INTO molecules (id, name, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?3)",
-                    params![
-                        format!("molecule-{index:03}"),
-                        format!("Molecule {index}"),
-                        created_at
-                    ],
-                )
-                .expect("molecule should be inserted");
-        }
-    }
-
-    fn page_ids(connection: &Connection, page_size: i64, offset: i64) -> Vec<String> {
-        let mut statement = connection
-            .prepare(&format!(
-                "SELECT id FROM molecules {MOLECULE_LIST_ORDER} LIMIT ?1 OFFSET ?2"
-            ))
-            .expect("paged query should prepare");
-        statement
-            .query_map(params![page_size, offset], |row| row.get::<_, String>(0))
-            .expect("paged query should run")
-            .collect::<Result<Vec<_>, _>>()
-            .expect("paged rows should read")
-    }
-
-    #[test]
-    fn pagination_never_repeats_or_drops_rows_created_in_the_same_second() {
-        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
-        connection
-            .execute_batch(INIT_SCHEMA_SQL)
-            .expect("schema should initialize");
-        seed_molecules_in_one_second(&connection, 25);
-
-        let mut seen = Vec::new();
-        for page in 0..5 {
-            seen.extend(page_ids(&connection, 5, page * 5));
-        }
-
-        assert_eq!(seen.len(), 25);
-        assert_eq!(seen.iter().collect::<HashSet<_>>().len(), 25);
-    }
-
-    #[test]
-    fn molecule_list_order_is_stable_across_identical_queries() {
-        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
-        connection
-            .execute_batch(INIT_SCHEMA_SQL)
-            .expect("schema should initialize");
-        seed_molecules_in_one_second(&connection, 10);
-
-        let first = page_ids(&connection, 10, 0);
-        let second = page_ids(&connection, 10, 0);
-
-        assert_eq!(first, second);
-        assert_eq!(first.first().map(String::as_str), Some("molecule-009"));
-        assert_eq!(first.last().map(String::as_str), Some("molecule-000"));
-    }
 
     fn seed_formulas(connection: &Connection, formulas: &[(&str, &str)]) {
         for (index, (id, formula)) in formulas.iter().enumerate() {
@@ -1114,61 +841,6 @@ mod tests {
                 )
                 .expect("molecule should be inserted");
         }
-    }
-
-    fn element_matches(connection: &Connection, element: &str) -> Vec<String> {
-        let mut statement = connection
-            .prepare(
-                "SELECT id FROM molecules
-                 WHERE ?1 = ''
-                    OR formula GLOB ('*' || ?1 || '[0-9A-Z]*')
-                    OR substr(formula, -length(?1)) = ?1
-                 ORDER BY id",
-            )
-            .expect("element query should prepare");
-        statement
-            .query_map(params![element], |row| row.get::<_, String>(0))
-            .expect("element query should run")
-            .collect::<Result<Vec<_>, _>>()
-            .expect("rows should read")
-    }
-
-    #[test]
-    fn element_filter_does_not_match_a_longer_symbol_with_the_same_first_letter() {
-        let connection = Connection::open_in_memory().expect("in-memory sqlite should open");
-        connection
-            .execute_batch(INIT_SCHEMA_SQL)
-            .expect("schema should initialize");
-        seed_formulas(
-            &connection,
-            &[
-                ("brominated", "C20H42BrNO2"),
-                ("silicone", "C10H22SiO"),
-                ("sodium", "C8H18NaO"),
-                ("borate", "BF3"),
-                ("ends-with-boron", "C6H5B"),
-                ("thiophosphate", "C6H15O3PS2"),
-            ],
-        );
-
-        // Boron must not pick up bromine, sulfur must not pick up silicon, nitrogen must not
-        // pick up sodium.
-        assert_eq!(
-            element_matches(&connection, "B"),
-            vec!["borate".to_string(), "ends-with-boron".to_string()]
-        );
-        assert_eq!(
-            element_matches(&connection, "S"),
-            vec!["thiophosphate".to_string()]
-        );
-        assert_eq!(
-            element_matches(&connection, "N"),
-            vec!["brominated".to_string()]
-        );
-        assert_eq!(
-            element_matches(&connection, "P"),
-            vec!["thiophosphate".to_string()]
-        );
     }
 
     #[test]

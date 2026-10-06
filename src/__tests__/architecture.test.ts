@@ -14,7 +14,7 @@ import KetcherTranslationBridge from "../features/molecule-sketcher/KetcherTrans
  * The browser-demo modules, by file name.
  *
  * They all live under `src/lib/demo/` now, reachable only through the guarded dynamic import in
- * `lib/tauri.ts`. A production component importing one directly would put fabricated records back
+ * `lib/transport/index.ts`. A production component importing one directly would put fabricated records back
  * into the desktop bundle, which is what these assertions exist to prevent.
  */
 const DEMO_MODULES = ["api.mock", "mockData", "mockStructure", "demo/adapter"];
@@ -168,7 +168,22 @@ describe("bundle separation", () => {
       .filter(([, source]) => DEMO_MODULES.some((module) => source.includes(`/${module}`)))
       .map(([file]) => file);
 
-    expect(offenders, "only lib/tauri.ts may reach the demo adapter").toEqual([]);
+    expect(offenders, "only lib/transport may reach the demo adapter").toEqual([]);
+  });
+
+  it("loads the demo adapter only from the transport selector", () => {
+    const sources = import.meta.glob("../lib/**/*.{ts,tsx}", {
+      query: "?raw",
+      import: "default",
+      eager: true
+    }) as Record<string, string>;
+
+    const importers = Object.entries(sources)
+      .filter(([file]) => !file.startsWith("../lib/demo/"))
+      .filter(([, source]) => /import\(\s*["'][^"']*demo\/adapter["']\s*\)|from\s+["'][^"']*demo\//.test(source))
+      .map(([file]) => file);
+
+    expect(importers).toEqual(["../lib/transport/index.ts"]);
   });
 });
 

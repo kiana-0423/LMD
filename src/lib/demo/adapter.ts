@@ -3,8 +3,8 @@
  *
  * Nothing outside this folder imports a mock module. Every fabricated record the demo shows comes
  * through `dispatchDemoCommand`, which is reached only from the guarded dynamic import in
- * `lib/tauri.ts` — so a build without `VITE_DEMO_MODE=true` never pulls this file, or anything it
- * imports, into the bundle.
+ * `lib/transport/index.ts` — so a build without `VITE_DEMO_MODE=true` never pulls this file, or
+ * anything it imports, into the bundle.
  *
  * The table is keyed by the same command names the Rust side registers. That is deliberate: a
  * demo answer and a real answer are the same question asked of different backends, and keeping the

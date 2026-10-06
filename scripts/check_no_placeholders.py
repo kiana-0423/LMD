@@ -28,9 +28,9 @@ DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 
 # --- Modules that may legitimately contain demo data ---------------------------------------
 # Everything the browser demo needs lives under `src/lib/demo/`, and nothing outside that folder
-# imports it. The only door in is the guarded dynamic import in `src/lib/tauri.ts`, which a build
-# without `VITE_DEMO_MODE=true` never takes — so the folder and its contents are dropped from a
-# desktop bundle entirely.
+# imports it. The only door in is the guarded dynamic import in `src/lib/transport/index.ts`, which
+# a build without `VITE_DEMO_MODE=true` never takes — so the folder and its contents are dropped
+# from a desktop bundle entirely.
 DEMO_MODULES = {
     "src/lib/demo/api.mock.ts",
     "src/lib/demo/mockData.ts",
@@ -45,6 +45,9 @@ DEMO_MODULES = {
 DEMO_IMPORT_ALLOWED_PREFIXES = ("src/lib/demo/",)
 
 PRODUCTION_ROOTS = ["src/features", "src/components", "src/layouts", "src/routes", "src/i18n"]
+
+# Rust production sources: the desktop crate and the host-independent core it calls.
+RUST_ROOTS = ["src-tauri/src", "crates/lmd-core/src"]
 
 FORBIDDEN_MARKERS = [
     "queued_mock",
@@ -228,7 +231,7 @@ def check_no_fabricated_tables(root: Path) -> list[str]:
 
 def check_mock_paths(root: Path) -> list[str]:
     findings = []
-    for subdirectory in PRODUCTION_ROOTS + ["src/lib", "src-tauri/src", "python-sidecar/lmd_sidecar"]:
+    for subdirectory in PRODUCTION_ROOTS + ["src/lib", *RUST_ROOTS, "python-sidecar/lmd_sidecar"]:
         for path in iter_files(root, subdirectory, (".ts", ".tsx", ".rs", ".py")):
             rel = relative(root, path)
             if is_test_path(path) or rel in DEMO_MODULES:
@@ -241,7 +244,8 @@ def check_mock_paths(root: Path) -> list[str]:
 
 def check_rust_fixed_science(root: Path) -> list[str]:
     findings = []
-    for path in iter_files(root, "src-tauri/src", (".rs",)):
+    rust_files = [path for subdirectory in RUST_ROOTS for path in iter_files(root, subdirectory, (".rs",))]
+    for path in rust_files:
         if is_test_path(path):
             continue
         text = path.read_text(encoding="utf-8")
@@ -258,7 +262,7 @@ def check_rust_fixed_science(root: Path) -> list[str]:
 def check_markers(root: Path) -> list[str]:
     findings = []
     targets = [root / "src-tauri" / "tauri.conf.json"]
-    for subdirectory in PRODUCTION_ROOTS + ["src/lib", "src-tauri/src", "python-sidecar/lmd_sidecar"]:
+    for subdirectory in PRODUCTION_ROOTS + ["src/lib", *RUST_ROOTS, "python-sidecar/lmd_sidecar"]:
         targets.extend(iter_files(root, subdirectory, (".ts", ".tsx", ".rs", ".py", ".json")))
     for path in targets:
         if not path.is_file():

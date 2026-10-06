@@ -1,0 +1,18 @@
+[package]
+name = "lmd-core"
+version = "0.1.0"
+description = "LMD use cases that do not depend on how the application is hosted"
+edition = "2021"
+publish = false
+# The Cargo workspace is rooted at the desktop crate so its lockfile, target directory and the
+# established Tauri build and packaging paths stay where they are. Building this crate there
+# compiles only the dependencies below.
+workspace = "../../src-tauri"
+
+# The desktop boundary is this list. Nothing here may pull in Tauri, its plugins, tauri-build or
+# a webview runtime; `npm run audit:core-boundary` checks the resolved graph.
+[dependencies]
+# `bundled` so the crate links the same SQLite on every platform when built on its own.
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

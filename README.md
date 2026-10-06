@@ -369,6 +369,8 @@ CI output without certificates is suitable for internal testing, but public rele
   - `src/i18n/locales/`: one module per language; English is bundled, the other two are chunks
   - `src/lib/demo/`: the browser demo's sample records, reachable only in a `VITE_DEMO_MODE` build
 - `src-tauri/`: Rust backend, SQLite schema, Tauri commands, paths, and bundle configuration
+- `crates/lmd-core/`: host-independent Rust use cases (molecule listing so far), with no Tauri
+  dependency; see its [README](crates/lmd-core/README.md)
 - `python-sidecar/`: Python CLI and scientific-computing services
 - `public/`: frontend static assets
 - `asset/`: source design assets
@@ -405,6 +407,12 @@ Old build output can be removed from `dist/`, `dist-demo/`, `src-tauri/target/`,
 ## Architecture Notes
 
 React calls Rust through Tauri commands. Rust owns all SQLite writes and invokes the Python sidecar through a JSON CLI protocol. The sidecar does not write directly to SQLite.
+
+The frontend's feature APIs (`src/lib/api/`) do not choose a backend; `src/lib/transport/` does,
+and inside Tauri that is always the local Tauri transport. On the Rust side, use cases that do not
+depend on the desktop host live in `crates/lmd-core`, which takes its database connection as an
+argument and cannot depend on Tauri. The Tauri command is the adapter that resolves the local
+workspace, opens it, and calls the shared code. `list_molecules` is the first use case moved there.
 
 Structure files, exports, attachments, reports, and models should be stored under the workspace directory. The database should store relative paths.
 
@@ -488,13 +496,14 @@ pass. To run them locally:
 npm run typecheck
 npm run lint
 npm test -- --run
-npm run audit                    # placeholders, strings, Node/Python consistency, command surface
+npm run audit                    # placeholders, strings, Node/Python consistency, command and core boundaries
 npm run build
 npm run analyze:bundle           # bundle budgets, and mock markers in the desktop build
 npm ls --depth=0
 
 npm run sidecar:prepare-dev      # required before the Rust steps
 cd src-tauri && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test
+cargo test -p lmd-core           # still in src-tauri: the core crate alone, no Tauri compiled
 
 npm run sidecar:check-lock       # the active environment against requirements.lock
 npm run sidecar:test             # pytest, through the resolved interpreter
@@ -503,7 +512,8 @@ npm run sidecar:test             # pytest, through the resolved interpreter
 `npm run audit` runs, in order: unresolved production placeholders, hard-coded user-visible
 strings, the Python version range declared consistently across four files, the Node version
 declared consistently across five, the Tauri command surface (nothing registered that is unused,
-nothing invoked that is unregistered), and the audits' own tests.
+nothing invoked that is unregistered), the `lmd-core` dependency graph (no Tauri or desktop crate in
+it), and the audits' own tests.
 
 ## Current Limitations
 
