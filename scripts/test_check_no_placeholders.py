@@ -46,6 +46,7 @@ SCANNED = [
     "src/i18n",
     "src/lib",
     "src-tauri/src",
+    "crates/lmd-core/src",
     "python-sidecar/lmd_sidecar",
 ]
 

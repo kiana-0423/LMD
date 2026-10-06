@@ -17,10 +17,19 @@ path = "src/lib.rs"
 name = "lubricant-materials-database"
 path = "src/main.rs"
 
+# This manifest is also the workspace root, so `Cargo.lock`, `target/` and every Tauri build and
+# packaging path stay where they were. `lmd-core` lives outside the desktop directory because it is
+# not desktop code; listing it in `default-members` keeps the existing `cargo fmt`, `cargo clippy`
+# and `cargo test` runs here covering it.
+[workspace]
+members = ["../crates/lmd-core"]
+default-members = [".", "../crates/lmd-core"]
+
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }
 
 [dependencies]
+lmd-core = { path = "../crates/lmd-core" }
 tauri = { version = "2.0.0", features = [] }
 tauri-plugin-shell = "2.0.0"
 tauri-plugin-dialog = "2"
