@@ -267,12 +267,13 @@ jobs:
           fi
 
       - name: Build desktop installers
+        shell: bash
         env:
           # Notarization runs only when every credential is present; Tauri skips it otherwise.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
+        run: node node_modules/@tauri-apps/cli/tauri.js build --bundles "${{ matrix.bundles }}" --ci
 
       - name: Verify the macOS signature
         if: runner.os == 'macOS' && steps.signing_config.outputs.signed == 'true'
