@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use tauri::AppHandle;
 
-const LATEST_SCHEMA_VERSION: i64 = 10;
+pub const LATEST_SCHEMA_VERSION: i64 = 10;
 
 pub fn initialize_database_file(app: &AppHandle) -> Result<(), String> {
     let workspace = default_workspace_dir(app)?;
@@ -19,6 +19,12 @@ pub fn initialize_database_at(workspace: &Path) -> Result<(), String> {
     let already_existed = db_path.is_file();
     let connection =
         open_database(&db_path).map_err(|err| format!("Failed to open SQLite database: {err}"))?;
+    let version: i64 = connection
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(|err| err.to_string())?;
+    if version > LATEST_SCHEMA_VERSION {
+        return Err(format!("Database schema version {version} is newer than this LMD build supports ({LATEST_SCHEMA_VERSION})."));
+    }
     connection
         .execute_batch(INIT_SCHEMA_SQL)
         .map_err(|err| format!("Failed to initialize SQLite schema: {err}"))?;

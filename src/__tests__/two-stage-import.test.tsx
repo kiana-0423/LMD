@@ -169,3 +169,15 @@ describe("two-stage table import", () => {
     expect(screen.queryByText("Preview — nothing has been imported yet")).toBeNull();
   });
 });
+
+it("removes the previous table preview when a new file cannot be previewed", async () => {
+  chooseFile.mockResolvedValue(PREVIEW.filePath);
+  previewTableImport.mockResolvedValue(PREVIEW);
+  await openPage();
+  fireEvent.click(selectButton());
+  await screen.findByText("Preview — nothing has been imported yet");
+  previewTableImport.mockRejectedValue(new Error("Invalid table file"));
+  fireEvent.click(selectButton());
+  await waitFor(() => expect(screen.queryByText("Import these rows")).toBeNull());
+  expect(confirmTableImport).not.toHaveBeenCalled();
+});

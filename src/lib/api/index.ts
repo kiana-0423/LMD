@@ -13,3 +13,4 @@ export * from "./payloads";
 export * from "./tableImport";
 export * from "./workspace";
 export * from "./commercialProduct";
+export * from "./portable";

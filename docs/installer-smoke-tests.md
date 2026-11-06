@@ -123,3 +123,18 @@ need real machines:
 - SmartScreen reputation on the NSIS installer.
 - MSI install, uninstall, and reinstall over an existing workspace.
 - Clean-machine operation with no Node.js, Rust, Python, or Conda present.
+
+## Full workspace migration
+
+1. On the source OS, create records, calculate descriptors, attach a file and train a model.
+2. Export the complete workspace from **Import / Export → Full backup & migration**.
+3. Copy the ZIP to another OS using the same LMD release, then preview and import it.
+4. Confirm every table count, structure preview, attachment and trained model is present;
+   run a prediction and open the model explanation using the restored model.
+5. Confirm the original workspace is unchanged and still opens through Settings.
+6. Try a truncated ZIP and a ZIP whose attachment bytes were changed: import must fail,
+   show an error and leave no partial workspace. Cancelling either file dialog must write nothing.
+
+CI additionally checks Linux-to-Windows/macOS restoration of every seeded table and
+binary/Unicode file. Installer launch and real model prediction on clean machines
+remain manual checks; compilation alone does not establish these.

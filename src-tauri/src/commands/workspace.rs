@@ -224,7 +224,7 @@ pub struct WorkspaceDetails {
 }
 
 /// The schema version this build writes, exposed so Settings can say what an upgrade will do.
-pub const SUPPORTED_SCHEMA_VERSION: i64 = 6;
+pub const SUPPORTED_SCHEMA_VERSION: i64 = crate::db::migrations::LATEST_SCHEMA_VERSION;
 
 #[tauri::command]
 pub fn get_workspace_details(app: AppHandle) -> Result<WorkspaceDetails, String> {

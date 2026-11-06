@@ -58,6 +58,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            portable::export_workspace_archive,
+            portable::preview_workspace_archive,
+            portable::import_workspace_archive,
             commercial_product::list_commercial_products_page,
             commercial_product::get_commercial_product,
             commercial_product::save_commercial_product,

@@ -105,9 +105,18 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Test Rust
+      - name: Test Rust and generate the Linux migration fixture
         working-directory: src-tauri
-        run: cargo test
+        env:
+          LMD_ARCHIVE_FIXTURE_OUT: ${{ runner.temp }}/portable-workspace.zip
+        run: cargo test --locked
+
+      - name: Upload the cross-platform migration fixture
+        uses: actions/upload-artifact@v4
+        with:
+          name: LMD-portable-migration-fixture
+          path: ${{ runner.temp }}/portable-workspace.zip
+          if-no-files-found: error
 
       - name: Test Python sidecar
         working-directory: python-sidecar
@@ -122,7 +131,7 @@ jobs:
   build:
     name: ${{ matrix.name }}
     needs: checks
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/')
     strategy:
       fail-fast: false
       matrix:
@@ -181,6 +190,18 @@ jobs:
 
       - name: Build and verify self-contained sidecar
         run: python scripts/build_sidecar.py
+
+      - name: Download the Linux migration fixture
+        uses: actions/download-artifact@v4
+        with:
+          name: LMD-portable-migration-fixture
+          path: ${{ runner.temp }}/lmd-portable-fixture
+
+      - name: Verify native backup and cross-platform import
+        working-directory: src-tauri
+        env:
+          LMD_ARCHIVE_FIXTURE_IN: ${{ runner.temp }}/lmd-portable-fixture/portable-workspace.zip
+        run: cargo test --locked --test portable_archive --test backup_and_migration
 
       # The installed release binary, not the one in dist/: this is the file Tauri will bundle.
       # Every production command runs against it before packaging, on the native builder for this

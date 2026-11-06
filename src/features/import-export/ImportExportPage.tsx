@@ -1,3 +1,4 @@
+import WorkspaceArchiveCard from "./WorkspaceArchiveCard";
 import WorkspaceTabs from "../../components/WorkspaceTabs";
 import { DownloadOutlined, FileSearchOutlined, UploadOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Checkbox, Descriptions, Space, Table, Tag, Typography, message } from "antd";
@@ -45,6 +46,7 @@ export default function ImportExportPage() {
       return;
     }
     setOutcome(undefined);
+    setPreview(undefined);
     setPreview(await previewTableImport(path));
   }, { onError: (error) => message.error(backendErrorText(error, t)) });
 
@@ -107,6 +109,9 @@ export default function ImportExportPage() {
     );
   }
 
+  const moleculeExportAction = useAsyncAction(exportMolecules, { onError: (error) => message.error(backendErrorText(error, t)) });
+  const descriptorExportAction = useAsyncAction(exportDescriptors, { onError: (error) => message.error(backendErrorText(error, t)) });
+
   const kindKey = preview ? KIND_LABEL_KEYS[preview.detectedKind as keyof typeof KIND_LABEL_KEYS] : undefined;
 
   return (
@@ -114,7 +119,7 @@ export default function ImportExportPage() {
       <PageHeader title={t("ui.importExport")} description={t("ui.importMoleculeTablesAndExportTheMoleculeLibr")} />
 
 
-      <WorkspaceTabs labels={[t("ui.import"), t("ui.exportAllCsv")]}>
+      <WorkspaceTabs labels={[t("ui.import"), t("ui.exportAllCsv"), t("archive.title")]}>
         <Card className="table-card">
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <Space wrap>
@@ -227,10 +232,10 @@ export default function ImportExportPage() {
         <Card className="table-card">
           <div className="table-toolbar">
             <div className="left">
-              <Button icon={<DownloadOutlined />} onClick={() => void exportMolecules()}>
+              <Button icon={<DownloadOutlined />} loading={moleculeExportAction.running} onClick={() => void moleculeExportAction.run()}>
                 {t("ui.exportMoleculeLibraryCsv")}
               </Button>
-              <Button icon={<DownloadOutlined />} onClick={() => void exportDescriptors()}>
+              <Button icon={<DownloadOutlined />} loading={descriptorExportAction.running} onClick={() => void descriptorExportAction.run()}>
                 {t("ui.exportDescriptorMatrixCsv")}
               </Button>
             </div>
@@ -241,6 +246,7 @@ export default function ImportExportPage() {
             </div>
           </div>
         </Card>
+        <WorkspaceArchiveCard />
       </WorkspaceTabs>
     </div>
   );

@@ -359,6 +359,35 @@ The workflow at `.github/workflows/build-desktop.yml` builds both targets on nat
 
 The workflow also runs automatically for tags such as `v0.1.0`.
 
+### Complete workspace backup and cross-platform import
+
+In **Import / Export → Full backup & migration**, choose **Export complete workspace**
+then save the ZIP archive. On the destination machine, choose **Select an LMD backup**,
+review the table counts, and choose **Import into a new workspace**. Select a parent
+folder; LMD creates a new `LMD-Imported-*` workspace there. **Open imported workspace**
+switches to it and reloads the interface. The original workspace remains available.
+
+The versioned archive includes a consistent SQLite snapshot (including committed WAL
+transactions, every table, ID, relationship, descriptor, experiment, job, model and
+setting) and all files under `files/`, including structure files, attachments, models
+and model explanation references. Historical `exports/`, `backups/` and temporary
+files are excluded. CSV exports remain intended for spreadsheet analysis, not full
+backup. Missing referenced files or running jobs cause export to fail explicitly.
+
+Archives use UTF-8 names and `/` separators across Windows, macOS and Linux. Legacy
+Windows separators in database file references are normalized in the exported copy.
+Each file has a SHA-256 checksum; import checks the archive version, SQLite integrity,
+foreign keys, table counts and referenced files before keeping the new workspace.
+Invalid archives leave no partially imported workspace. Symlinks, unsafe Windows
+names, traversal and case-colliding paths are refused. Version 1 supports up to 100,000
+files and 64 GiB of uncompressed data. Keep the same LMD/scientific dependency version
+when moving trained models; import only trusted archives because model files are
+Python serialized objects. No model is loaded during archive preview or import.
+
+The desktop workflow builds installers for `release/*` branches as well as manual
+runs and version tags. It transfers a real fixture from Linux to the native Windows
+and macOS test runners, comparing every restored table value and file byte.
+
 ### Before Public Distribution
 
 CI output without certificates is suitable for internal testing, but public releases should be signed. macOS distribution requires an Apple Developer certificate and notarization; Windows should use an Authenticode code-signing certificate to reduce SmartScreen warnings. Validate each signed installer on a clean machine that has no developer tools installed.

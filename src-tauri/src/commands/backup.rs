@@ -11,13 +11,13 @@
 //! backup at all.
 //!
 //! Restoring is staged for the same reason: the replacement is validated in a temporary location
-//! and only then moved into place, so a corrupt or truncated archive can never become the live
+//! and only then restored through SQLite, so a corrupt or truncated archive can never become the live
 //! workspace.
 
 use crate::commands::errors::{self, coded};
 use crate::db::migrations::data_quality_issues;
 use crate::db::open_database;
-use rusqlite::{backup::Backup, Connection};
+use rusqlite::{backup::Backup, Connection, OpenFlags};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -78,7 +78,7 @@ pub fn verify_database(path: &Path) -> Result<IntegrityReport, String> {
             format!("No database at {}", path.display()),
         ));
     }
-    let connection = open_database(path)
+    let connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|err| format!("Failed to open {} for checking: {err}", path.display()))?;
     let integrity: String = connection
         .query_row("PRAGMA integrity_check", [], |row| row.get(0))
@@ -113,28 +113,27 @@ pub fn create_backup(source: &Path, destination: &Path) -> Result<IntegrityRepor
             format!("There is no database to back up at {}", source.display()),
         ));
     }
-    if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("Failed to create the backup folder: {err}"))?;
-    }
-    // A leftover file from an interrupted run would otherwise be backed *into*.
-    if destination.exists() {
-        fs::remove_file(destination)
-            .map_err(|err| format!("Failed to clear the previous backup file: {err}"))?;
-    }
-
-    let from = open_database(source).map_err(|err| {
-        coded(
+    // Never unlink the source, including aliases through symlinks or `..`.
+    if destination.exists()
+        && source.canonicalize().map_err(|err| err.to_string())?
+            == destination.canonicalize().map_err(|err| err.to_string())?
+    {
+        return Err(coded(
             errors::BACKUP_FAILED,
-            format!("Failed to open the workspace database: {err}"),
-        )
-    })?;
-    let mut to = Connection::open(destination).map_err(|err| {
-        coded(
-            errors::BACKUP_FAILED,
-            format!("Failed to create the backup file: {err}"),
-        )
-    })?;
+            "The backup destination is the source database.",
+        ));
+    }
+    let parent = destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    let staging = tempfile::NamedTempFile::new_in(parent).map_err(|err| err.to_string())?;
+    let from = Connection::open_with_flags(source, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|err| coded(errors::BACKUP_FAILED, err.to_string()))?;
+    from.busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|err| err.to_string())?;
+    let mut to = Connection::open(staging.path()).map_err(|err| err.to_string())?;
     {
         let backup = Backup::new(&from, &mut to).map_err(|err| {
             coded(
@@ -151,23 +150,27 @@ pub fn create_backup(source: &Path, destination: &Path) -> Result<IntegrityRepor
                 )
             })?;
     }
+    // Produce one self-contained file, with no WAL companion needed on another machine.
+    to.pragma_update(None, "journal_mode", "DELETE")
+        .map_err(|err| err.to_string())?;
     drop(to);
-
-    // A file that fails its own check is not a backup, and leaving it in the folder would let a
-    // later restore pick it.
-    let report = verify_database(destination).inspect_err(|_| {
-        let _ = fs::remove_file(destination);
-    })?;
+    let report = verify_database(staging.path())?;
     if !report.ok {
-        let _ = fs::remove_file(destination);
         return Err(coded(
             errors::BACKUP_FAILED,
             format!(
-                "The backup failed its integrity check ({}, {} foreign key violation(s)); it was discarded.",
+                "The backup failed its integrity check ({}, {} foreign key violation(s)).",
                 report.integrity, report.foreign_key_violations
             ),
         ));
     }
+    staging
+        .as_file()
+        .sync_all()
+        .map_err(|err| err.to_string())?;
+    staging
+        .persist(destination)
+        .map_err(|err| coded(errors::BACKUP_FAILED, err.to_string()))?;
     Ok(report)
 }
 
@@ -279,8 +282,7 @@ pub struct RestoreOutcome {
 ///   2. Copy it — again through SQLite's backup API — to a staging file beside the live database.
 ///   3. Verify the staged copy, because a copy can fail in ways the original did not.
 ///   4. Back up the database that is about to be replaced, so this operation is reversible too.
-///   5. Only now replace the live file, and delete its stale `-wal`/`-shm` companions, which
-///      belong to the database that is no longer there.
+///   5. Restore through SQLite in a transaction, keeping active connections and WAL consistent.
 pub fn restore_backup(
     workspace: &Path,
     database: &Path,
@@ -303,21 +305,14 @@ pub fn restore_backup(
         ));
     }
 
-    let staging = database.with_extension("restore-staging");
-    let staged_report = create_backup(candidate, &staging).map_err(|err| {
-        let _ = fs::remove_file(&staging);
-        coded(
-            errors::RESTORE_REFUSED,
-            format!("The replacement could not be staged: {err}"),
-        )
-    })?;
-    if !staged_report.ok {
-        let _ = fs::remove_file(&staging);
-        return Err(coded(
-            errors::RESTORE_REFUSED,
-            "The staged replacement failed its integrity check; the current database was left untouched.",
-        ));
-    }
+    // Validate and migrate in isolation. A random SQLite file or a newer schema must never
+    // replace the live workspace; older LMD databases must be usable immediately after restore.
+    crate::commands::portable::validate_lmd_database(candidate)?;
+    let staging = tempfile::tempdir_in(workspace).map_err(|err| err.to_string())?;
+    let staged_database = staging.path().join("lmd.sqlite");
+    create_backup(candidate, &staged_database)?;
+    crate::db::migrations::initialize_database_at(staging.path())?;
+    let report = verify_database(&staged_database)?;
 
     // The database about to be replaced is somebody's work until this instant.
     let previous = backup_dir(workspace)?.join(backup_file_name(
@@ -326,7 +321,6 @@ pub fn restore_backup(
     ));
     if database.is_file() {
         create_backup(database, &previous).map_err(|err| {
-            let _ = fs::remove_file(&staging);
             coded(
                 errors::RESTORE_REFUSED,
                 format!(
@@ -336,19 +330,14 @@ pub fn restore_backup(
         })?;
     }
 
-    fs::rename(&staging, database).map_err(|err| {
-        let _ = fs::remove_file(&staging);
-        coded(
-            errors::RESTORE_REFUSED,
-            format!("The validated replacement could not be moved into place: {err}"),
-        )
-    })?;
-    // These belong to the database that has just been replaced; leaving them would let SQLite
-    // replay a journal against a file it was never written for.
-    for suffix in ["-wal", "-shm"] {
-        let companion = PathBuf::from(format!("{}{suffix}", database.display()));
-        let _ = fs::remove_file(companion);
-    }
+    // Restore through SQLite, so Windows handles and active readers cannot leave an inode or
+    // WAL attached to the replaced database. SQLite commits the backup transaction atomically.
+    let from = Connection::open_with_flags(&staged_database, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|err| err.to_string())?;
+    let mut to = open_database(database).map_err(|err| err.to_string())?;
+    Backup::new(&from, &mut to)
+        .and_then(|backup| backup.run_to_completion(64, std::time::Duration::from_millis(1), None))
+        .map_err(|err| coded(errors::RESTORE_REFUSED, err.to_string()))?;
 
     Ok(RestoreOutcome {
         restored_from: candidate.to_string_lossy().to_string(),

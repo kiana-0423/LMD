@@ -19,6 +19,7 @@ pub mod molecule_usage;
 pub mod molecule_visualization;
 pub mod pagination;
 pub mod patch;
+pub mod portable;
 pub mod references;
 pub mod sidecar;
 pub mod statistics;
