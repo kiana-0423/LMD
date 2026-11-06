@@ -296,6 +296,10 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: node node_modules/@tauri-apps/cli/tauri.js build --bundles "${{ matrix.bundles }}" --ci
 
+      - name: Verify Windows desktop does not allocate a console
+        if: runner.os == 'Windows'
+        run: python scripts/verify_windows_pe_arch.py --expect x86_64 --subsystem windows src-tauri/target/release/lubricant-materials-database.exe
+
       - name: Verify the macOS signature
         if: runner.os == 'macOS' && steps.signing_config.outputs.signed == 'true'
         run: |

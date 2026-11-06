@@ -40,6 +40,11 @@ Record the result of every step. A step that is skipped is a step that failed.
 
 ## Windows x64
 
+Launch LMD from its installed Start Menu or desktop shortcut. Only the application window should
+appear; there must be no accompanying console window. Calculate descriptors and run a model to
+confirm that background sidecar requests also stay invisible. CI checks the built desktop EXE's
+PE subsystem is `windows` (GUI), while the sidecar retains its piped JSON output protocol.
+
 | # | Step | Expected result |
 |---|------|-----------------|
 | 1 | Run the NSIS `-setup.exe` on a machine with no internet | Installs, including the offline WebView2 runtime |

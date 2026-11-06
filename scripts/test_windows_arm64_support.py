@@ -9,18 +9,27 @@ from pathlib import Path
 
 from build_sidecar import target_triple
 from check_windows_arm64_wheels import PURE_PYTHON_SDISTS, compatible_wheels, locked_requirements
-from verify_windows_pe_arch import read_pe_machine, verify_pe_machine
+from verify_windows_pe_arch import (
+    read_pe_machine,
+    read_pe_subsystem,
+    verify_pe_machine,
+    verify_pe_subsystem,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def fake_pe(path: Path, machine: int) -> None:
-    header = bytearray(256)
+def fake_pe(path: Path, machine: int, subsystem: int = 3) -> None:
+    header = bytearray(512)
     header[:2] = b"MZ"
     struct.pack_into("<I", header, 0x3C, 0x80)
     header[0x80:0x84] = b"PE\0\0"
     struct.pack_into("<H", header, 0x84, machine)
+    optional_size = 224 if machine == 0x014C else 240
+    struct.pack_into("<H", header, 0x80 + 20, optional_size)
+    struct.pack_into("<H", header, 0x80 + 24, 0x10B if machine == 0x014C else 0x20B)
+    struct.pack_into("<H", header, 0x80 + 24 + 68, subsystem)
     path.write_bytes(header)
 
 
@@ -61,6 +70,29 @@ def main() -> int:
         else:
             raise AssertionError("ARM64 executable was accepted as x86_64")
     print("ok   PE verification rejects a mislabeled Windows sidecar")
+
+    with tempfile.TemporaryDirectory(prefix="lmd-subsystem-test-") as directory:
+        executable = Path(directory) / "desktop.exe"
+        for machine in (0x014C, 0x8664, 0xAA64):
+            fake_pe(executable, machine, subsystem=2)
+            assert read_pe_subsystem(executable) == "windows"
+            verify_pe_subsystem(executable, "windows")
+            fake_pe(executable, machine, subsystem=3)
+            assert read_pe_subsystem(executable) == "console"
+            try:
+                verify_pe_subsystem(executable, "windows")
+            except ValueError as exc:
+                assert "console subsystem, expected windows" in str(exc)
+            else:
+                raise AssertionError("A desktop executable that opens a console was accepted")
+        executable.write_bytes(executable.read_bytes()[:160])
+        try:
+            read_pe_subsystem(executable)
+        except ValueError as exc:
+            assert "truncated" in str(exc)
+        else:
+            raise AssertionError("A truncated PE optional header was accepted")
+    print("ok   PE verification rejects console desktop builds and truncated headers")
     return 0
 
 

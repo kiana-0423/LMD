@@ -1,3 +1,6 @@
+// Release builds are GUI applications on Windows; keep a console for development diagnostics.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 use lubricant_materials_database::commands::{self, *};
 use lubricant_materials_database::db::migrations::initialize_database_file;
 

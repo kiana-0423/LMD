@@ -84,6 +84,8 @@ def run_command(executable: Path, command: str, payload: dict[str, Any], directo
             check=False,
             capture_output=True,
             text=True,
+            # Match Tauri's Windows launcher: no console, but JSON stdout/stderr stay piped.
+            creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0,
             timeout=COMMAND_TIMEOUT,
         )
     except subprocess.TimeoutExpired as exc:

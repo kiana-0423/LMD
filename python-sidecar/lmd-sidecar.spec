@@ -84,5 +84,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
+    # Required for the JSON stdout/stderr protocol. Tauri's shell launcher uses
+    # CREATE_NO_WINDOW on Windows; a windowed Python bootloader would remove these streams.
     console=True,
 )

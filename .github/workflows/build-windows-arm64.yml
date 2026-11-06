@@ -72,6 +72,10 @@ jobs:
         if: steps.wheel_audit.outcome == 'success'
         run: npm run desktop:build:windows-arm64
 
+      - name: Verify ARM64 desktop does not allocate a console
+        if: steps.wheel_audit.outcome == 'success'
+        run: python scripts/verify_windows_pe_arch.py --expect aarch64 --subsystem windows src-tauri/target/aarch64-pc-windows-msvc/release/lubricant-materials-database.exe
+
       - name: Upload ARM64 installers
         if: steps.wheel_audit.outcome == 'success'
         uses: actions/upload-artifact@v4
